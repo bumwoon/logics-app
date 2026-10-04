@@ -1795,7 +1795,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
             </body>
             </html>
             """
-          components.html(awb_html, height=760, scrolling=True)
+      components.html(awb_html, height=760, scrolling=True)
   else:
     st.info(
         "출력할 B/L 내역이 없습니다. [수출입 B/L 등록] 메뉴에서 먼저 등록해"
