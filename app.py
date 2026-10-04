@@ -64,7 +64,7 @@ if "user_role" not in st.session_state:
 
 
 def login_screen():
-  """로그인 화면 출력 함수"""
+  """로그인 화면 출력 함수 (하단 안내 문구 제거됨)"""
   st.markdown("<br><br>", unsafe_allow_html=True)
   col1, col2, col3 = st.columns([1, 1.2, 1])
 
@@ -100,13 +100,6 @@ def login_screen():
           st.rerun()
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
-
-    st.markdown(
-        "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
-        " margin-top: 20px;'>* 초기 관리자 아이디: <b>admin</b> / 비밀번호:"
-        " <b>bomwoon123</b></p>",
-        unsafe_allow_html=True,
-    )
 
 
 # 로그인이 안 되어 있다면 로그인 화면만 표시하고 중단
@@ -2405,7 +2398,7 @@ elif selected_menu == "📝 업무용 일지":
     )
 
 # ==========================================
-# [12] 직원 계정 관리 (대표님 전용)
+# [12] 직원 계정 관리 (대표님 전용 - 아이디/비번 변경 가능)
 # ==========================================
 elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
   if st.session_state.user_role != "관리자(대표)":
@@ -2414,18 +2407,20 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
 
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🔑"
-      " 직원 계정 등록 및 관리</h3>",
+      " 직원 계정 등록, 수정 및 관리</h3>",
       unsafe_allow_html=True,
   )
 
+  # 1. 신규 계정 등록 폼
   with st.form("add_user_form"):
+    st.markdown("#### ➕ 신규 계정 등록")
     new_uid = st.text_input("신규 직원 아이디 (ID)")
     new_upw = st.text_input("초기 비밀번호 (Password)", type="password")
     new_name = st.text_input("직원 성명")
     new_role = st.selectbox("권한 설정", ["직원", "관리자(대표)"])
 
     if st.form_submit_button(
-        "➕ 신규 계정 등록", type="primary", use_container_width=True
+        "➕ 신규 계정 등록하기", type="primary", use_container_width=True
     ):
       if new_uid.strip() and new_upw.strip() and new_name.strip():
         if new_uid in st.session_state.user_db:
@@ -2440,8 +2435,83 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
           st.success(
               f"성공적으로 [{new_name}] 직원의 계정이 등록되었습니다!"
           )
+          st.rerun()
       else:
         st.warning("모든 항목을 입력해주세요.")
+
+  st.markdown("---")
+  st.markdown("#### ✏️ 기존 계정 정보 수정 (아이디 및 비밀번호 변경)")
+  existing_users = list(st.session_state.user_db.keys())
+  selected_edit_uid = st.selectbox(
+      "수정할 계정 아이디 선택", options=existing_users
+  )
+
+  if selected_edit_uid:
+    user_info = st.session_state.user_db[selected_edit_uid]
+    with st.form("edit_user_form"):
+      edit_uid = st.text_input(
+          "아이디 (ID 변경 가능)", value=selected_edit_uid
+      )
+      edit_pw = st.text_input(
+          "비밀번호 (Password 변경)",
+          value=user_info.get("pw", ""),
+          type="password",
+      )
+      edit_name = st.text_input(
+          "성명", value=user_info.get("name", ""), key="edit_name_input"
+      )
+      role_idx = (
+          0
+          if user_info.get("role", "직원") == "직원"
+          else 1
+          if "관리자" in user_info.get("role", "")
+          else 0
+      )
+      edit_role = st.selectbox(
+          "권한 설정", ["직원", "관리자(대표)"], index=role_idx
+      )
+
+      col_e1, col_e2 = st.columns(2)
+      with col_e1:
+        submit_edit = st.form_submit_button(
+            "💾 계정 정보 수정 저장", type="primary", use_container_width=True
+        )
+      with col_e2:
+        submit_delete = st.form_submit_button(
+            "🗑 계정 삭제하기", type="secondary", use_container_width=True
+        )
+
+      if submit_edit:
+        if edit_uid.strip() and edit_pw.strip() and edit_name.strip():
+          # 아이디가 변경된 경우 기존 키 삭제 후 새 키 생성
+          if edit_uid != selected_edit_uid:
+            if edit_uid in st.session_state.user_db:
+              st.error(
+                  "이미 존재하는 아이디입니다. 다른 아이디를 입력해주세요."
+              )
+              st.stop()
+            else:
+              del st.session_state.user_db[selected_edit_uid]
+
+          st.session_state.user_db[edit_uid.strip()] = {
+              "pw": edit_pw.strip(),
+              "role": edit_role,
+              "name": edit_name.strip(),
+          }
+          save_user_db(st.session_state.user_db)
+          st.success(f"계정 [{edit_uid}] 정보가 성공적으로 수정되었습니다!")
+          st.rerun()
+        else:
+          st.warning("모든 항목을 입력해주세요.")
+
+      if submit_delete:
+        if len(st.session_state.user_db) <= 1:
+          st.error("최소 1개의 관리자 계정은 유지되어야 합니다.")
+        else:
+          del st.session_state.user_db[selected_edit_uid]
+          save_user_db(st.session_state.user_db)
+          st.success(f"계정 [{selected_edit_uid}]이(가) 삭제되었습니다.")
+          st.rerun()
 
   st.markdown("---")
   st.subheader("📋 현재 등록된 사용자 계정 목록")
