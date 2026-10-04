@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# [로고 파일 자동 감지]
+# [로고 파일 자동 감지 및 설정]
 # ==========================================
 LOGO_FILE = None
 for filename in os.listdir("."):
@@ -1734,18 +1734,191 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [4] 화물 견적서 발행 메뉴 (복원 완료)
+# [4] 거래처 인보이스 발행 메뉴
+# ==========================================
+elif selected_menu == "📑 거래처 인보이스 발행":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📑"
+      " 거래처 인보이스 (청구서) 발행</h3>",
+      unsafe_allow_html=True,
+  )
+
+  if st.session_state.bl_data_list:
+    inv_bl_list = [
+        str(item.get("B/L 번호", "")) for item in st.session_state.bl_data_list
+    ]
+    selected_inv_bl = st.selectbox(
+        "인보이스를 발행할 B/L 번호 선택", options=inv_bl_list
+    )
+    target_inv_data = next(
+        (
+            item
+            for item in st.session_state.bl_data_list
+            if str(item.get("B/L 번호")) == selected_inv_bl
+        ),
+        None,
+    )
+
+    if target_inv_data:
+      inv_client = str(target_inv_data.get("화주명(매출)", ""))
+      inv_info = st.session_state.client_infos.get(inv_client, {})
+      inv_addr = inv_info.get("주소", "경기도 김포시 풍무동 326-5번지 2층")
+      inv_bno = inv_info.get("사업자등록번호", "-")
+      inv_mgr = inv_info.get("담당자", "-")
+
+      inv_amount = int(target_inv_data.get("매출액(원)", 0))
+      vat_amount = int(inv_amount * 0.1)
+      total_with_vat = inv_amount + vat_amount
+
+      encoded_inv_logo = ""
+      if LOGO_FILE and os.path.exists(LOGO_FILE):
+        try:
+          with open(LOGO_FILE, "rb") as f:
+            encoded_inv_logo = base64.b64encode(f.read()).decode()
+        except:
+          pass
+
+      logo_embed_inv = (
+          f"<img src='data:image/png;base64,{encoded_inv_logo}'"
+          " style='height: 40px; vertical-align: middle; margin-right: 10px;'>"
+          if encoded_inv_logo
+          else ""
+      )
+
+      invoice_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    @media print {{
+                        body {{ -webkit-print-color-adjust: exact; }}
+                        .no-print {{ display: none !important; }}
+                        @page {{ size: A4 portrait; margin: 15mm; }}
+                    }}
+                    body {{
+                        font-family: 'Pretendard', sans-serif;
+                        color: #1e293b;
+                        font-size: 10pt;
+                        line-height: 1.4;
+                        margin: 0;
+                        padding: 10px;
+                        background-color: #ffffff;
+                    }}
+                    .inv-box {{
+                        max-width: 760px;
+                        margin: 0 auto;
+                        border: 2px solid #0f172a;
+                        padding: 25px;
+                        border-radius: 8px;
+                        background-color: #ffffff;
+                    }}
+                    .i-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
+                    .i-table td {{ border: 1px solid #64748b; padding: 8px 10px; vertical-align: middle; }}
+                    .th-bg {{ background-color: #0f172a; color: white; font-weight: bold; text-align: center; }}
+                    .p-btn {{
+                        display: block;
+                        width: 100%;
+                        background-color: #2563eb;
+                        color: white;
+                        text-align: center;
+                        padding: 12px;
+                        font-size: 11pt;
+                        font-weight: bold;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        margin-bottom: 20px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="inv-box">
+                    <button class="p-btn no-print" onclick="window.print()">🖨 인보이스(청구서) 인쇄 및 PDF 저장하기</button>
+
+                    <table style="width: 100%; border-bottom: 3px solid #0f172a; padding-bottom: 12px; margin-bottom: 15px;">
+                        <tr>
+                            <td style="width: 60%; border: none;">
+                                <div style="display: flex; align-items: center;">
+                                    {logo_embed_inv}
+                                    <div>
+                                        <div style="font-size: 16pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                        <div style="font-size: 8pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="width: 40%; text-align: right; border: none;">
+                                <div style="font-size: 18pt; font-weight: 900; color: #0f172a; letter-spacing: 2px;">청 구 서 (INVOICE)</div>
+                                <div style="font-size: 8.5pt; color: #64748b; margin-top: 4px;">B/L No: {selected_inv_bl}</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="i-table">
+                        <tr>
+                            <td style="width: 15%; background-color: #f1f5f9; font-weight: bold;">청구처</td>
+                            <td style="width: 35%;"><b>{inv_client}</b> 귀하 (담당: {inv_mgr})</td>
+                            <td style="width: 15%; background-color: #f1f5f9; font-weight: bold;">발행일자</td>
+                            <td style="width: 35%;">{str(date.today())}</td>
+                        </tr>
+                        <tr>
+                            <td style="background-color: #f1f5f9; font-weight: bold;">사업자번호</td>
+                            <td>{inv_bno}</td>
+                            <td style="background-color: #f1f5f9; font-weight: bold;">Job 번호</td>
+                            <td>{target_inv_data.get('Job 번호', '-')}</td>
+                        </tr>
+                        <tr>
+                            <td style="background-color: #f1f5f9; font-weight: bold;">주 소</td>
+                            <td colspan="3">{inv_addr}</td>
+                        </tr>
+                    </table>
+
+                    <div style="font-size: 10.5pt; font-weight: bold; color: #1e3a8a; margin: 15px 0 8px 0;">■ 운송비용 청구 내역</div>
+                    <table class="i-table">
+                        <tr class="th-bg">
+                            <td>품명 및 규격</td>
+                            <td>수량</td>
+                            <td>공급가액 (KRW)</td>
+                            <td>부가가치세 (VAT)</td>
+                            <td>합계 금액</td>
+                        </tr>
+                        <tr>
+                            <td>{target_inv_data.get('품목', '화물 운송 용역')} ({target_inv_data.get('국가', '미국')})</td>
+                            <td style="text-align: center;">{target_inv_data.get('박스수', '1 박스')}</td>
+                            <td style="text-align: right;">￦ {inv_amount:,} 원</td>
+                            <td style="text-align: right;">￦ {vat_amount:,} 원</td>
+                            <td style="text-align: right; font-weight: bold; color: #dc2626; font-size: 11pt;">￦ {total_with_vat:,} 원</td>
+                        </tr>
+                    </table>
+
+                    <div style="border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; background-color: #f8fafc; margin-top: 20px;">
+                        <b>입금 계좌 안내:</b> 국민은행 123-456-789012 (예금주: 주식회사 범운해운항공)<br>
+                        • 위 금액을 지정된 계좌로 입금하여 주시기 바랍니다.
+                    </div>
+
+                    <table style="width: 100%; border: none; margin-top: 30px;">
+                        <tr>
+                            <td style="border: none; text-align: center; font-size: 11pt; font-weight: bold; color: #0f172a;">
+                                (주)범운해운항공 대표이사 이상복 [직인생략]
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </body>
+            </html>
+            """
+      components.html(invoice_html, height=750, scrolling=True)
+  else:
+    st.info("발행할 B/L 내역이 없습니다. 먼저 B/L을 등록해주세요.")
+
+
+# ==========================================
+# [5] 화물 견적서 발행 메뉴
 # ==========================================
 elif selected_menu == "📄 화물 견적서 발행":
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📄"
       " 거래처 화물 견적서 발행 시스템</h3>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>거래처별"
-      " 요율 및 CBM/중량을 바탕으로 공식 화물 견적서를 작성하고"
-      " 인쇄합니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -1950,6 +2123,351 @@ elif selected_menu == "📄 화물 견적서 발행":
     </body>
     </html>
     """
-
   st.markdown("---")
   components.html(quotation_html, height=750, scrolling=True)
+
+
+# ==========================================
+# [6] 거래처 미팅 노트 메뉴
+# ==========================================
+elif selected_menu == "🤝 거래처 미팅 노트":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🤝"
+      " 거래처 미팅 및 상담 노트</h3>",
+      unsafe_allow_html=True,
+  )
+
+  with st.form("meeting_form"):
+    m_client = st.selectbox(
+        "대상 거래처",
+        options=(
+            st.session_state.client_list
+            if st.session_state.client_list
+            else ["기본거래처"]
+        ),
+    )
+    m_mgr = st.text_input("담당자명", value="")
+    m_title = st.text_input("상담 제목", value="")
+    m_content = st.text_area("상담 상세 내용", value="")
+    m_action = st.text_area("향후 조치 및 피드백", value="")
+    if st.form_submit_button("📝 미팅 노트 저장하기", type="primary"):
+      st.session_state.meeting_data_list.append({
+          "날짜": str(date.today()),
+          "거래처": m_client,
+          "담당자": m_mgr,
+          "제목": m_title,
+          "상세내용": m_content,
+          "향후조치": m_action,
+      })
+      pd.DataFrame(st.session_state.meeting_data_list).to_csv(
+          MEETING_FILE, index=False, encoding="utf-8-sig"
+      )
+      st.success("미팅 노트가 저장되었습니다!")
+
+  if st.session_state.meeting_data_list:
+    st.markdown("---")
+    st.markdown("#### **📋 저장된 미팅 노트 목록**")
+    st.dataframe(
+        pd.DataFrame(st.session_state.meeting_data_list),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+# ==========================================
+# [7] 금일발송 매니페스트 메뉴
+# ==========================================
+elif selected_menu == "📋 금일발송 매니페스트":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋"
+      " 금일발송 매니페스트 (화물 발송 리스트)</h3>",
+      unsafe_allow_html=True,
+  )
+
+  target_date_str = str(
+      st.date_input("조회할 발송 날짜 선택", value=date.today())
+  )
+  if st.session_state.bl_data_list:
+    df_bl_all = pd.DataFrame(st.session_state.bl_data_list)
+    df_today = df_bl_all[df_bl_all["날짜"] == target_date_str]
+
+    if not df_today.empty:
+      st.success(
+          f"총 {len(df_today)}건의 화물이 {target_date_str}에 접수/발송"
+          " 예정입니다."
+      )
+      st.dataframe(df_today, use_container_width=True, hide_index=True)
+    else:
+      st.info(f"선택하신 날짜({target_date_str})에 등록된 발송 건이 없습니다.")
+  else:
+    st.info("등록된 B/L 데이터가 없습니다.")
+
+
+# ==========================================
+# [8] 거래처 등록 요금 상세 관리 메뉴
+# ==========================================
+elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🏢"
+      " 거래처별 기본 요율 및 단가 상세 관리</h3>",
+      unsafe_allow_html=True,
+  )
+
+  selected_rate_client = st.selectbox(
+      "요율을 관리할 거래처 선택", options=st.session_state.client_list
+  )
+  if selected_rate_client:
+    client_info = st.session_state.client_infos.get(selected_rate_client, {})
+    with st.form("client_info_form"):
+      st.markdown(f"#### **[{selected_rate_client}] 사업자 정보 관리**")
+      ci_bno = st.text_input(
+          "사업자등록번호", value=client_info.get("사업자등록번호", "")
+      )
+      ci_email = st.text_input("이메일", value=client_info.get("이메일", ""))
+      ci_mgr = st.text_input("담당자명", value=client_info.get("담당자", ""))
+      ci_tel = st.text_input("전화번호", value=client_info.get("전화번호", ""))
+      ci_addr = st.text_input("주소", value=client_info.get("주소", ""))
+
+      if st.form_submit_button(
+          "💾 거래처 정보 저장", type="primary", use_container_width=True
+      ):
+        st.session_state.client_infos[selected_rate_client] = {
+            "사업자등록번호": ci_bno,
+            "이메일": ci_email,
+            "담당자": ci_mgr,
+            "전화번호": ci_tel,
+            "주소": ci_addr,
+        }
+        save_client_data(
+            st.session_state.client_list,
+            st.session_state.client_rates,
+            st.session_state.client_infos,
+        )
+        st.success("거래처 정보가 업데이트되었습니다!")
+
+    st.markdown("---")
+    st.markdown(f"#### **[{selected_rate_client}] 운송 요율표 설정**")
+    current_rates = st.session_state.client_rates.get(
+        selected_rate_client, {"미국": {"항공(Air)": {"보톡스 필러": {}}}}
+    )
+
+    rate_rows = []
+    for country, trans_dict in current_rates.items():
+      if isinstance(trans_dict, dict):
+        for transport, item_dict in trans_dict.items():
+          if isinstance(item_dict, dict):
+            for item_name, val in item_dict.items():
+              rate_rows.append({
+                  "국가": country,
+                  "운송형태": transport,
+                  "품명": item_name,
+                  "기본중량(kg)": val.get("기본중량", 1.0),
+                  "기본요금(원)": val.get("기본요금", 38000),
+                  "추가단가(원/kg)": val.get("추가단가", 25000),
+                  "1CBM당단가(원)": val.get("1CBM당단가", 3700000),
+              })
+
+    df_rate_editor = st.data_editor(
+        pd.DataFrame(rate_rows),
+        num_rows="dynamic",
+        use_container_width=True,
+        key="rate_editor_tbl",
+    )
+
+    if st.button("💾 요율표 최종 저장", type="primary", use_container_width=True):
+      new_rates_dict = {}
+      for _, r in df_rate_editor.iterrows():
+        c = str(r.get("국가", "미국"))
+        t = str(r.get("운송형태", "항공(Air)"))
+        i = str(r.get("품명", "일반공산품"))
+        if c not in new_rates_dict:
+          new_rates_dict[c] = {}
+        if t not in new_rates_dict[c]:
+          new_rates_dict[c][t] = {}
+        new_rates_dict[c][t][i] = {
+            "기본중량": float(r.get("기본중량(kg)", 1.0)),
+            "기본요금": int(r.get("기본요금(원)", 38000)),
+            "추가단가": int(r.get("추가단가(원/kg)", 25000)),
+            "1CBM당단가": int(r.get("1CBM당단가(원)", 3700000)),
+        }
+      st.session_state.client_rates[selected_rate_client] = new_rates_dict
+      save_client_data(
+          st.session_state.client_list,
+          st.session_state.client_rates,
+          st.session_state.client_infos,
+      )
+      st.success("요율표가 성공적으로 저장되었습니다!")
+
+
+# ==========================================
+# [9] 거래처 미수금관리 메뉴
+# ==========================================
+elif selected_menu == "💵 거래처 미수금관리":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>💵"
+      " 거래처별 미수금 현황 및 수금 관리</h3>",
+      unsafe_allow_html=True,
+  )
+
+  if st.session_state.bl_data_list:
+    df_all_bl = pd.DataFrame(st.session_state.bl_data_list)
+    if "수금상태" not in df_all_bl.columns:
+      df_all_bl["수금상태"] = "미수"
+
+    summary_data = []
+    for client in st.session_state.client_list:
+      c_df = df_all_bl[df_all_bl["화주명(매출)"] == client]
+      total_sales = (
+          c_df["매출액(원)"].sum() if not c_df.empty else 0
+      )
+      unpaid_df = c_df[c_df["수금상태"] != "수금완료"]
+      unpaid_amount = (
+          unpaid_df["매출액(원)"].sum() if not unpaid_df.empty else 0
+      )
+      summary_data.append({
+          "거래처명": client,
+          "총 청구금액": total_sales,
+          "미수금 잔액": unpaid_amount,
+      })
+
+    st.dataframe(
+        pd.DataFrame(summary_data), use_container_width=True, hide_index=True
+    )
+
+    st.markdown("---")
+    st.markdown("#### **📦 미수 상태인 개별 B/L 내역**")
+    unpaid_bl_df = df_all_bl[df_all_bl["수금상태"] != "수금완료"]
+    if not unpaid_bl_df.empty:
+      st.dataframe(unpaid_bl_df, use_container_width=True, hide_index=True)
+    else:
+      st.success("🎉 현재 미수금 잔액이 모두 해소되었습니다!")
+  else:
+    st.info("등록된 B/L 데이터가 없습니다.")
+
+
+# ==========================================
+# [10] 일계표 및 입출금 장부 메뉴
+# ==========================================
+elif selected_menu == "💳 일계표 및 입출금 장부":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>💳"
+      " 일계표 및 입출금 장부 관리</h3>",
+      unsafe_allow_html=True,
+  )
+
+  tab_e1, tab_e2 = st.tabs(["지출 장부 등록", "현금/통장 입출금 내역"])
+  with tab_e1:
+    with st.form("expense_form"):
+      e_date = st.date_input("지출 일자", value=date.today())
+      e_cat = st.selectbox("지출 항목", options=EXPENSE_CATEGORIES)
+      e_desc = st.text_input("적요 및 상세 내용", value="")
+      e_amount = st.number_input("지출 금액 (원)", value=10000, step=1000)
+      if st.form_submit_button("💾 지출 내역 저장", type="primary"):
+        st.session_state.expense_data_list.append({
+            "날짜": str(e_date),
+            "구분": "지출 (-)",
+            "항목": e_cat,
+            "적요": e_desc,
+            "금액(원)": int(e_amount),
+        })
+        pd.DataFrame(st.session_state.expense_data_list).to_csv(
+            EXPENSE_FILE, index=False, encoding="utf-8-sig"
+        )
+        st.success("지출 내역이 장부에 기록되었습니다!")
+
+  with tab_e2:
+    if st.session_state.expense_data_list:
+      st.dataframe(
+          pd.DataFrame(st.session_state.expense_data_list),
+          use_container_width=True,
+          hide_index=True,
+      )
+    else:
+      st.info("등록된 입출금 내역이 없습니다.")
+
+
+# ==========================================
+# [11] 업무용 일지 메뉴
+# ==========================================
+elif selected_menu == "📝 업무용 일지":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📝"
+      " 사내 업무용 일지 및 인수인계</h3>",
+      unsafe_allow_html=True,
+  )
+
+  with st.form("note_form"):
+    n_date = st.date_input("일지 작성일", value=date.today())
+    n_title = st.text_input("일지 제목", value="")
+    n_content = st.text_area("업무 내용 및 특이사항", value="")
+    if st.form_submit_button("📝 업무일지 등록", type="primary"):
+      st.session_state.note_data_list.append({
+          "날짜": str(n_date),
+          "작성자": st.session_state.user_db[
+              st.session_state.logged_in_user
+          ]["name"],
+          "제목": n_title,
+          "내용": n_content,
+      })
+      pd.DataFrame(st.session_state.note_data_list).to_csv(
+          NOTE_FILE, index=False, encoding="utf-8-sig"
+      )
+      st.success("업무일지가 등록되었습니다!")
+
+  if st.session_state.note_data_list:
+    st.markdown("---")
+    st.dataframe(
+        pd.DataFrame(st.session_state.note_data_list),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+# ==========================================
+# [12] 직원 계정 관리 메뉴 (관리자 전용)
+# ==========================================
+elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
+  if st.session_state.user_role != "관리자(대표)":
+    st.error("접근 권한이 없습니다. 관리자(대표) 계정으로 로그인해주세요.")
+    st.stop()
+
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🔑"
+      " 사내 직원 계정 추가 및 관리</h3>",
+      unsafe_allow_html=True,
+  )
+
+  with st.form("add_user_form"):
+    new_uid = st.text_input("신규 직원 아이디 (ID)")
+    new_upw = st.text_input("초기 비밀번호 (Password)", type="password")
+    new_uname = st.text_input("직원 성명")
+    new_role = st.selectbox("권한 설정", options=["직원", "관리자(대표)"])
+    if st.form_submit_button("➕ 신규 계정 생성하기", type="primary"):
+      if new_uid.strip() and new_upw.strip() and new_uname.strip():
+        if new_uid in st.session_state.user_db:
+          st.warning("이미 존재하는 아이디입니다.")
+        else:
+          st.session_state.user_db[new_uid] = {
+              "pw": new_upw,
+              "role": new_role,
+              "name": new_uname,
+          }
+          save_user_db(st.session_state.user_db)
+          st.success(
+              f"🎉 [{new_uname}]님의 직원 계정이 성공적으로 생성되었습니다!"
+          )
+      else:
+        st.warning("모든 필드를 올바르게 입력해주세요.")
+
+  st.markdown("---")
+  st.markdown("#### **👥 등록된 전체 계정 목록**")
+  user_rows = []
+  for uid, info in st.session_state.user_db.items():
+    user_rows.append({
+        "아이디": uid,
+        "성명": info.get("name", ""),
+        "권한": info.get("role", "직원"),
+    })
+  st.dataframe(
+      pd.DataFrame(user_rows), use_container_width=True, hide_index=True
+  )
