@@ -14,21 +14,13 @@ st.set_page_config(
 )
 
 # ==========================================
-# [로고 파일 자동 감지 및 Base64 인코딩]
+# [로고 파일 자동 감지]
 # ==========================================
 LOGO_FILE = None
 for filename in os.listdir("."):
   if filename.startswith("lo") or filename.startswith("12587"):
     LOGO_FILE = filename
     break
-
-encoded_sidebar_logo = ""
-if LOGO_FILE and os.path.exists(LOGO_FILE):
-  try:
-    with open(LOGO_FILE, "rb") as f:
-      encoded_sidebar_logo = base64.b64encode(f.read()).decode()
-  except Exception:
-    pass
 
 # ==========================================
 # [데이터 파일 경로 정의 및 로드 함수]
@@ -383,20 +375,11 @@ query_params = st.query_params
 is_client_mode = query_params.get("mode", "") == "client"
 
 if is_client_mode:
-  logo_img_tag = ""
-  if encoded_sidebar_logo:
-    logo_img_tag = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='width: 250px; max-width: 100%; height: auto; margin-bottom: 8px; border-radius: 8px;'>"
-
-  st.markdown(
-      f"""
-    <div style="text-align: center; padding: 22px 15px; background-color: white; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); margin-bottom: 15px;">
-        <div style="display: inline-block;">{logo_img_tag}</div>
-        <h1 style="color: #1e3a8a; font-size: 26px; font-weight: 800; margin-bottom: 3px; letter-spacing: -0.5px;">(주)범운해운항공</h1>
-        <p style="color: #475569; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; margin: 0;">BUMWOON OCEAN & AIR CO., LTD.</p>
-    </div>
-    """,
-      unsafe_allow_html=True,
-  )
+  if LOGO_FILE and os.path.exists(LOGO_FILE):
+    st.image(LOGO_FILE, width=220)
+  st.markdown("### **(주)범운해운항공**")
+  st.markdown("BUMWOON OCEAN & AIR CO., LTD.")
+  st.markdown("---")
 
   current_bl_data = load_bl_data()
   st.markdown("#### **📦 B/L & 화물 실시간 통합 조회**")
@@ -489,11 +472,9 @@ if is_client_mode:
           service_opt = clean_v(row.get("서비스옵션"), "Door To Door")
           current_status_str = clean_v(row.get("현재 상태"), "운송 중")
 
-          logo_embed_m = (
-              f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
-              " style='height: 38px; vertical-align: middle; margin-right:"
-              " 8px;'>"
-              if encoded_sidebar_logo
+          logo_html_tag = (
+              f"<img src='data:image/png;base64,{base64.b64encode(open(LOGO_FILE, 'rb').read()).decode()}' style='height: 38px;'>"
+              if LOGO_FILE and os.path.exists(LOGO_FILE)
               else ""
           )
 
@@ -579,8 +560,8 @@ if is_client_mode:
                                 <tr>
                                     <td style="width: 55%; border: none;">
                                         <div style="display: flex; align-items: center;">
-                                            {logo_embed_m}
-                                            <div>
+                                            {logo_html_tag}
+                                            <div style="margin-left: 8px;">
                                                 <div style="font-size: 12pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
                                                 <div style="font-size: 7pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
                                             </div>
@@ -680,16 +661,11 @@ def login_screen():
   col1, col2, col3 = st.columns([1, 1.2, 1])
 
   with col2:
-    st.markdown(
-        "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 물류"
-        " 시스템</h2>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<p style='text-align: center; color: #64748b; font-size:"
-        " 9.5pt;'>관계자 외 접속이 제한된 보안 구역입니다.</p><br>",
-        unsafe_allow_html=True,
-    )
+    if LOGO_FILE and os.path.exists(LOGO_FILE):
+      st.image(LOGO_FILE, width=150)
+    st.markdown("### 🚢 범운해운항공 물류 시스템")
+    st.markdown("관계자 외 접속이 제한된 보안 구역입니다.")
+    st.markdown("<br>", unsafe_allow_html=True)
 
     with st.form("login_form"):
       input_id = st.text_input("아이디 (ID)")
@@ -713,10 +689,7 @@ def login_screen():
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
     st.markdown(
-        "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
-        " margin-top: 20px;'>* 초기 관리자 아이디: <b>admin</b> / 비밀번호:"
-        " <b>bomwoon123</b></p>",
-        unsafe_allow_html=True,
+        "* 초기 관리자 아이디: **admin** / 비밀번호: **bomwoon123**"
     )
 
 
@@ -728,22 +701,11 @@ if not st.session_state.logged_in_user:
 # ==========================================
 # [B] 사장님 전용 관리자 프로그램 화면
 # ==========================================
-sidebar_logo_html = ""
-if encoded_sidebar_logo:
-  sidebar_logo_html = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 28px; width: auto;'>"
+if LOGO_FILE and os.path.exists(LOGO_FILE):
+  st.sidebar.image(LOGO_FILE, width=180)
 
-st.sidebar.markdown(
-    f"""
-    <div style='display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 5px;'>
-        <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 3px;'>
-            {sidebar_logo_html}
-            <span style='font-size: 17px; font-weight: 800; color: #1e293b;'>(주)범운해운항공</span>
-        </div>
-        <div style='font-size: 11.5px; font-weight: 700; color: #475569; letter-spacing: 0.2px; margin-left: 36px;'>BUMWOON OCEAN & AIR CO., LTD.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.sidebar.markdown("### (주)범운해운항공")
+st.sidebar.markdown("BUMWOON OCEAN & AIR CO., LTD.")
 st.sidebar.markdown("---")
 
 st.sidebar.info(
@@ -978,22 +940,19 @@ INCOME_CATEGORIES = [
     "기타 영업수입",
 ]
 
-logo_html_str = ""
-if encoded_sidebar_logo:
-  logo_html_str = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 48px; width: auto; margin-right: 15px; border-radius: 6px;'>"
+# 상단 메인 헤더 영역
+header_col1, header_col2 = st.columns([1, 6])
+with header_col1:
+  if LOGO_FILE and os.path.exists(LOGO_FILE):
+    st.image(LOGO_FILE, width=100)
+with header_col2:
+  st.markdown("### 🚢 (주)범운해운항공 종합 관리 프로그램")
+  st.markdown(
+      "Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행"
+      " 시스템"
+  )
 
-header_html = f"""
-<div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); padding: 20px 24px; border-radius: 12px; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);'>
-    <div style='display: flex; align-items: center;'>
-        {logo_html_str}
-        <div>
-            <h1 style='color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;'>🚢 (주)범운해운항공 종합 관리 프로그램</h1>
-            <p style='margin: 4px 0 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행 시스템</p>
-        </div>
-    </div>
-</div>
-"""
-st.markdown(header_html, unsafe_allow_html=True)
+st.markdown("---")
 
 # ==========================================
 # [1] 수출입 B/L 등록 메뉴
@@ -1242,7 +1201,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
     else:
       st.warning(
-          "⚠️️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
+          "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
       )
 
 
@@ -1571,10 +1530,18 @@ elif selected_menu == "🚢 B/L 운송장 출력":
           target_bl_data.get("현재 상태"), "운송 중"
       )
 
+      encoded_bl_logo = ""
+      if LOGO_FILE and os.path.exists(LOGO_FILE):
+        try:
+          with open(LOGO_FILE, "rb") as f:
+            encoded_bl_logo = base64.b64encode(f.read()).decode()
+        except:
+          pass
+
       logo_embed_bl = (
-          f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
+          f"<img src='data:image/png;base64,{encoded_bl_logo}'"
           " style='height: 42px; vertical-align: middle; margin-right: 10px;'>"
-          if encoded_sidebar_logo
+          if encoded_bl_logo
           else ""
       )
 
