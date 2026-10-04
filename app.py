@@ -1731,3 +1731,225 @@ elif selected_menu == "🚢 B/L 운송장 출력":
       components.html(awb_html, height=750, scrolling=True)
   else:
     st.info("출력할 B/L 내역이 없습니다.")
+
+
+# ==========================================
+# [4] 화물 견적서 발행 메뉴 (복원 완료)
+# ==========================================
+elif selected_menu == "📄 화물 견적서 발행":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📄"
+      " 거래처 화물 견적서 발행 시스템</h3>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>거래처별"
+      " 요율 및 CBM/중량을 바탕으로 공식 화물 견적서를 작성하고"
+      " 인쇄합니다.</p>",
+      unsafe_allow_html=True,
+  )
+
+  q_col1, q_col2 = st.columns(2)
+  with q_col1:
+    q_client = st.selectbox(
+        "견적 대상 거래처",
+        options=(
+            st.session_state.client_list
+            if st.session_state.client_list
+            else ["기본거래처"]
+        ),
+        key="quotation_client_select",
+    )
+    q_country = st.selectbox(
+        "도착 국가", options=COUNTRY_LIST, key="quotation_country_select"
+    )
+    q_transport = st.selectbox(
+        "운송 형태",
+        options=["항공(Air)", "해상(LCL)"],
+        key="quotation_transport_select",
+    )
+    q_item = st.text_input(
+        "견적 품목명", value="일반공산품 및 의약외품", key="quotation_item_input"
+    )
+
+  with q_col2:
+    q_weight = st.number_input(
+        "적용 청구중량 (kg)",
+        value=10.0,
+        min_value=0.1,
+        step=1.0,
+        key="quotation_weight_input",
+    )
+    q_cbm = st.number_input(
+        "적용 CBM",
+        value=0.1,
+        min_value=0.0,
+        step=0.01,
+        key="quotation_cbm_input",
+    )
+    q_valid_date = st.date_input(
+        "견적 유효일자", value=date.today(), key="quotation_date_input"
+    )
+
+  calculated_quote_price = calculate_auto_price(
+      q_client, q_weight, q_transport
+  )
+  q_price = st.number_input(
+      "견적 총 금액 (원) [요율표 자동 계산]",
+      value=int(calculated_quote_price),
+      step=1000,
+      format="%d",
+      key="quotation_price_input",
+  )
+
+  q_remark = st.text_area(
+      "견적 조건 및 특이사항",
+      value="1. 본 견적의 유효기간은 발행일로부터 30일입니다.\n2. 관세 및 부가세는 별도입니다.",
+      key="quotation_remark_input",
+  )
+
+  client_info_dict = st.session_state.client_infos.get(q_client, {})
+  c_addr = client_info_dict.get("주소", "상세 주소 미등록")
+  c_bno = client_info_dict.get("사업자등록번호", "-")
+  c_mgr = client_info_dict.get("담당자", "-")
+
+  encoded_q_logo = ""
+  if LOGO_FILE and os.path.exists(LOGO_FILE):
+    try:
+      with open(LOGO_FILE, "rb") as f:
+        encoded_q_logo = base64.b64encode(f.read()).decode()
+    except:
+      pass
+
+  logo_embed_q = (
+      f"<img src='data:image/png;base64,{encoded_q_logo}'"
+      " style='height: 40px; vertical-align: middle; margin-right: 10px;'>"
+      if encoded_q_logo
+      else ""
+  )
+
+  quotation_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            @media print {{
+                body {{ -webkit-print-color-adjust: exact; }}
+                .no-print {{ display: none !important; }}
+                @page {{ size: A4 portrait; margin: 15mm; }}
+            }}
+            body {{
+                font-family: 'Pretendard', sans-serif;
+                color: #1e293b;
+                font-size: 10pt;
+                line-height: 1.4;
+                margin: 0;
+                padding: 10px;
+                background-color: #ffffff;
+            }}
+            .quote-box {{
+                max-width: 760px;
+                margin: 0 auto;
+                border: 2px solid #0f172a;
+                padding: 25px;
+                border-radius: 8px;
+                background-color: #ffffff;
+            }}
+            .q-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
+            .q-table td {{ border: 1px solid #64748b; padding: 8px 10px; vertical-align: middle; }}
+            .th-bg {{ background-color: #0f172a; color: white; font-weight: bold; text-align: center; }}
+            .p-btn {{
+                display: block;
+                width: 100%;
+                background-color: #2563eb;
+                color: white;
+                text-align: center;
+                padding: 12px;
+                font-size: 11pt;
+                font-weight: bold;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                margin-bottom: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="quote-box">
+            <button class="p-btn no-print" onclick="window.print()">🖨 화물 견적서 인쇄 및 PDF 저장하기</button>
+
+            <table style="width: 100%; border-bottom: 3px solid #0f172a; padding-bottom: 12px; margin-bottom: 15px;">
+                <tr>
+                    <td style="width: 60%; border: none;">
+                        <div style="display: flex; align-items: center;">
+                            {logo_embed_q}
+                            <div>
+                                <div style="font-size: 16pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                <div style="font-size: 8pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="width: 40%; text-align: right; border: none;">
+                        <div style="font-size: 18pt; font-weight: 900; color: #0f172a; letter-spacing: 2px;">화 물 견 적 서</div>
+                        <div style="font-size: 8.5pt; color: #64748b; margin-top: 4px;">QUOTATION SHEET</div>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="q-table">
+                <tr>
+                    <td style="width: 15%; background-color: #f1f5f9; font-weight: bold;">수 신</td>
+                    <td style="width: 35%;"><b>{q_client}</b> 귀하 (담당: {c_mgr})</td>
+                    <td style="width: 15%; background-color: #f1f5f9; font-weight: bold;">발행일자</td>
+                    <td style="width: 35%;">{str(date.today())}</td>
+                </tr>
+                <tr>
+                    <td style="background-color: #f1f5f9; font-weight: bold;">사업자번호</td>
+                    <td>{c_bno}</td>
+                    <td style="background-color: #f1f5f9; font-weight: bold;">유효기한</td>
+                    <td>{str(q_valid_date)} 까지</td>
+                </tr>
+                <tr>
+                    <td style="background-color: #f1f5f9; font-weight: bold;">주 소</td>
+                    <td colspan="3">{c_addr}</td>
+                </tr>
+            </table>
+
+            <div style="font-size: 10.5pt; font-weight: bold; color: #1e3a8a; margin: 15px 0 8px 0;">■ 운송 조건 및 요금 내역</div>
+            <table class="q-table">
+                <tr class="th-bg">
+                    <td>도착국가</td>
+                    <td>운송형태</td>
+                    <td>품명</td>
+                    <td>청구중량 / CBM</td>
+                    <td>합계 금액 (KRW)</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;">{q_country}</td>
+                    <td style="text-align: center;">{q_transport}</td>
+                    <td style="text-align: center;">{q_item}</td>
+                    <td style="text-align: center;">{q_weight} KG / {q_cbm} CBM</td>
+                    <td style="text-align: right; font-weight: bold; color: #dc2626; font-size: 11pt;">￦ {int(q_price):,} 원</td>
+                </tr>
+            </table>
+
+            <div style="font-size: 10pt; font-weight: bold; color: #0f172a; margin: 15px 0 5px 0;">■ 특이사항 및 안내</div>
+            <div style="border: 1px solid #cbd5e1; padding: 10px; border-radius: 4px; background-color: #f8fafc; font-size: 9pt; white-space: pre-line; margin-bottom: 25px;">
+                {q_remark}
+            </div>
+
+            <table style="width: 100%; border: none; margin-top: 30px;">
+                <tr>
+                    <td style="border: none; text-align: center; font-size: 11pt; font-weight: bold; color: #0f172a;">
+                        (주)범운해운항공 대표이사 이상복 [직인생략]
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </body>
+    </html>
+    """
+
+  st.markdown("---")
+  components.html(quotation_html, height=750, scrolling=True)
