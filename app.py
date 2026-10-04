@@ -14,11 +14,32 @@ st.set_page_config(
 )
 
 # ==========================================
-# [로고 이미지 Base64 직접 내장 (안전한 방식)]
+# [범운해운항공 고유 로고 SVG 벡터 데이터 내장]
 # ==========================================
-LOGO_BASE64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-)
+LOGO_SVG_B64 = base64.b64encode("""
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 70" width="100%" height="100%">
+  <g fill="#1e3a8a">
+    <path d="M12 18h14c6 0 10 3 10 8s-4 8-10 8h-9v10H12V18zm13 13c3 0 5-1 5-3s-2-3-5-3h-8v6h8z"/>
+    <path d="M42 18h5v26h-5z"/>
+    <path d="M54 18h6l9 17 9-17h6l-12 26h-6L54 18z"/>
+    <path d="M87 18h5v26h-5z"/>
+    <path d="M99 18h16v5h-11v6h10v5h-10v6h11v5H99V18z"/>
+    <path d="M123 18h6l6 14 6-14h6l-9 26h-6l-9-26z"/>
+    <path d="M152 18h5v21h11v5h-16V18z"/>
+    <path d="M174 18h5v26h-5z"/>
+    <path d="M187 18h6l9 17 9-17h6l-12 26h-6l-12-26z"/>
+    <path d="M220 18h5v26h-5z"/>
+    <path d="M232 18h15v5h-10v5h9v5h-9v6h10v5h-15V18z"/>
+    <path d="M255 18h5l8 14 8-14h5v26h-5V27l-7 13h-2l-7-13v17h-5V18z"/>
+  </g>
+  <g fill="#0284c7" font-size="9" font-family="Arial, sans-serif" font-weight="bold">
+    <text x="12" y="58">BUMWOON OCEAN & AIR CO., LTD.</text>
+  </g>
+  <path d="M2 15h8v40H2z" fill="#dc2626"/>
+</svg>
+""".encode("utf-8")).decode("utf-8")
+
+LOGO_IMG_TAG = f"<img src='data:image/svg+xml;base64,{LOGO_SVG_B64}' style='height: 45px; vertical-align: middle;'>"
 
 # ==========================================
 # [데이터 파일 경로 정의 및 로드 함수]
@@ -374,7 +395,7 @@ is_client_mode = query_params.get("mode", "") == "client"
 
 if is_client_mode:
   st.markdown(
-      f"<img src='data:image/png;base64,{LOGO_BASE64}' style='width:220px;'>",
+      f"<div style='margin-bottom: 10px;'>{LOGO_IMG_TAG}</div>",
       unsafe_allow_html=True,
   )
   st.markdown("### **(주)범운해운항공**")
@@ -472,11 +493,6 @@ if is_client_mode:
           service_opt = clean_v(row.get("서비스옵션"), "Door To Door")
           current_status_str = clean_v(row.get("현재 상태"), "운송 중")
 
-          logo_html_tag = (
-              f"<img src='data:image/png;base64,{LOGO_BASE64}'"
-              " style='height: 38px;'>"
-          )
-
           barcode_b64_m = ""
           try:
             from barcode import Code128
@@ -559,11 +575,7 @@ if is_client_mode:
                                 <tr>
                                     <td style="width: 55%; border: none;">
                                         <div style="display: flex; align-items: center;">
-                                            {logo_html_tag}
-                                            <div style="margin-left: 8px;">
-                                                <div style="font-size: 12pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                                <div style="font-size: 7pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
-                                            </div>
+                                            {LOGO_IMG_TAG}
                                         </div>
                                     </td>
                                     <td style="width: 45%; text-align: right; border: none;">
@@ -660,10 +672,7 @@ def login_screen():
   col1, col2, col3 = st.columns([1, 1.2, 1])
 
   with col2:
-    st.markdown(
-        f"<img src='data:image/png;base64,{LOGO_BASE64}' style='width:150px;'>",
-        unsafe_allow_html=True,
-    )
+    st.markdown(f"<div style='margin-bottom: 15px;'>{LOGO_IMG_TAG}</div>", unsafe_allow_html=True)
     st.markdown("### 🚢 범운해운항공 물류 시스템")
     st.markdown("관계자 외 접속이 제한된 보안 구역입니다.")
     st.markdown("<br>", unsafe_allow_html=True)
@@ -702,13 +711,7 @@ if not st.session_state.logged_in_user:
 # ==========================================
 # [B] 사장님 전용 관리자 프로그램 화면
 # ==========================================
-st.sidebar.markdown(
-    f"<img src='data:image/png;base64,{LOGO_BASE64}' style='width:180px;'>",
-    unsafe_allow_html=True,
-)
-
-st.sidebar.markdown("### (주)범운해운항공")
-st.sidebar.markdown("BUMWOON OCEAN & AIR CO., LTD.")
+st.sidebar.markdown(f"<div style='margin-bottom: 10px;'>{LOGO_IMG_TAG}</div>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
 st.sidebar.info(
@@ -944,12 +947,9 @@ INCOME_CATEGORIES = [
 ]
 
 # 상단 메인 헤더 영역
-header_col1, header_col2 = st.columns([1, 6])
+header_col1, header_col2 = st.columns([1.2, 5.8])
 with header_col1:
-  st.markdown(
-      f"<img src='data:image/png;base64,{LOGO_BASE64}' style='width:100px;'>",
-      unsafe_allow_html=True,
-  )
+  st.markdown(f"<div>{LOGO_IMG_TAG}</div>", unsafe_allow_html=True)
 with header_col2:
   st.markdown("### 🚢 (주)범운해운항공 종합 관리 프로그램")
   st.markdown(
@@ -1206,7 +1206,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
     else:
       st.warning(
-          "⚠️️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
+          "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
       )
 
 
@@ -1535,8 +1535,6 @@ elif selected_menu == "🚢 B/L 운송장 출력":
           target_bl_data.get("현재 상태"), "운송 중"
       )
 
-      logo_embed_bl = f"<img src='data:image/png;base64,{LOGO_BASE64}' style='height: 42px; vertical-align: middle; margin-right: 10px;'>"
-
       barcode_b64 = ""
       try:
         from barcode import Code128
@@ -1631,13 +1629,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
                     <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
                         <tr>
                             <td style="width: 55%; border: none;">
-                                <div style="display: flex; align-items: center;">
-                                    {logo_embed_bl}
-                                    <div>
-                                        <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                        <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD. | www.bumwoon.com</div>
-                                    </div>
-                                </div>
+                                <div>{LOGO_IMG_TAG}</div>
                             </td>
                             <td style="width: 45%; text-align: right; border: none;">
                                 <div style="font-size: 8.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">AIR WAYBILL / B/L NO.</div>
@@ -1762,8 +1754,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       vat_amount = int(inv_amount * 0.1)
       total_with_vat = inv_amount + vat_amount
 
-      logo_embed_inv = f"<img src='data:image/png;base64,{LOGO_BASE64}' style='height: 40px; vertical-align: middle; margin-right: 10px;'>"
-
       invoice_html = f"""
             <!DOCTYPE html>
             <html>
@@ -1818,13 +1808,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                     <table style="width: 100%; border-bottom: 3px solid #0f172a; padding-bottom: 12px; margin-bottom: 15px;">
                         <tr>
                             <td style="width: 60%; border: none;">
-                                <div style="display: flex; align-items: center;">
-                                    {logo_embed_inv}
-                                    <div>
-                                        <div style="font-size: 16pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                        <div style="font-size: 8pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
-                                    </div>
-                                </div>
+                                <div>{LOGO_IMG_TAG}</div>
                             </td>
                             <td style="width: 40%; text-align: right; border: none;">
                                 <div style="font-size: 18pt; font-weight: 900; color: #0f172a; letter-spacing: 2px;">청 구 서 (INVOICE)</div>
@@ -1965,8 +1949,6 @@ elif selected_menu == "📄 화물 견적서 발행":
   c_bno = client_info_dict.get("사업자등록번호", "-")
   c_mgr = client_info_dict.get("담당자", "-")
 
-  logo_embed_q = f"<img src='data:image/png;base64,{LOGO_BASE64}' style='height: 40px; vertical-align: middle; margin-right: 10px;'>"
-
   quotation_html = f"""
     <!DOCTYPE html>
     <html>
@@ -2021,13 +2003,7 @@ elif selected_menu == "📄 화물 견적서 발행":
             <table style="width: 100%; border-bottom: 3px solid #0f172a; padding-bottom: 12px; margin-bottom: 15px;">
                 <tr>
                     <td style="width: 60%; border: none;">
-                        <div style="display: flex; align-items: center;">
-                            {logo_embed_q}
-                            <div>
-                                <div style="font-size: 16pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                <div style="font-size: 8pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
-                            </div>
-                        </div>
+                        <div>{LOGO_IMG_TAG}</div>
                     </td>
                     <td style="width: 40%; text-align: right; border: none;">
                         <div style="font-size: 18pt; font-weight: 900; color: #0f172a; letter-spacing: 2px;">화 물 견 적 서</div>
