@@ -62,24 +62,30 @@ if "logged_in_user" not in st.session_state:
 if "user_role" not in st.session_state:
   st.session_state.user_role = None
 
-# 만약 세션에 로그인된 아이디가 DB에 존재하지 않으면 강제 로그아웃 처리 (KeyError 방지)
 if (
     st.session_state.logged_in_user
     and st.session_state.logged_in_user not in st.session_state.user_db
 ):
   st.session_state.logged_in_user = None
-  st.session_state.user_role = None
+  str_session_role = None
+
+# ==========================================
+# [중요] 기본 접속 시 무조건 '고객 화물 추적 화면'이 나오도록 설정
+# 사장님 및 직원 로그인은 화면 우측 상단(또는 하단)의 로그인 버튼을 통해 진입합니다.
+# ==========================================
+query_params = st.query_params
+is_admin_mode = query_params.get("mode", "") == "admin"
 
 
 def login_screen():
-  """로그인 화면 출력 함수 (하단 안내 문구 제거됨)"""
+  """관리자 및 직원 로그인 화면"""
   st.markdown("<br><br>", unsafe_allow_html=True)
   col1, col2, col3 = st.columns([1, 1.2, 1])
 
   with col2:
     st.markdown(
-        "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 물류"
-        " 시스템</h2>",
+        "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 사내"
+        " 관리 시스템</h2>",
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -109,17 +115,14 @@ def login_screen():
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-
-# 로그인이 안 되어 있다면 로그인 화면만 표시하고 중단
-if not st.session_state.logged_in_user:
-  login_screen()
-  st.stop()
+    if st.button("⬅️ 고객 화물 추적 화면으로 돌아가기"):
+      st.query_params.clear()
+      st.rerun()
 
 
 # 로고 파일 자동 감지 (lo.png 연동)
 LOGO_FILE = "lo.png" if os.path.exists("lo.png") else None
 
-# 로고를 Base64로 인코딩 (HTML/인쇄용)
 encoded_sidebar_logo = ""
 if LOGO_FILE and os.path.exists(LOGO_FILE):
   try:
@@ -462,13 +465,10 @@ TRACKING_STATUS_OPTIONS = [
     "⚠ 운송 지연 또는 보류",
 ]
 
-query_params = st.query_params
-is_client_mode = query_params.get("mode", "") == "client"
-
 # ==========================================
-# [A] 고객 및 모바일 보안 화물 추적 화면
+# [A] 기본 접속 화면 = 고객용 화물 추적 화면 (아이디 불필요)
 # ==========================================
-if is_client_mode:
+if not is_admin_mode:
   logo_img_tag = ""
   if encoded_sidebar_logo:
     logo_img_tag = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='width: 250px; max-width: 100%; height: auto; margin-bottom: 8px; border-radius: 8px;'>"
@@ -483,6 +483,13 @@ if is_client_mode:
     """,
       unsafe_allow_html=True,
   )
+
+  # 상단 우측에 사장님/직원 로그인으로 넘어갈 수 있는 버튼 배치
+  col_h1, col_h2 = st.columns([4, 1])
+  with col_h2:
+    if st.button("🔐 사내 관리자 로그인", use_container_width=True):
+      st.query_params["mode"] = "admin"
+      st.rerun()
 
   current_bl_data = load_bl_data()
   st.markdown("#### **📦 B/L & 화물 실시간 통합 조회**")
@@ -759,8 +766,12 @@ if is_client_mode:
 
 
 # ==========================================
-# [B] 사장님 전용 관리자 프로그램 화면
+# [B] 사장님 및 직원 전용 관리자 로그인 및 프로그램 화면
 # ==========================================
+if not st.session_state.logged_in_user:
+  login_screen()
+  st.stop()
+
 sidebar_logo_html = ""
 if encoded_sidebar_logo:
   sidebar_logo_html = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 28px; width: auto;'>"
@@ -784,10 +795,17 @@ st.sidebar.info(
     f"현재 접속자: **{st.session_state.user_db[st.session_state.logged_in_user]['name']}**님\n\n(권한:"
     f" {st.session_state.user_role})"
 )
-if st.sidebar.button("로그아웃"):
-  st.session_state.logged_in_user = None
-  st.session_state.user_role = None
-  st.rerun()
+col_sb1, col_sb2 = st.sidebar.columns(2)
+with col_sb1:
+  if st.button("로그아웃"):
+    st.session_state.logged_in_user = None
+    st.session_state.user_role = None
+    st.query_params.clear()
+    st.rerun()
+with col_sb2:
+  if st.button("🏠 화물조회로"):
+    st.query_params.clear()
+    st.rerun()
 
 st.sidebar.markdown("---")
 
@@ -806,7 +824,6 @@ menu_options = [
     "📝 업무용 일지",
 ]
 
-# 관리자(대표님) 계정으로 로그인한 경우에만 '직원 계정 관리' 메뉴 추가
 if st.session_state.user_role == "관리자(대표)":
   menu_options.append("🔑 직원 계정 관리 (대표님 전용)")
 
@@ -822,7 +839,7 @@ mobile_view_mode = st.sidebar.toggle(
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🌐 고객 보안 추적 링크 안내")
 st.sidebar.markdown(
-    "고객들에게 아래 주소를 안내해주시면 실시간 조회가 가능합니다:<br>`http://192.168.0.42:8501/?mode=client`",
+    "고객들에게 아래 기본 주소만 안내해주시면 로그인 없이 즉시 조회가 가능합니다:<br>`https://logics-app-v6nichbmhtvezr8ia7cnii.streamlit.app`",
     unsafe_allow_html=True,
 )
 
@@ -1292,7 +1309,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   )
   st.markdown(
       "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>수정할"
-      " B/L 행의 <b>선택(체크박스)</b>을 체크한 뒤, 아래의 <b>[✏️️ 선택한 B/L"
+      " B/L 행의 <b>선택(체크박스)</b>을 체크한 뒤, 아래의 <b>[✏ 선택한 B/L"
       " 수정하기]</b> 버튼을 누르면 상세 수정 화면이 열립니다.</p>",
       unsafe_allow_html=True,
   )
@@ -2492,7 +2509,6 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
       if submit_edit:
         if edit_uid.strip() and edit_pw.strip() and edit_name.strip():
           new_id_clean = edit_uid.strip()
-          # 아이디가 변경된 경우 기존 키 삭제 후 새 키 생성
           if new_id_clean != selected_edit_uid:
             if new_id_clean in st.session_state.user_db:
               st.error(
@@ -2509,7 +2525,6 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
           }
           save_user_db(st.session_state.user_db)
 
-          # 만약 현재 로그인한 계정의 아이디가 변경되었다면 세션도 함께 갱신
           if selected_edit_uid == st.session_state.logged_in_user:
             st.session_state.logged_in_user = new_id_clean
             st.session_state.user_role = edit_role
