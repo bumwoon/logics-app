@@ -1,7 +1,6 @@
 from datetime import datetime, date
 import streamlit as st
 import pandas as pd
-import streamlit.components.v1 as components
 
 # 페이지 기본 설정
 st.set_page_config(
