@@ -42,15 +42,20 @@ def load_user_db():
 
 
 def save_user_db(user_db):
-  rows = []
-  for uid, info in user_db.items():
-    rows.append({
-        "아이디": uid,
-        "비밀번호": info.get("pw", ""),
-        "권한": info.get("role", "직원"),
-        "성명": info.get("name", ""),
-    })
-  pd.DataFrame(rows).to_csv(ACCOUNT_USER_FILE, index=False, encoding="utf-8-sig")
+  try:
+    rows = []
+    for uid, info in user_db.items():
+      rows.append({
+          "아이디": uid,
+          "비밀번호": info.get("pw", ""),
+          "권한": info.get("role", "직원"),
+          "성명": info.get("name", ""),
+      })
+    pd.DataFrame(rows).to_csv(
+        ACCOUNT_USER_FILE, index=False, encoding="utf-8-sig"
+    )
+  except Exception:
+    pass
 
 
 if "user_db" not in st.session_state:
@@ -67,12 +72,8 @@ if (
     and st.session_state.logged_in_user not in st.session_state.user_db
 ):
   st.session_state.logged_in_user = None
-  str_session_role = None
+  st.session_state.user_role = None
 
-# ==========================================
-# [중요] 기본 접속 시 무조건 '고객 화물 추적 화면'이 나오도록 설정
-# 사장님 및 직원 로그인은 화면 우측 상단(또는 하단)의 로그인 버튼을 통해 진입합니다.
-# ==========================================
 query_params = st.query_params
 is_admin_mode = query_params.get("mode", "") == "admin"
 
@@ -120,7 +121,6 @@ def login_screen():
       st.rerun()
 
 
-# 로고 파일 자동 감지 (lo.png 연동)
 LOGO_FILE = "lo.png" if os.path.exists("lo.png") else None
 
 encoded_sidebar_logo = ""
@@ -131,7 +131,6 @@ if LOGO_FILE and os.path.exists(LOGO_FILE):
   except Exception:
     pass
 
-# 데이터 파일 경로 정의
 DATA_FILE = "bl_history_data.csv"
 CLIENT_FILE = "client_data.csv"
 ACCOUNT_FILE = "account_ledger_data.csv"
@@ -315,107 +314,130 @@ def load_meeting_data():
 
 
 def save_bl_data(data_list):
-  if data_list:
-    df = pd.DataFrame(data_list)
-    if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
-      df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
-    df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
-  else:
-    if os.path.exists(DATA_FILE):
-      os.remove(DATA_FILE)
+  try:
+    if data_list:
+      df = pd.DataFrame(data_list)
+      if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
+        df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
+      df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+    else:
+      if os.path.exists(DATA_FILE):
+        os.remove(DATA_FILE)
+  except Exception:
+    pass
 
 
 def save_client_data(client_list, client_rates, client_infos):
-  rows = []
-  for client in client_list:
-    info = client_infos.get(
-        client,
-        {
-            "사업자등록번호": "",
-            "이메일": "",
-            "담당자": "",
-            "전화번호": "",
-            "주소": "",
-        },
-    )
-    country_dict = client_rates.get(client, {})
-    if not country_dict:
-      rows.append({
-          "거래처명": client,
-          "사업자등록번호": info.get("사업자등록번호", ""),
-          "이메일": info.get("이메일", ""),
-          "담당자": info.get("담당자", ""),
-          "전화번호": info.get("전화번호", ""),
-          "주소": info.get("주소", ""),
-          "국가": "미국",
-          "운송형태": "항공(Air)",
-          "품명": "보톡스 필러 (Botox & Filler)",
-          "기본중량": 1.0,
-          "기본요금": 38000,
-          "추가단가": 25000,
-          "1CBM당단가": 3700000,
-      })
-    else:
-      for country, trans_dict in country_dict.items():
-        if isinstance(trans_dict, dict):
-          for transport, item_dict in trans_dict.items():
-            if isinstance(item_dict, dict):
-              for item_name, r_val in item_dict.items():
-                rows.append({
-                    "거래처명": client,
-                    "사업자등록번호": info.get("사업자등록번호", ""),
-                    "이메일": info.get("이메일", ""),
-                    "담당자": info.get("담당자", ""),
-                    "전화번호": info.get("전화번호", ""),
-                    "주소": info.get("주소", ""),
-                    "국가": country,
-                    "운송형태": transport,
-                    "품명": item_name,
-                    "기본중량": r_val.get("기본중량", 1.0),
-                    "기본요금": r_val.get("기본요금", 38000),
-                    "추가단가": r_val.get("추가단가", 25000),
-                    "1CBM당단가": r_val.get("1CBM당단가", 3700000),
-                })
-  pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
+  try:
+    rows = []
+    for client in client_list:
+      info = client_infos.get(
+          client,
+          {
+              "사업자등록번호": "",
+              "이메일": "",
+              "담당자": "",
+              "전화번호": "",
+              "주소": "",
+          },
+      )
+      country_dict = client_rates.get(client, {})
+      if not country_dict:
+        rows.append({
+            "거래처명": client,
+            "사업자등록번호": info.get("사업자등록번호", ""),
+            "이메일": info.get("이메일", ""),
+            "담당자": info.get("담당자", ""),
+            "전화번호": info.get("전화번호", ""),
+            "주소": info.get("주소", ""),
+            "국가": "미국",
+            "운송형태": "항공(Air)",
+            "품명": "보톡스 필러 (Botox & Filler)",
+            "기본중량": 1.0,
+            "기본요금": 38000,
+            "추가단가": 25000,
+            "1CBM당단가": 3700000,
+        })
+      else:
+        for country, trans_dict in country_dict.items():
+          if isinstance(trans_dict, dict):
+            for transport, item_dict in trans_dict.items():
+              if isinstance(item_dict, dict):
+                for item_name, r_val in item_dict.items():
+                  rows.append({
+                      "거래처명": client,
+                      "사업자등록번호": info.get("사업자등록번호", ""),
+                      "이메일": info.get("이메일", ""),
+                      "담당자": info.get("담당자", ""),
+                      "전화번호": info.get("전화번호", ""),
+                      "주소": info.get("주소", ""),
+                      "국가": country,
+                      "운송형태": transport,
+                      "품명": item_name,
+                      "기본중량": r_val.get("기본중량", 1.0),
+                      "기본요금": r_val.get("기본요금", 38000),
+                      "추가단가": r_val.get("추가단가", 25000),
+                      "1CBM당단가": r_val.get("1CBM당단가", 3700000),
+                  })
+    pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
+  except Exception:
+    pass
 
 
 def save_account_data(data_list):
-  if data_list:
-    pd.DataFrame(data_list).to_csv(
-        ACCOUNT_FILE, index=False, encoding="utf-8-sig"
-    )
-  else:
-    if os.path.exists(ACCOUNT_FILE):
-      os.remove(ACCOUNT_FILE)
+  try:
+    if data_list:
+      pd.DataFrame(data_list).to_csv(
+          ACCOUNT_FILE, index=False, encoding="utf-8-sig"
+      )
+    else:
+      if os.path.exists(ACCOUNT_FILE):
+        os.remove(ACCOUNT_FILE)
+  except Exception:
+    pass
 
 
 def save_expense_data(data_list):
-  if data_list:
-    df_exp_save = pd.DataFrame(data_list)
-    if "지출금액(원)" in df_exp_save.columns and "금액(원)" not in df_exp_save.columns:
-      df_exp_save = df_exp_save.rename(columns={"지출금액(원)": "금액(원)"})
-    df_exp_save.to_csv(EXPENSE_FILE, index=False, encoding="utf-8-sig")
-  else:
-    if os.path.exists(EXPENSE_FILE):
-      os.remove(EXPENSE_FILE)
+  try:
+    if data_list:
+      df_exp_save = pd.DataFrame(data_list)
+      if (
+          "지출금액(원)" in df_exp_save.columns
+          and "금액(원)" not in df_exp_save.columns
+      ):
+        df_exp_save = df_exp_save.rename(columns={"지출금액(원)": "금액(원)"})
+      df_exp_save.to_csv(EXPENSE_FILE, index=False, encoding="utf-8-sig")
+    else:
+      if os.path.exists(EXPENSE_FILE):
+        os.remove(EXPENSE_FILE)
+  except Exception:
+    pass
 
 
 def save_note_data(data_list):
-  if data_list:
-    pd.DataFrame(data_list).to_csv(NOTE_FILE, index=False, encoding="utf-8-sig")
-  else:
-    if os.path.exists(NOTE_FILE):
-      os.remove(NOTE_FILE)
+  try:
+    if data_list:
+      pd.DataFrame(data_list).to_csv(
+          NOTE_FILE, index=False, encoding="utf-8-sig"
+      )
+    else:
+      if os.path.exists(NOTE_FILE):
+        os.remove(NOTE_FILE)
+  except Exception:
+    pass
 
 
 def save_meeting_data(data_list):
-  if data_list:
-    pd.DataFrame(data_list).to_csv(
-        MEETING_FILE, index=False, encoding="utf-8-sig"
-    )
-  else:
-    if os.path.exists(MEETING_FILE):
-      os.remove(MEETING_FILE)
+  try:
+    if data_list:
+      pd.DataFrame(data_list).to_csv(
+          MEETING_FILE, index=False, encoding="utf-8-sig"
+      )
+    else:
+      if os.path.exists(MEETING_FILE):
+        os.remove(MEETING_FILE)
+  except Exception:
+    pass
 
 
 def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
@@ -438,7 +460,6 @@ def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
   return int(38000 + max(0.0, cw - 1.0) * 25000)
 
 
-# 세션 상태 초기화
 if "client_list" not in st.session_state or not st.session_state.client_list:
   c_list, c_rates, c_infos = load_client_data()
   st.session_state.client_list = c_list
@@ -465,9 +486,6 @@ TRACKING_STATUS_OPTIONS = [
     "⚠ 운송 지연 또는 보류",
 ]
 
-# ==========================================
-# [A] 기본 접속 화면 = 고객용 화물 추적 화면 (아이디 불필요)
-# ==========================================
 if not is_admin_mode:
   logo_img_tag = ""
   if encoded_sidebar_logo:
@@ -484,7 +502,6 @@ if not is_admin_mode:
       unsafe_allow_html=True,
   )
 
-  # 상단 우측에 사장님/직원 로그인으로 넘어갈 수 있는 버튼 배치
   col_h1, col_h2 = st.columns([4, 1])
   with col_h2:
     if st.button("🔐 사내 관리자 로그인", use_container_width=True):
@@ -765,9 +782,6 @@ if not is_admin_mode:
   st.stop()
 
 
-# ==========================================
-# [B] 사장님 및 직원 전용 관리자 로그인 및 프로그램 화면
-# ==========================================
 if not st.session_state.logged_in_user:
   login_screen()
   st.stop()
@@ -790,7 +804,6 @@ st.sidebar.markdown(
 )
 st.sidebar.markdown("---")
 
-# 접속자 정보 표시 및 로그아웃 버튼
 st.sidebar.info(
     f"현재 접속자: **{st.session_state.user_db[st.session_state.logged_in_user]['name']}**님\n\n(권한:"
     f" {st.session_state.user_role})"
@@ -809,7 +822,6 @@ with col_sb2:
 
 st.sidebar.markdown("---")
 
-# 메뉴 리스트 기본 구성
 menu_options = [
     "📊 수출입 B/L 등록",
     "📋 등록 B/L 수정 및 Profit 내역",
@@ -1150,14 +1162,14 @@ if selected_menu == "📊 수출입 B/L 등록":
 
     suggested_bl = "BW260003"
     if st.session_state.bl_data_list:
-      last_b = str(
-          st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003")
-      )
-      if last_b.startswith("BW") and len(last_b) >= 8:
-        try:
+      try:
+        last_b = str(
+            st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003")
+        )
+        if last_b.startswith("BW") and len(last_b) >= 8:
           suggested_bl = f"BW{int(last_b[2:]) + 1:06d}"
-        except:
-          pass
+      except:
+        pass
     bl_no = st.text_input("B/L 번호 (운송장 번호)", value=suggested_bl)
     reg_date = st.date_input("선적 날짜", value=date.today())
     dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
@@ -2436,7 +2448,6 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
       unsafe_allow_html=True,
   )
 
-  # 1. 신규 계정 등록 폼
   with st.form("add_user_form"):
     st.markdown("#### ➕ 신규 계정 등록")
     new_uid = st.text_input("신규 직원 아이디 (ID)")
