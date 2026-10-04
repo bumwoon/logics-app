@@ -14,12 +14,10 @@ st.set_page_config(
 )
 
 # ==========================================
-# [로고 이미지 Base64 직접 내장 (파일 불필요)]
+# [로고 이미지 Base64 직접 내장 (안전한 방식)]
 # ==========================================
 LOGO_BASE64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAZAAAADQAQMAAADbT29PAAAABlBMVEUAAAD///+l2Z/dAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAA"
-    "B3RJTUUH5gYQESkX3f3qTwAAAAlwSFlzAAALEgAACxIB0t1+/AAAAARnQU1BAACxjwv8YQUAAABJSURBVHja7cExAQAAAMKg9U9t"
-    "DB8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIDvARJbAAE0y0oZAAAAAElFTkSuQmCC"
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 )
 
 # ==========================================
@@ -375,9 +373,10 @@ query_params = st.query_params
 is_client_mode = query_params.get("mode", "") == "client"
 
 if is_client_mode:
-  st.image(
-      base64.b64decode(LOGO_BASE64), width=220
-  )  # 외부 파일 없이 바로 출력
+  st.markdown(
+      f"<img src='data:image/png;base64,{LOGO_BASE64}' style='width:220px;'>",
+      unsafe_allow_html=True,
+  )
   st.markdown("### **(주)범운해운항공**")
   st.markdown("BUMWOON OCEAN & AIR CO., LTD.")
   st.markdown("---")
@@ -661,7 +660,10 @@ def login_screen():
   col1, col2, col3 = st.columns([1, 1.2, 1])
 
   with col2:
-    st.image(base64.b64decode(LOGO_BASE64), width=150)
+    st.markdown(
+        f"<img src='data:image/png;base64,{LOGO_BASE64}' style='width:150px;'>",
+        unsafe_allow_html=True,
+    )
     st.markdown("### 🚢 범운해운항공 물류 시스템")
     st.markdown("관계자 외 접속이 제한된 보안 구역입니다.")
     st.markdown("<br>", unsafe_allow_html=True)
@@ -700,7 +702,10 @@ if not st.session_state.logged_in_user:
 # ==========================================
 # [B] 사장님 전용 관리자 프로그램 화면
 # ==========================================
-st.sidebar.image(base64.b64decode(LOGO_BASE64), width=180)
+st.sidebar.markdown(
+    f"<img src='data:image/png;base64,{LOGO_BASE64}' style='width:180px;'>",
+    unsafe_allow_html=True,
+)
 
 st.sidebar.markdown("### (주)범운해운항공")
 st.sidebar.markdown("BUMWOON OCEAN & AIR CO., LTD.")
@@ -941,7 +946,10 @@ INCOME_CATEGORIES = [
 # 상단 메인 헤더 영역
 header_col1, header_col2 = st.columns([1, 6])
 with header_col1:
-  st.image(base64.b64decode(LOGO_BASE64), width=100)
+  st.markdown(
+      f"<img src='data:image/png;base64,{LOGO_BASE64}' style='width:100px;'>",
+      unsafe_allow_html=True,
+  )
 with header_col2:
   st.markdown("### 🚢 (주)범운해운항공 종합 관리 프로그램")
   st.markdown(
@@ -1198,7 +1206,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
     else:
       st.warning(
-          "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
+          "⚠️️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
       )
 
 
