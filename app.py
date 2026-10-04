@@ -62,6 +62,14 @@ if "logged_in_user" not in st.session_state:
 if "user_role" not in st.session_state:
   st.session_state.user_role = None
 
+# 만약 세션에 로그인된 아이디가 DB에 존재하지 않으면 강제 로그아웃 처리 (KeyError 방지)
+if (
+    st.session_state.logged_in_user
+    and st.session_state.logged_in_user not in st.session_state.user_db
+):
+  st.session_state.logged_in_user = None
+  st.session_state.user_role = None
+
 
 def login_screen():
   """로그인 화면 출력 함수 (하단 안내 문구 제거됨)"""
@@ -1284,7 +1292,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   )
   st.markdown(
       "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>수정할"
-      " B/L 행의 <b>선택(체크박스)</b>을 체크한 뒤, 아래의 <b>[✏️ 선택한 B/L"
+      " B/L 행의 <b>선택(체크박스)</b>을 체크한 뒤, 아래의 <b>[✏️️ 선택한 B/L"
       " 수정하기]</b> 버튼을 누르면 상세 수정 화면이 열립니다.</p>",
       unsafe_allow_html=True,
   )
@@ -2483,9 +2491,10 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
 
       if submit_edit:
         if edit_uid.strip() and edit_pw.strip() and edit_name.strip():
+          new_id_clean = edit_uid.strip()
           # 아이디가 변경된 경우 기존 키 삭제 후 새 키 생성
-          if edit_uid != selected_edit_uid:
-            if edit_uid in st.session_state.user_db:
+          if new_id_clean != selected_edit_uid:
+            if new_id_clean in st.session_state.user_db:
               st.error(
                   "이미 존재하는 아이디입니다. 다른 아이디를 입력해주세요."
               )
@@ -2493,13 +2502,21 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
             else:
               del st.session_state.user_db[selected_edit_uid]
 
-          st.session_state.user_db[edit_uid.strip()] = {
+          st.session_state.user_db[new_id_clean] = {
               "pw": edit_pw.strip(),
               "role": edit_role,
               "name": edit_name.strip(),
           }
           save_user_db(st.session_state.user_db)
-          st.success(f"계정 [{edit_uid}] 정보가 성공적으로 수정되었습니다!")
+
+          # 만약 현재 로그인한 계정의 아이디가 변경되었다면 세션도 함께 갱신
+          if selected_edit_uid == st.session_state.logged_in_user:
+            st.session_state.logged_in_user = new_id_clean
+            st.session_state.user_role = edit_role
+
+          st.success(
+              f"계정 [{new_id_clean}] 정보가 성공적으로 수정되었습니다!"
+          )
           st.rerun()
         else:
           st.warning("모든 항목을 입력해주세요.")
@@ -2510,6 +2527,9 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
         else:
           del st.session_state.user_db[selected_edit_uid]
           save_user_db(st.session_state.user_db)
+          if selected_edit_uid == st.session_state.logged_in_user:
+            st.session_state.logged_in_user = None
+            st.session_state.user_role = None
           st.success(f"계정 [{selected_edit_uid}]이(가) 삭제되었습니다.")
           st.rerun()
 
