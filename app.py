@@ -1761,6 +1761,6 @@ elif selected_menu == "🚢 B/L 운송장 출력":
             </body>
             </html>
             """
-        components.html(awb_html, height=750, scrolling=True)
+      components.html(awb_html, height=750, scrolling=True)
   else:
     st.info("출력할 B/L 내역이 없습니다.")
