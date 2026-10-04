@@ -14,22 +14,13 @@ st.set_page_config(
 )
 
 # ==========================================
-# [로고 파일 강제 지정 - 파일명을 실제 업로드한 파일명으로 맞춰주세요]
+# [로고 이미지 Base64 직접 내장 (파일 불필요)]
 # ==========================================
-# 깃허브에 올리신 로고 파일명(예: logo.png, 12587.png 등)을 아래에 그대로 적어주세요.
-LOGO_FILE = "logo.png"
-
-# 만약 자동 감지도 같이 쓰시려면 아래 로직이 동작합니다.
-if not os.path.exists(LOGO_FILE):
-  for filename in os.listdir("."):
-    if (
-        filename.lower().startswith("lo")
-        or filename.lower().startswith("12587")
-        or filename.lower().endswith(".png")
-        or filename.lower().endswith(".jpg")
-    ):
-      LOGO_FILE = filename
-      break
+LOGO_BASE64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAZAAAADQAQMAAADbT29PAAAABlBMVEUAAAD///+l2Z/dAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAA"
+    "B3RJTUUH5gYQESkX3f3qTwAAAAlwSFlzAAALEgAACxIB0t1+/AAAAARnQU1BAACxjwv8YQUAAABJSURBVHja7cExAQAAAMKg9U9t"
+    "DB8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIDvARJbAAE0y0oZAAAAAElFTkSuQmCC"
+)
 
 # ==========================================
 # [데이터 파일 경로 정의 및 로드 함수]
@@ -384,8 +375,9 @@ query_params = st.query_params
 is_client_mode = query_params.get("mode", "") == "client"
 
 if is_client_mode:
-  if LOGO_FILE and os.path.exists(LOGO_FILE):
-    st.image(LOGO_FILE, width=220)
+  st.image(
+      base64.b64decode(LOGO_BASE64), width=220
+  )  # 외부 파일 없이 바로 출력
   st.markdown("### **(주)범운해운항공**")
   st.markdown("BUMWOON OCEAN & AIR CO., LTD.")
   st.markdown("---")
@@ -482,9 +474,8 @@ if is_client_mode:
           current_status_str = clean_v(row.get("현재 상태"), "운송 중")
 
           logo_html_tag = (
-              f"<img src='data:image/png;base64,{base64.b64encode(open(LOGO_FILE, 'rb').read()).decode()}' style='height: 38px;'>"
-              if LOGO_FILE and os.path.exists(LOGO_FILE)
-              else ""
+              f"<img src='data:image/png;base64,{LOGO_BASE64}'"
+              " style='height: 38px;'>"
           )
 
           barcode_b64_m = ""
@@ -670,8 +661,7 @@ def login_screen():
   col1, col2, col3 = st.columns([1, 1.2, 1])
 
   with col2:
-    if LOGO_FILE and os.path.exists(LOGO_FILE):
-      st.image(LOGO_FILE, width=150)
+    st.image(base64.b64decode(LOGO_BASE64), width=150)
     st.markdown("### 🚢 범운해운항공 물류 시스템")
     st.markdown("관계자 외 접속이 제한된 보안 구역입니다.")
     st.markdown("<br>", unsafe_allow_html=True)
@@ -710,8 +700,7 @@ if not st.session_state.logged_in_user:
 # ==========================================
 # [B] 사장님 전용 관리자 프로그램 화면
 # ==========================================
-if LOGO_FILE and os.path.exists(LOGO_FILE):
-  st.sidebar.image(LOGO_FILE, width=180)
+st.sidebar.image(base64.b64decode(LOGO_BASE64), width=180)
 
 st.sidebar.markdown("### (주)범운해운항공")
 st.sidebar.markdown("BUMWOON OCEAN & AIR CO., LTD.")
@@ -952,8 +941,7 @@ INCOME_CATEGORIES = [
 # 상단 메인 헤더 영역
 header_col1, header_col2 = st.columns([1, 6])
 with header_col1:
-  if LOGO_FILE and os.path.exists(LOGO_FILE):
-    st.image(LOGO_FILE, width=100)
+  st.image(base64.b64decode(LOGO_BASE64), width=100)
 with header_col2:
   st.markdown("### 🚢 (주)범운해운항공 종합 관리 프로그램")
   st.markdown(
@@ -1539,20 +1527,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
           target_bl_data.get("현재 상태"), "운송 중"
       )
 
-      encoded_bl_logo = ""
-      if LOGO_FILE and os.path.exists(LOGO_FILE):
-        try:
-          with open(LOGO_FILE, "rb") as f:
-            encoded_bl_logo = base64.b64encode(f.read()).decode()
-        except:
-          pass
-
-      logo_embed_bl = (
-          f"<img src='data:image/png;base64,{encoded_bl_logo}'"
-          " style='height: 42px; vertical-align: middle; margin-right: 10px;'>"
-          if encoded_bl_logo
-          else ""
-      )
+      logo_embed_bl = f"<img src='data:image/png;base64,{LOGO_BASE64}' style='height: 42px; vertical-align: middle; margin-right: 10px;'>"
 
       barcode_b64 = ""
       try:
@@ -1779,20 +1754,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       vat_amount = int(inv_amount * 0.1)
       total_with_vat = inv_amount + vat_amount
 
-      encoded_inv_logo = ""
-      if LOGO_FILE and os.path.exists(LOGO_FILE):
-        try:
-          with open(LOGO_FILE, "rb") as f:
-            encoded_inv_logo = base64.b64encode(f.read()).decode()
-        except:
-          pass
-
-      logo_embed_inv = (
-          f"<img src='data:image/png;base64,{encoded_inv_logo}'"
-          " style='height: 40px; vertical-align: middle; margin-right: 10px;'>"
-          if encoded_inv_logo
-          else ""
-      )
+      logo_embed_inv = f"<img src='data:image/png;base64,{LOGO_BASE64}' style='height: 40px; vertical-align: middle; margin-right: 10px;'>"
 
       invoice_html = f"""
             <!DOCTYPE html>
@@ -1995,20 +1957,7 @@ elif selected_menu == "📄 화물 견적서 발행":
   c_bno = client_info_dict.get("사업자등록번호", "-")
   c_mgr = client_info_dict.get("담당자", "-")
 
-  encoded_q_logo = ""
-  if LOGO_FILE and os.path.exists(LOGO_FILE):
-    try:
-      with open(LOGO_FILE, "rb") as f:
-        encoded_q_logo = base64.b64encode(f.read()).decode()
-    except:
-      pass
-
-  logo_embed_q = (
-      f"<img src='data:image/png;base64,{encoded_q_logo}'"
-      " style='height: 40px; vertical-align: middle; margin-right: 10px;'>"
-      if encoded_q_logo
-      else ""
-  )
+  logo_embed_q = f"<img src='data:image/png;base64,{LOGO_BASE64}' style='height: 40px; vertical-align: middle; margin-right: 10px;'>"
 
   quotation_html = f"""
     <!DOCTYPE html>
