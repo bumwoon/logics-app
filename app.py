@@ -14,13 +14,22 @@ st.set_page_config(
 )
 
 # ==========================================
-# [로고 파일 자동 감지 및 설정]
+# [로고 파일 강제 지정 - 파일명을 실제 업로드한 파일명으로 맞춰주세요]
 # ==========================================
-LOGO_FILE = None
-for filename in os.listdir("."):
-  if filename.startswith("lo") or filename.startswith("12587"):
-    LOGO_FILE = filename
-    break
+# 깃허브에 올리신 로고 파일명(예: logo.png, 12587.png 등)을 아래에 그대로 적어주세요.
+LOGO_FILE = "logo.png"
+
+# 만약 자동 감지도 같이 쓰시려면 아래 로직이 동작합니다.
+if not os.path.exists(LOGO_FILE):
+  for filename in os.listdir("."):
+    if (
+        filename.lower().startswith("lo")
+        or filename.lower().startswith("12587")
+        or filename.lower().endswith(".png")
+        or filename.lower().endswith(".jpg")
+    ):
+      LOGO_FILE = filename
+      break
 
 # ==========================================
 # [데이터 파일 경로 정의 및 로드 함수]
