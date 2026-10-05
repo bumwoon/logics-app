@@ -119,7 +119,6 @@ for filename in os.listdir("."):
     LOGO_FILE = filename
     break
 
-# 로고를 Base64로 인코딩
 encoded_sidebar_logo = ""
 if LOGO_FILE and os.path.exists(LOGO_FILE):
   try:
@@ -850,7 +849,7 @@ else:
                     </body>
                     </html>
                     """
-          components.html(mobile_awb_html, height=750, scrolling=True)
+          components.html(mobile_awb_html, height=650, scrolling=False)
   st.stop()
 
 
@@ -905,7 +904,6 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("💾 엑셀(.xlsx) 백업 및 이어붙이기")
 
 
-# 엑셀 파일 바이트 스트림 생성 함수 (xlsxwriter 또는 openpyxl 이용)
 def convert_df_to_excel(df):
   output = io.BytesIO()
   with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -1318,7 +1316,7 @@ if selected_menu == "📊 수출입 B/L 등록":
     dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
     origin_place = st.text_input("출발지", value="대한민국 (KOREA)")
     item_desc = st.text_input(
-        "품명",
+        "품목",
         value=(
             "보톡스, 필러 및 관련 의약품/미용용품 (Botox, Filler & Related"
             " Pharmaceuticals/Cosmetics)"
@@ -1984,7 +1982,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
             </body>
             </html>
             """
-      components.html(awb_html, height=750, scrolling=True)
+      components.html(awb_html, height=750, scrolling=False)
 
 
 # ==========================================
@@ -2264,7 +2262,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
   st.markdown("---")
   st.markdown("#### 👁‍🗨️ 정식 인보이스 미리보기 및 인쇄")
-  components.html(invoice_html_output, height=800, scrolling=True)
+  components.html(invoice_html_output, height=750, scrolling=False)
 
 
 # ==========================================
@@ -2482,7 +2480,7 @@ elif selected_menu == "📄 화물 견적서 발행":
 
   st.markdown("---")
   st.markdown("#### 👁‍🗨️ 정식 견적서 미리보기 및 인쇄")
-  components.html(quotation_html_output, height=800, scrolling=True)
+  components.html(quotation_html_output, height=750, scrolling=False)
 
 
 # ==========================================
@@ -2746,7 +2744,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
         f"#### 👁️‍🗨️ [{target_date_str}] 매니페스트 및 Profit 정산서 출력"
         " 미리보기"
     )
-    components.html(manifest_html_output, height=750, scrolling=True)
+    components.html(manifest_html_output, height=750, scrolling=False)
 
   else:
     st.info(
@@ -2794,7 +2792,6 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
       "요율 및 정보 수정할 거래처 선택", options=st.session_state.client_list
   )
 
-  # [추가된 거래처 삭제 버튼 기능]
   del_col1, del_col2 = st.columns([3, 1])
   with del_col2:
     if st.button(
@@ -3235,7 +3232,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
   st.markdown(
       f"#### 👁‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
   )
-  components.html(account_html_output, height=750, scrolling=True)
+  components.html(account_html_output, height=750, scrolling=False)
 
   st.markdown("---")
   st.markdown("#### 📋 전체 등록된 입출금 장부 목록")
