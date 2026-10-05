@@ -112,7 +112,7 @@ def login_screen():
     )
 
 
-# 데이터 파일 경로 정의
+# 데이터 파일 경로 및 로고 공통 정의 (에러 방지를 위해 최상단 선언)
 DATA_FILE = "bl_history_data.csv"
 CLIENT_FILE = "client_data.csv"
 ACCOUNT_FILE = "account_ledger_data.csv"
@@ -120,6 +120,20 @@ EXPENSE_FILE = "expense_data.csv"
 NOTE_FILE = "daily_note_data.csv"
 MEETING_FILE = "meeting_note_data.csv"
 QUOTATION_FILE = "quotation_data.csv"
+
+LOGO_FILE = None
+for filename in os.listdir("."):
+  if filename.startswith("lo"):
+    LOGO_FILE = filename
+    break
+
+encoded_sidebar_logo = ""
+if LOGO_FILE and os.path.exists(LOGO_FILE):
+  try:
+    with open(LOGO_FILE, "rb") as f:
+      encoded_sidebar_logo = base64.b64encode(f.read()).decode()
+  except Exception:
+    pass
 
 
 def load_bl_data():
@@ -504,20 +518,6 @@ else:
     if st.button("🔐 사내 관리자 로그인", use_container_width=True):
       st.query_params["mode"] = "admin"
       st.rerun()
-
-  LOGO_FILE = None
-  for filename in os.listdir("."):
-    if filename.startswith("lo"):
-      LOGO_FILE = filename
-      break
-
-  encoded_sidebar_logo = ""
-  if LOGO_FILE and os.path.exists(LOGO_FILE):
-    try:
-      with open(LOGO_FILE, "rb") as f:
-        encoded_sidebar_logo = base64.b64encode(f.read()).decode()
-    except Exception:
-      pass
 
   logo_img_tag = ""
   if encoded_sidebar_logo:
