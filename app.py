@@ -237,7 +237,7 @@ def load_client_data():
           "전화번호": "",
           "주소": "경기도 김포시 풍무동 326-5번지 2층",
       },
-      "카스": {
+      "카ส": {
           "사업자등록번호": "",
           "이메일": "",
           "담당자": "",
@@ -1355,7 +1355,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
     else:
       st.warning(
-          "⚠️️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
+          "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
       )
 
 
@@ -1964,7 +1964,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     ]
   else:
     st.warning(
-        f"⚠ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
+        f"⚠️ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
         " 먼저 [수출입 B/L 등록] 메뉴에서 B/L을 등록해주세요."
     )
 
@@ -2429,29 +2429,34 @@ elif selected_menu == "🤝 거래처 미팅 노트":
 
 
 # ==========================================
-# [7] 금일발송 매니페스트 (출력 기능 포함 복원)
+# [7] 날짜별 발송 매니페스트 (매입·매출·수익 포함)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋"
-      " 금일 발송 화물 매니페스트 (Manifest)</h3>",
+      " 날짜별 발송 화물 매니페스트 (Profit 정산 포함)</h3>",
       unsafe_allow_html=True,
   )
 
-  today_str = str(date.today())
-  today_shipments = [
+  # 날짜 선택 필터 추가
+  selected_manifest_date = st.date_input(
+      "조회할 선적 날짜 선택", value=date.today(), key="manifest_date_picker"
+  )
+  target_date_str = str(selected_manifest_date)
+
+  date_shipments = [
       item
       for item in st.session_state.bl_data_list
-      if str(item.get("날짜")) == today_str
+      if str(item.get("날짜")) == target_date_str
   ]
 
-  if today_shipments:
-    df_today = pd.DataFrame(today_shipments)
+  if date_shipments:
+    df_manifest = pd.DataFrame(date_shipments)
     st.success(
-        f"오늘({today_str}) 선적 예정인 화물 총 {len(today_shipments)}건이"
-        " 집계되었습니다."
+        f"선택하신 날짜({target_date_str}) 선적 예정인 화물 총"
+        f" {len(date_shipments)}건이 집계되었습니다."
     )
-    st.dataframe(df_today, use_container_width=True)
+    st.dataframe(df_manifest, use_container_width=True)
 
     logo_embed_man = (
         f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
@@ -2461,17 +2466,31 @@ elif selected_menu == "📋 금일발송 매니페스트":
     )
 
     man_rows_html = ""
-    for _, row in df_today.iterrows():
+    tot_sales_sum = 0
+    tot_purchase_sum = 0
+    tot_profit_sum = 0
+
+    for _, row in df_manifest.iterrows():
+      s_amt = int(row.get("매출액(원)", 0))
+      p_amt = int(row.get("매입액(원)", 0))
+      profit_amt = int(row.get("예상Profit(원)", s_amt - p_amt))
+
+      tot_sales_sum += s_amt
+      tot_purchase_sum += p_amt
+      tot_profit_sum += profit_amt
+
       man_rows_html += f"""
             <tr>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('Job 번호', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-weight: bold; color: #1e3a8a;">{row.get('B/L 번호', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('국가', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('화주명(매출)', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('해외수하인', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px;">{row.get('품목', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('박스수', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; color: #dc2626; font-weight: bold;">{row.get('매출청구중량(kg)', 0)} KG</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('Job 번호', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-weight: bold; color: #1e3a8a; font-size: 8.5pt;">{row.get('B/L 번호', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('국가', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('화주명(매출)', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('해외수하인', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; font-size: 8.5pt;">{row.get('품목', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('박스수', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-size: 8.5pt;">{s_amt:,}원</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-size: 8.5pt;">{p_amt:,}원</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-weight: bold; color: #047857; font-size: 9pt;">{profit_amt:,}원</td>
             </tr>
             """
 
@@ -2489,14 +2508,14 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 body {{
                     font-family: 'Pretendard', sans-serif;
                     color: #1e293b;
-                    font-size: 9.5pt;
+                    font-size: 9pt;
                     line-height: 1.4;
                     margin: 0;
                     padding: 10px;
                     background-color: #ffffff;
                 }}
                 .man-container {{
-                    max-width: 1050px;
+                    max-width: 1100px;
                     margin: 0 auto;
                     border: 2px solid #0f172a;
                     padding: 25px;
@@ -2522,7 +2541,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
         </head>
         <body>
             <div class="man-container">
-                <button class="print-btn no-print" onclick="window.print()">🖨 금일 발송 매니페스트 인쇄 / PDF 저장하기 (Print / Save as PDF)</button>
+                <button class="print-btn no-print" onclick="window.print()">🖨 매니페스트 정식 인쇄 / PDF 저장하기 (Print / Save as PDF)</button>
 
                 <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px;">
                     <tr>
@@ -2536,27 +2555,35 @@ elif selected_menu == "📋 금일발송 매니페스트":
                             </div>
                         </td>
                         <td style="width: 40%; text-align: right; border: none;">
-                            <div style="font-size: 18pt; font-weight: 900; color: #0f172a; letter-spacing: 2px;">금일 발송 화물 매니페스트</div>
-                            <div style="font-size: 9pt; color: #475569; margin-top: 4px;">발송 일자: {today_str}</div>
+                            <div style="font-size: 17pt; font-weight: 900; color: #0f172a; letter-spacing: 1px;">화물 발송 매니페스트 및 정산서</div>
+                            <div style="font-size: 9pt; color: #475569; margin-top: 4px;">선적 일자: <b>{target_date_str}</b></div>
                         </td>
                     </tr>
                 </table>
 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
                     <thead>
-                        <tr style="background-color: #0f172a; color: white; text-align: center; font-size: 9pt;">
-                            <th style="border: 1px solid #64748b; padding: 8px; width: 12%;">Job 번호</th>
-                            <th style="border: 1px solid #64748b; padding: 8px; width: 15%;">B/L 번호</th>
-                            <th style="border: 1px solid #64748b; padding: 8px; width: 10%;">도착국가</th>
-                            <th style="border: 1px solid #64748b; padding: 8px; width: 13%;">화주명</th>
-                            <th style="border: 1px solid #64748b; padding: 8px; width: 13%;">수하인</th>
-                            <th style="border: 1px solid #64748b; padding: 8px; width: 22%;">품명</th>
-                            <th style="border: 1px solid #64748b; padding: 8px; width: 8%;">박스수</th>
-                            <th style="border: 1px solid #64748b; padding: 8px; width: 7%;">청구중량</th>
+                        <tr style="background-color: #0f172a; color: white; text-align: center; font-size: 8.5pt;">
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 10%;">Job 번호</th>
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 13%;">B/L 번호</th>
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 8%;">도착국가</th>
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 11%;">화주명</th>
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 11%;">수하인</th>
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 17%;">품명</th>
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 6%;">박스수</th>
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 11%;">매출액</th>
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 11%;">매입액</th>
+                            <th style="border: 1px solid #64748b; padding: 7px; width: 12%;">수익 (Profit)</th>
                         </tr>
                     </thead>
                     <tbody>
                         {man_rows_html}
+                        <tr style="background-color: #eff6ff; font-weight: bold;">
+                            <td colspan="7" style="border: 1px solid #64748b; padding: 8px; text-align: center;">합 계 (TOTAL)</td>
+                            <td style="border: 1px solid #64748b; padding: 8px; text-align: right; color: #1e3a8a;">{tot_sales_sum:,}원</td>
+                            <td style="border: 1px solid #64748b; padding: 8px; text-align: right; color: #b91c1c;">{tot_purchase_sum:,}원</td>
+                            <td style="border: 1px solid #64748b; padding: 8px; text-align: right; color: #047857; font-size: 10pt;">{tot_profit_sum:,}원</td>
+                        </tr>
                     </tbody>
                 </table>
 
@@ -2569,13 +2596,16 @@ elif selected_menu == "📋 금일발송 매니페스트":
         """
 
     st.markdown("---")
-    st.markdown("#### 👁️️‍🗨️ 금일 발송 매니페스트 정식 출력 미리보기")
+    st.markdown(
+        f"#### 👁️‍🗨️ [{target_date_str}] 매니페스트 및 Profit 정산서 출력"
+        " 미리보기"
+    )
     components.html(manifest_html_output, height=750, scrolling=True)
 
   else:
     st.info(
-        f"오늘({today_str}) 날짜로 등록된 선적 B/L 내역이 없습니다. (날짜를"
-        " 변경하여 조회하려면 B/L 수정 메뉴를 이용하세요)"
+        f"선택하신 날짜({target_date_str})로 등록된 선적 B/L 내역이 없습니다."
+        " 다른 날짜를 선택하시거나 B/L 등록 메뉴에서 등록해주세요."
     )
 
 
