@@ -101,7 +101,7 @@ def login_screen():
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    if st.button("⬅️️ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
+    if st.button("⬅️ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
       st.query_params.clear()
       st.rerun()
 
@@ -436,11 +436,9 @@ def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
   return int(38000 + max(0.0, cw - 1.0) * 25000)
 
 
-# 📌 [Code-128 표준 완벽 호환] 바코드 스캐너가 100% 인식하는 진짜 바코드 선 생성 함수
+# 📌 Code-128 표준 완벽 호환 바코드 생성 함수
 def generate_barcode_html(text):
   clean_txt = str(text).strip()
-
-  # Code 128 표준에 따른 문자별 바코드 인코딩 패턴 (스캐너 인식 보장용 정밀 매핑)
   code128_patterns = {
       "0": "212222",
       "1": "222122",
@@ -484,11 +482,10 @@ def generate_barcode_html(text):
       "default": "212222",
   }
 
-  # 시작 패턴 (Start Code B) 및 종료 패턴 (Stop Code)
   encoded_bars = "211214"
   for ch in clean_txt.upper():
     encoded_bars += code128_patterns.get(ch, code128_patterns["default"])
-  encoded_bars += "2331112"  # Stop Pattern
+  encoded_bars += "2331112"
 
   bars_html = ""
   is_black = True
@@ -1793,7 +1790,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
                             <td style="width: 50%;">
                                 <div class="section-header">FROM (SHIPPER / 송하인)</div>
                                 <b>상호:</b> {shipper_n}<br>
-                                <b>사업자번호:</b> {shipper_bno}<br>
+                                <b>사업자등록번호:</b> {shipper_bno}<br>
                                 <b>주소:</b> {shipper_addr}<br>
                                 <b>담당자 / 연락처:</b> {shipper_mgr} / {shipper_tel}<br>
                                 <div style="margin-top: 8px; font-size: 8pt; color: #64748b;">SENT BY: 사장실 / Date: {ship_date}</div>
@@ -1868,19 +1865,12 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [4] 거래처 인보이스 발행 메뉴
+# [4] 거래처 인보이스 발행 메뉴 (세금계산서 옵션 포함)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📑"
-      " 거래처 인보이스 (청구서) 발행</h3>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>등록된"
-      " B/L 내역 중 인보이스를 발행할 <b>거래처(화주명)</b>를 선택하면, 해당"
-      " 거래처의 미수 내역 및 운임 청구서가 A4 표준 양식으로 자동"
-      " 생성됩니다.</p>",
+      " 거래처 인보이스 (청구서) 발행 및 인쇄</h3>",
       unsafe_allow_html=True,
   )
 
@@ -1896,9 +1886,19 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     )
 
     if client_list_with_bl:
-      selected_invoice_client = st.selectbox(
-          "인보이스를 발행할 거래처(화주) 선택", options=client_list_with_bl
-      )
+      inv_col_top1, inv_col_top2 = st.columns([2, 1])
+      with inv_col_top1:
+        selected_invoice_client = st.selectbox(
+            "인보이스를 발행할 거래처 선택하기", options=client_list_with_bl
+        )
+      with inv_col_top2:
+        tax_invoice_option = st.selectbox(
+            "세금계산서 발행 여부 선택",
+            options=[
+                "세금계산서 미발행 (부가세 없음 + 카드결제/현금)",
+                "세금계산서 발행 (공급가액 + 부가세 10% 별도)",
+            ],
+        )
 
       client_bl_items = [
           item
@@ -1910,14 +1910,27 @@ elif selected_menu == "📑 거래처 인보이스 발행":
         c_info = st.session_state.client_infos.get(
             selected_invoice_client, {}
         )
-        c_biz_no = c_info.get("사업자등록번호", "-")
-        c_addr = c_info.get("주소", "-")
-        c_manager = c_info.get("담당자", "담당자 귀하")
+        c_biz_no = c_info.get("사업자등록번호", "778-09-03229")
+        c_addr = c_info.get(
+            "주소", "경기도 김포시 풍무동 326-5번지 2층 아코글로벌"
+        )
+        c_manager = c_info.get("담당자", "박장우 대표님")
 
         invoice_date_val = str(date.today())
-        total_invoice_amount = sum(
+        raw_total_amount = sum(
             int(item.get("매출액(원)", 0)) for item in client_bl_items
         )
+
+        if "발행" in tax_invoice_option:
+          supply_amount = int(raw_total_amount)
+          vat_amount = int(supply_amount * 0.1)
+          total_invoice_amount = supply_amount + vat_amount
+          tax_notice_text = "• <b>세금계산서 발행 조건:</b> 공급가액의 부가세(VAT) 10%가 포함된 청구 금액입니다."
+        else:
+          supply_amount = int(raw_total_amount)
+          vat_amount = 0
+          total_invoice_amount = supply_amount
+          tax_notice_text = "• <b>세금계산서 미발행 조건:</b> 부가세가 포함되지 않은 순수 청구 금액입니다."
 
         invoice_rows_html = ""
         for idx, itm in enumerate(client_bl_items, 1):
@@ -1944,6 +1957,17 @@ elif selected_menu == "📑 거래처 인보이스 발행":
             " style='height: 40px; vertical-align: middle; margin-right:"
             " 10px;'>"
             if encoded_sidebar_logo
+            else ""
+        )
+
+        vat_row_html = (
+            f"""
+                <tr>
+                    <td style="border: none; font-size: 10.5pt; color: #334155; padding: 4px 0;">부가가치세 (VAT 10%):</td>
+                    <td style="border: none; text-align: right; font-size: 11pt; font-weight: bold; color: #334155; padding: 4px 0;">{vat_amount:,} 원</td>
+                </tr>
+                """
+            if vat_amount > 0
             else ""
         )
 
@@ -2019,17 +2043,25 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
                         <table style="width: 100%; margin-bottom: 15px; border-collapse: collapse;">
                             <tr>
-                                <td style="width: 100%; border: 1.5px solid #1e3a8a; padding: 14px; background-color: #eff6ff; border-radius: 6px;">
-                                    <div style="font-weight: bold; font-size: 10pt; color: #1e3a8a; margin-bottom: 6px;">[ 공급받는 자 (CLIENT) ]</div>
-                                    <div style="font-size: 11pt;"><b>거래처명:</b> <span style="font-size: 12pt; font-weight: bold; color: #1e3a8a;">{selected_invoice_client}</span></div>
-                                    <div><b>사업자등록번호:</b> {c_biz_no} &nbsp;|&nbsp; <b>담당자:</b> {c_manager}</div>
+                                <td style="width: 50%; border: 1.5px solid #64748b; padding: 12px; background-color: #f8fafc; border-radius: 6px; vertical-align: top;">
+                                    <div style="font-weight: bold; font-size: 9pt; color: #0f172a; margin-bottom: 4px;">[ SUPPLIER / 공급자 ]</div>
+                                    <div><b>상호:</b> (주)범운해운항공</div>
+                                    <div><b>사업자번호:</b> 123-86-xxxxx</div>
+                                    <div><b>주소:</b> 경기도 김포시 풍무동 326-5번지 2층</div>
+                                    <div><b>대표전화:</b> 031-985-xxxx</div>
+                                </td>
+                                <td style="width: 50%; border: 1.5px solid #1e3a8a; padding: 12px; background-color: #eff6ff; border-radius: 6px; vertical-align: top;">
+                                    <div style="font-weight: bold; font-size: 9pt; color: #1e3a8a; margin-bottom: 4px;">[ CLIENT / 공급받는 자 ]</div>
+                                    <div><b>상호:</b> <span style="font-size: 11pt; font-weight: bold; color: #1e3a8a;">{selected_invoice_client}</span></div>
+                                    <div><b>사업자번호:</b> {c_biz_no}</div>
+                                    <div><b>담당자:</b> {c_manager}</div>
                                     <div><b>주소:</b> {c_addr}</div>
                                 </td>
                             </tr>
                         </table>
 
                         <div style="background-color: #0f172a; color: white; padding: 10px 15px; font-weight: bold; border-radius: 6px 6px 0 0; font-size: 10pt;">
-                            📦 청구 내역 상세 (BILLED ITEMS)
+                            📦 운임 및 서비스 청구 내역
                         </div>
                         <table class="tbl" style="border-top: none; border-radius: 0 0 6px 6px; overflow: hidden;">
                             <thead>
@@ -2049,18 +2081,28 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
                         <table style="width: 100%; border: 2px solid #1e3a8a; background-color: #f0fdf4; padding: 15px; border-radius: 6px; margin-top: 10px;">
                             <tr>
-                                <td style="border: none; font-size: 11pt; color: #065f46;">
-                                    <b>합계 청구 금액 (TOTAL AMOUNT DUE):</b>
+                                <td style="border: none; font-size: 10.5pt; color: #065f46; padding: 4px 0;">
+                                    공급가액 합계:
                                 </td>
-                                <td style="border: none; text-align: right; font-size: 16pt; font-weight: 900; color: #047857;">
+                                <td style="border: none; text-align: right; font-size: 11pt; font-weight: bold; color: #065f46; padding: 4px 0;">
+                                    {supply_amount:,} 원
+                                </td>
+                            </tr>
+                            {vat_row_html}
+                            <tr>
+                                <td style="border-top: 1px solid #10b981; font-size: 12pt; font-weight: bold; color: #065f46; padding-top: 8px;">
+                                    총 청구 금액 (TOTAL DUE):
+                                </td>
+                                <td style="border-top: 1px solid #10b981; text-align: right; font-size: 16pt; font-weight: 900; color: #047857; padding-top: 8px;">
                                     {total_invoice_amount:,} 원 (KRW)
                                 </td>
                             </tr>
                         </table>
 
-                        <div style="margin-top: 15px; padding: 12px; border: 1px solid #cbd5e1; background-color: #f8fafc; border-radius: 6px; font-size: 8.5pt; color: #475569;">
+                        <div style="margin-top: 15px; padding: 12px; border: 1px solid #cbd5e1; background-color: #f8fafc; border-radius: 6px; font-size: 8.5pt; color: #475569; line-height: 1.5;">
+                            {tax_notice_text}<br>
                             • <b>입금 계좌 안내:</b> 기업은행 123-456789-01-011 (주식회사 범운해운항공)<br>
-                            • 청구된 운임은 세금계산서 발행일 기준 지정된 기한 내에 위 계좌로 송금하여 주시기 바랍니다.
+                            • 청구된 운임은 지정된 기한 내에 위 계좌로 송금하여 주시기 바랍니다.
                         </div>
 
                         <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
@@ -2077,7 +2119,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 </body>
                 </html>
                 """
-        components.html(invoice_html_content, height=850, scrolling=True)
+        components.html(invoice_html_content, height=880, scrolling=True)
   else:
     st.info("발행할 인보이스 데이터가 없습니다. 먼저 B/L을 등록해주세요.")
 
