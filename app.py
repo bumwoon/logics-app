@@ -198,7 +198,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
+  default_clients = ["아코글로벌", "카스", "주식회사 조은로직스"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -897,24 +897,6 @@ with col_sb2:
     st.session_state.user_role = None
     st.query_params.clear()
     st.rerun()
-
-st.sidebar.markdown("---")
-
-# ==========================================
-# 💾 [추가됨] 관리자 전용 데이터 백업 다운로드 버튼
-# ==========================================
-st.sidebar.subheader("💾 데이터 백업 다운로드")
-if os.path.exists(DATA_FILE):
-  with open(DATA_FILE, "rb") as f:
-    st.sidebar.download_button(
-        label="📥 백업 파일 다운로드 (CSV)",
-        data=f,
-        file_name="범운해운항공_물류데이터_백업.csv",
-        mime="text/csv",
-        help="현재 저장된 화물 및 B/L 전체 데이터를 CSV 파일로 다운로드합니다.",
-    )
-else:
-  st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
 
 st.sidebar.markdown("---")
 
@@ -3162,7 +3144,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
   st.markdown("---")
   st.markdown(
-      f"#### 👁‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
+      f"#### 👁️️‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
   )
   components.html(account_html_output, height=750, scrolling=True)
 
@@ -3247,8 +3229,6 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
     nc_role = st.selectbox("권한 설정", ["직원", "관리자(대표)"])
 
     if st.form_submit_button("➕ 사내 계정 생성하기", type="primary"):
-      if nc_id.strip() and nc_pw.submit(): # type: ignore
-        pass
       if nc_id.strip() and nc_pw.strip():
         st.session_state.user_db[nc_id.strip()] = {
             "pw": nc_pw.strip(),
