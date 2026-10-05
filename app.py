@@ -150,4 +150,75 @@ def load_bl_data():
         df["매입액(원)"] = 0
       if "최종작성자" not in df.columns:
         df["최종작성자"] = "이상복"
-      if "
+      return df
+    except Exception:
+      pass
+  return pd.DataFrame()
+
+
+# ==========================================
+# [안전한 요율표 선택 및 수정 컴포넌트 예시]
+# ==========================================
+def render_rate_editor_section(df_clients):
+  """기존 로직을 건드리지 않고 드롭다운으로 선택하여 안전하게 수정하는 섹션"""
+  st.markdown("---")
+  st.subheader("📋 거래처·국가·운송형태별 단가 및 요율표 설정 (선택 수정)")
+
+  if df_clients is None or df_clients.empty:
+    st.info("등록된 데이터가 없습니다.")
+    return
+
+  # 컬럼 존재 여부 확인 후 안전하게 드롭다운 목록 생성
+  col_client = "거래처" if "거래처" in df_clients.columns else df_clients.columns[0]
+  col_country = "국가" if "국가" in df_clients.columns else df_clients.columns[1] if len(df_clients.columns) > 1 else col_client
+  col_transport = "운송형태" if "운송형태" in df_clients.columns else df_clients.columns[2] if len(df_clients.columns) > 2 else col_client
+
+  c1, c2, c3 = st.columns(3)
+  with c1:
+    client_options = df_clients[col_client].dropna().unique().tolist()
+    sel_client = st.selectbox("거래처 선택", client_options, key="edit_sel_client")
+  with c2:
+    country_options = df_clients[df_clients[col_client] == sel_client][col_country].dropna().unique().tolist()
+    sel_country = st.selectbox("국가 선택", country_options, key="edit_sel_country")
+  with c3:
+    transport_options = df_clients[(df_clients[col_client] == sel_client) & (df_clients[col_country] == sel_country)][col_transport].dropna().unique().tolist()
+    sel_transport = st.selectbox("운송형태 선택", transport_options, key="edit_sel_transport")
+
+  # 선택된 조건에 맞는 행 필터링
+  matched_rows = df_clients[
+      (df_clients[col_client] == sel_client) & 
+      (df_clients[col_country] == sel_country) & 
+      (df_clients[col_transport] == sel_transport)
+  ]
+
+  if not matched_rows.empty:
+    st.write("선택하신 조건의 기존 데이터입니다. 아래에서 값을 변경한 뒤 저장하세요.")
+    
+    target_idx = matched_rows.index[0]
+    row_data = matched_rows.iloc[0]
+
+    with st.form("safe_edit_form"):
+      # 기존 데이터 값을 기본값으로 세팅하되 NoneType 에러 원천 차단
+      curr_item = str(row_data.get("품명", "")) if "품명" in df_clients.columns else ""
+      curr_weight = float(row_data.get("기본중량(kg)", 1.0) or 1.0) if "기본중량(kg)" in df_clients.columns else 1.0
+      curr_price = float(row_data.get("기본요금(원)", 0) or 0) if "기본요금(원)" in df_clients.columns else 0.0
+
+      new_item = st.text_input("품명", value=curr_item)
+      new_weight = st.number_input("기본중량(kg)", value=curr_weight)
+      new_price = st.number_input("기본요금(원)", value=curr_price)
+
+      submitted = st.form_submit_button("요율표 최종 저장하기")
+      if submitted:
+        # 기존 데이터프레임의 해당 인덱스만 안전하게 수정 후 저장
+        if "품명" in df_clients.columns:
+          df_clients.at[target_idx, "품명"] = new_item
+        if "기본중량(kg)" in df_clients.columns:
+          df_clients.at[target_idx, "기본중량(kg)"] = new_weight
+        if "기본요금(원)" in df_clients.columns:
+          df_clients.at[target_idx, "기본요금(원)"] = new_price
+        
+        df_clients.to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
+        st.success("기존 데이터 손상 없이 성공적으로 수정 및 저장되었습니다!")
+        st.rerun()
+  else:
+    st.warning("선택된 조건에 일치하는 데이터가 없습니다.")
