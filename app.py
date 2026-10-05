@@ -71,7 +71,7 @@ def login_screen():
   with col2:
     st.markdown(
         "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 물류"
-        " 시스템</h2>",
+        " 시스템 (사내 관리자)</h2>",
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -101,22 +101,17 @@ def login_screen():
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
+    # 뒤로가기 버튼
+    if st.button("⬅️ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
+      st.query_params.clear()
+      st.rerun()
+
     st.markdown(
         "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
         " margin-top: 20px;'>* 초기 관리자 아이디: <b>admin</b> / 비밀번호:"
         " <b>bomwoon123</b></p>",
         unsafe_allow_html=True,
     )
-
-
-# 쿼리 파라미터 체크 (명확하게 ?mode=client가 들어온 경우에만 고객 추적 화면 제공)
-query_params = st.query_params
-is_client_mode = query_params.get("mode", "") == "client"
-
-# 고객 모드가 아닐 때 로그인이 안 되어 있다면 로그인 화면만 표시하고 중단
-if not is_client_mode and not st.session_state.logged_in_user:
-  login_screen()
-  st.stop()
 
 
 # 로고 파일 자동 감지
@@ -469,10 +464,41 @@ TRACKING_STATUS_OPTIONS = [
     "⚠ 운송 지연 또는 보류",
 ]
 
+query_params = st.query_params
+mode_param = query_params.get("mode", "")
+
 # ==========================================
-# [A] 고객 및 모바일 보안 화물 추적 화면 (?mode=client 접속 시)
+# [관리자 로그인 모드 (?mode=admin)]
 # ==========================================
-if is_client_mode:
+if mode_param == "admin":
+  if not st.session_state.logged_in_user:
+    login_screen()
+    st.stop()
+else:
+  # ==========================================
+  # [기본 첫 화면] 고객 및 모바일 보안 화물 추적 화면 (로그인 불필요)
+  # ==========================================
+  # 우측 상단에 사내 관리자 로그인 진입 버튼 제공
+  top_c1, top_c2 = st.columns([6, 1.2])
+  with top_c2:
+    if st.button("🔐 사내 관리자 로그인", use_container_width=True):
+      st.query_params["mode"] = "admin"
+      st.rerun()
+
+  LOGO_FILE = None
+  for filename in os.listdir("."):
+    if filename.startswith("lo"):
+      LOGO_FILE = filename
+      break
+
+  encoded_sidebar_logo = ""
+  if LOGO_FILE and os.path.exists(LOGO_FILE):
+    try:
+      with open(LOGO_FILE, "rb") as f:
+        encoded_sidebar_logo = base64.b64encode(f.read()).decode()
+    except Exception:
+      pass
+
   logo_img_tag = ""
   if encoded_sidebar_logo:
     logo_img_tag = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='width: 250px; max-width: 100%; height: auto; margin-bottom: 8px; border-radius: 8px;'>"
@@ -587,7 +613,7 @@ if is_client_mode:
               else ""
           )
 
-          # 정밀 바코드 생성 코드 (Code128 바코드 이미지 렌더링)
+          # 📌 진짜 바코드 이미지(선 형태) 생성 렌더링
           barcode_b64_m = ""
           try:
             from barcode import Code128
@@ -790,10 +816,18 @@ st.sidebar.info(
     f"현재 접속자: **{st.session_state.user_db[st.session_state.logged_in_user]['name']}**님\n\n(권한:"
     f" {st.session_state.user_role})"
 )
-if st.sidebar.button("로그아웃"):
-  st.session_state.logged_in_user = None
-  st.session_state.user_role = None
-  st.rerun()
+
+col_sb1, col_sb2 = st.sidebar.columns(2)
+with col_sb1:
+  if st.button("🚪 고객 추적화면", use_container_width=True):
+    st.query_params.clear()
+    st.rerun()
+with col_sb2:
+  if st.button("로그아웃", use_container_width=True):
+    st.session_state.logged_in_user = None
+    st.session_state.user_role = None
+    st.query_params.clear()
+    st.rerun()
 
 st.sidebar.markdown("---")
 
@@ -828,7 +862,7 @@ mobile_view_mode = st.sidebar.toggle(
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🌐 고객 보안 추적 링크 안내")
 st.sidebar.markdown(
-    "고객들에게 아래 주소를 안내해주시면 실시간 조회가 가능합니다:<br>`https://logics-app-v6nichbmhtvezr8ia7cnii.streamlit.app/?mode=client`",
+    "고객들에게 아래 주소를 안내해주시면 실시간 조회가 가능합니다:<br>`https://logics-app-v6nichbmhtvezr8ia7cnii.streamlit.app/`",
     unsafe_allow_html=True,
 )
 
@@ -1619,7 +1653,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
           else ""
       )
 
-      # 📌 바코드 이미지 생성 로직 복원 및 보완
+      # 📌 진짜 바코드 이미지(선 형태) 생성 렌더링
       barcode_b64 = ""
       try:
         from barcode import Code128
