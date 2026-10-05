@@ -1,5 +1,6 @@
 from datetime import date, datetime
 import base64
+import getpass
 import io
 import math
 import os
@@ -14,9 +15,22 @@ st.set_page_config(
 )
 
 # ==========================================
-# [보안 및 계정 파일 저장소 시스템]
+# [보안 및 계정 파일 저장소 시스템 - 바탕화면 폴더 고정]
 # ==========================================
-ACCOUNT_USER_FILE = "system_user_accounts.csv"
+user_name = getpass.getuser()
+DATA_DIR = f"C:/Users/{user_name}/Desktop/bumwoon_date"
+
+if not os.path.exists(DATA_DIR):
+  os.makedirs(DATA_DIR)
+
+ACCOUNT_USER_FILE = os.path.join(DATA_DIR, "system_user_accounts.csv")
+DATA_FILE = os.path.join(DATA_DIR, "bl_history_data.csv")
+CLIENT_FILE = os.path.join(DATA_DIR, "client_data.csv")
+ACCOUNT_FILE = os.path.join(DATA_DIR, "account_ledger_data.csv")
+EXPENSE_FILE = os.path.join(DATA_DIR, "expense_data.csv")
+NOTE_FILE = os.path.join(DATA_DIR, "daily_note_data.csv")
+MEETING_FILE = os.path.join(DATA_DIR, "meeting_note_data.csv")
+QUOTATION_FILE = os.path.join(DATA_DIR, "quotation_data.csv")
 
 
 def load_user_db():
@@ -120,7 +134,6 @@ for filename in os.listdir("."):
     LOGO_FILE = filename
     break
 
-# 로고를 Base64로 인코딩
 encoded_sidebar_logo = ""
 if LOGO_FILE and os.path.exists(LOGO_FILE):
   try:
@@ -128,15 +141,6 @@ if LOGO_FILE and os.path.exists(LOGO_FILE):
       encoded_sidebar_logo = base64.b64encode(f.read()).decode()
   except Exception:
     pass
-
-# 데이터 파일 경로 정의
-DATA_FILE = "bl_history_data.csv"
-CLIENT_FILE = "client_data.csv"
-ACCOUNT_FILE = "account_ledger_data.csv"
-EXPENSE_FILE = "expense_data.csv"
-NOTE_FILE = "daily_note_data.csv"
-MEETING_FILE = "meeting_note_data.csv"
-QUOTATION_FILE = "quotation_data.csv"
 
 
 def load_bl_data():
@@ -901,20 +905,25 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 [추가됨] 관리자 전용 데이터 백업 다운로드 버튼
+# 💾 [수정됨] 바탕화면 폴더로 바로 백업 파일 저장 버튼
 # ==========================================
-st.sidebar.subheader("💾 데이터 백업 다운로드")
-if os.path.exists(DATA_FILE):
-  with open(DATA_FILE, "rb") as f:
-    st.sidebar.download_button(
-        label="📥 백업 파일 다운로드 (CSV)",
-        data=f,
-        file_name="범운해운항공_물류데이터_백업.csv",
-        mime="text/csv",
-        help="현재 저장된 화물 및 B/L 전체 데이터를 CSV 파일로 다운로드합니다.",
-    )
-else:
-  st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
+st.sidebar.subheader("💾 데이터 백업 관리")
+
+if st.sidebar.button(
+    "📥 바탕화면 폴더로 즉시 백업 저장", use_container_width=True
+):
+  if os.path.exists(DATA_FILE):
+    try:
+      backup_file_path = os.path.join(
+          DATA_DIR, "범운해운항공_물류데이터_백업.csv"
+      )
+      df_backup = pd.read_csv(DATA_FILE)
+      df_backup.to_csv(backup_file_path, index=False, encoding="utf-8-sig")
+      st.sidebar.success("바탕화면 'bumwoon_date' 폴더에 백업 완료!")
+    except Exception as e:
+      st.sidebar.error(f"백업 중 오류 발생: {e}")
+  else:
+    st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
 
 st.sidebar.markdown("---")
 
@@ -1411,7 +1420,7 @@ if selected_menu == "📊 수출입 B/L 등록":
 
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역 (누가 수정/삭제했는지 기록 및 표시)
+# [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   st.markdown(
@@ -2859,7 +2868,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 
 # ==========================================
-# [9] 거래처 미수금관리 (수금완료 시 수정자 기록 연동)
+# [9] 거래처 미수금관리
 # ==========================================
 elif selected_menu == "💵 거래처 미수금관리":
   st.markdown(
@@ -3247,8 +3256,6 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
     nc_role = st.selectbox("권한 설정", ["직원", "관리자(대표)"])
 
     if st.form_submit_button("➕ 사내 계정 생성하기", type="primary"):
-      if nc_id.strip() and nc_pw.submit(): # type: ignore
-        pass
       if nc_id.strip() and nc_pw.strip():
         st.session_state.user_db[nc_id.strip()] = {
             "pw": nc_pw.strip(),
