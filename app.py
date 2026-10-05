@@ -101,7 +101,7 @@ def login_screen():
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    if st.button("⬅️ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
+    if st.button("⬅️️ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
       st.query_params.clear()
       st.rerun()
 
@@ -190,7 +190,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카스", "주식회사 조은로직스"]
+  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -204,7 +204,7 @@ def load_client_data():
               }
           }
       },
-      "카ส": {
+      "카스": {
           "미국": {
               "항공(Air)": {
                   "보톡스 필러": {
@@ -1871,7 +1871,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [4] 거래처 인보이스 발행 (우리은행/카카오뱅크 계좌 자동 연동)
+# [4] 거래처 인보이스 발행 (세무/담당자 칸 제거 완료)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -1880,9 +1880,8 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>세금계산서"
-      " 발행 유형(법인 계산서 발행, 미발행 등)을 선택하시면 하단에 알맞은"
-      " 입금 계좌정보(우리은행 또는 카카오뱅크)가 자동으로 반영됩니다.</p>",
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>청구할"
+      " 거래처를 선택하시면 하단에 인보이스 정보가 깔끔하게 생성됩니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -1908,16 +1907,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   with inv_col2:
     inv_due_date = st.date_input(
         "지불 기한일 (Due Date)", value=date.today(), key="inv_due_input"
-    )
-    tax_invoice_status = st.selectbox(
-        "세금계산서 / 부가세 발행 구분",
-        options=[
-            "법인 세금계산서 발행 (우리은행 계좌 연동)",
-            "계산서 미발행 / Invoice 전용 (카카오뱅크 계좌 연동)",
-            "영세율 세금계산서 발행",
-            "부과세 10% 과세 계산서",
-        ],
-        index=0,
     )
     inv_remark_memo = st.text_input(
         "비고 메모", value="등록된 B/L 화물 운송비 청구 건"
@@ -2013,18 +2002,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   )
   client_bno_inv = client_info_inv.get("사업자등록번호", "-")
 
-  # 선택된 세금계산서 발행 유형에 따라 입금 계좌 자동 전환
-  if "미발행" in tax_invoice_status or "카카오뱅크" in tax_invoice_status:
-    bank_info_html = """
-        • <b>입금 계좌 안내 (카카오뱅크 / 개인사업자통장):</b> <span style="color: #1e3a8a; font-weight: bold;">3333-12-9553477 (예금주: 이상복/범운해운항공)</span><br>
-        • <b>세무 처리:</b> 계산서 미발행 (Invoice 청구 전용 건)
-        """
-  else:
-    bank_info_html = """
-        • <b>입금 계좌 안내 (우리은행 / 법인통장):</b> <span style="color: #1e3a8a; font-weight: bold;">1005-704-932716 (예금주: 주식회사 범운해운항공)</span><br>
-        • <b>세무 처리:</b> 법인 세금계산서 발행 건
-        """
-
   logo_embed_inv = (
       f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
       " style='height: 38px; vertical-align: middle; margin-right: 8px;'>"
@@ -2105,8 +2082,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                         <b>[BILL TO / 청구받는 곳]</b><br>
                         <b>거래처명:</b> {selected_inv_client} &nbsp;&nbsp;|&nbsp;&nbsp; <b>사업자등록번호:</b> {client_bno_inv}<br>
                         <b>주소:</b> {client_addr_inv}<br>
-                        <b>발행일자 (Date):</b> {str(inv_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>지불기한 (Due Date):</b> {str(inv_due_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>담당자:</b> 대표이사 이상복<br>
-                        <b>세무 발행 구분:</b> <span style="color: #2563eb; font-weight: bold;">{tax_invoice_status}</span>
+                        <b>발행일자 (Date):</b> {str(inv_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>지불기한 (Due Date):</b> {str(inv_due_date)}
                     </td>
                 </tr>
             </table>
@@ -2136,8 +2112,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
             </table>
 
             <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px 15px; border-radius: 6px; margin-bottom: 25px; font-size: 9pt;">
-                <b>[비고 및 결제 계좌 안내]</b><br>
-                {bank_info_html}<br>
+                <b>[비고 및 메모]</b><br>
                 • 메모: {inv_remark_memo}
             </div>
 
