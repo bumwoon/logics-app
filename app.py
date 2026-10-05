@@ -190,7 +190,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카스", "주식회사 조은로직스"]
+  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -436,7 +436,6 @@ def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
   return int(38000 + max(0.0, cw - 1.0) * 25000)
 
 
-# 📌 Code-128 표준 완벽 호환 바코드 생성 함수
 def generate_barcode_html(text):
   clean_txt = str(text).strip()
   code128_patterns = {
@@ -546,9 +545,6 @@ if mode_param == "admin":
     login_screen()
     st.stop()
 else:
-  # ==========================================
-  # [기본 첫 화면] 고객 및 모바일 보안 화물 추적 화면 (로그인 불필요)
-  # ==========================================
   top_c1, top_c2 = st.columns([6, 1.2])
   with top_c2:
     if st.button("🔐 사내 관리자 로그인", use_container_width=True):
@@ -1875,7 +1871,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [4] 거래처 인보이스 발행
+# [4] 거래처 인보이스 발행 (실제 B/L 자동 연동형)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -1884,9 +1880,9 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>거래처를"
-      " 선택하고 인보이스 항목을 입력하시면, 범운해운항공 직인이 포함된 공식"
-      " 인보이스 양식이 생성됩니다.</p>",
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>청구할"
+      " 거래처를 선택하시면, 등록된 <b>실제 B/L 내역(선적일, 품명, 킬로수,"
+      " 매출금액)</b>이 자동으로 연동되어 인보이스에 반영됩니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -1898,64 +1894,104 @@ elif selected_menu == "📑 거래처 인보이스 발행":
         else ["아코글로벌"]
     )
     selected_inv_client = st.selectbox(
-        "청구 대상 거래처 선택", options=inv_client_options
+        "청구 대상 거래처 선택", options=inv_client_options, key="inv_client_sel"
     )
-    inv_date = st.date_input("인보이스 발행일자", value=date.today())
+    inv_date = st.date_input(
+        "인보이스 발행일자 (Date)", value=date.today(), key="inv_date_input"
+    )
     inv_no = st.text_input(
         "인보이스 번호",
         value=f"INV-{date.today().strftime('%Y%m%d')}-01",
-        placeholder="예: INV-20260901-01",
+        placeholder="예: INV-20261005-01",
     )
 
   with inv_col2:
-    inv_due_date = st.date_input("지불 기한일 (Due Date)", value=date.today())
+    inv_due_date = st.date_input(
+        "지불 기한일 (Due Date)", value=date.today(), key="inv_due_input"
+    )
     inv_remark_memo = st.text_input(
-        "비고 메모", value="보톡스 및 의료기기 물류 운송비 청구 건"
+        "비고 메모", value="등록된 B/L 화물 운송비 청구 건"
     )
 
   st.markdown("---")
-  st.markdown("#### 📋 인보이스 상세 품목 내역 입력")
-
-  if "invoice_items_df" not in st.session_state:
-    st.session_state.invoice_items_df = pd.DataFrame([
-        {
-            "품목 및 내용 (Description)": (
-                "미국 보톡스/필러 항공특송 운임 (100kg)"
-            ),
-            "수량": 1,
-            "단가 (원)": 3800000,
-            "공급가액 (원)": 3800000,
-        },
-        {
-            "품목 및 내용 (Description)": "특수 포장 및 서류 대행 수수료",
-            "수량": 1,
-            "단가 (원)": 150000,
-            "공급가액 (원)": 150000,
-        },
-    ])
-
-  edited_inv_table = st.data_editor(
-      st.session_state.invoice_items_df,
-      num_rows="dynamic",
-      use_container_width=True,
-      key="invoice_editor_table",
+  st.markdown(
+      f"#### 📋 [{selected_inv_client}] 등록된 B/L 내역 중 청구할 건 선택"
   )
 
-  total_inv_amount = 0
-  inv_rows_html = ""
-  for _, row in edited_inv_table.iterrows():
-    desc = str(row.get("품목 및 내용 (Description)", ""))
-    qty = float(row.get("수량", 1) or 1)
-    unit_p = float(row.get("단가 (원)", 0) or 0)
-    sub_total = int(qty * unit_p)
-    total_inv_amount += sub_total
+  # 해당 거래처의 B/L 내역 필터링
+  client_bls = [
+      item
+      for item in st.session_state.bl_data_list
+      if str(item.get("화주명(매출)")) == selected_inv_client
+  ]
 
-    inv_rows_html += f"""
+  selected_invoice_rows = []
+  if client_bls:
+    df_client_bl = pd.DataFrame(client_bls)
+    if "선택" not in df_client_bl.columns:
+      df_client_bl.insert(0, "선택", True)  # 기본적으로 전체 선택
+
+    edited_inv_bl_table = st.data_editor(
+        df_client_bl[
+            [
+                "선택",
+                "날짜",
+                "Job 번호",
+                "B/L 번호",
+                "국가",
+                "품목",
+                "매출청구중량(kg)",
+                "매출액(원)",
+            ]
+        ],
+        hide_index=True,
+        use_container_width=True,
+        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+        key="invoice_bl_picker",
+    )
+
+    selected_invoice_rows = edited_inv_bl_table[
+        edited_inv_bl_table["선택"] == True
+    ]
+  else:
+    st.warning(
+        f"⚠️️ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
+        " 먼저 [수출입 B/L 등록] 메뉴에서 B/L을 등록해주세요."
+    )
+
+  # 인보이스 품목 구성
+  inv_rows_html = ""
+  total_inv_amount = 0
+
+  if not selected_invoice_rows.empty:
+    for _, row in selected_invoice_rows.iterrows():
+      b_date = str(row.get("날짜", ""))
+      b_job = str(row.get("Job 번호", ""))
+      b_bl = str(row.get("B/L 번호", ""))
+      b_country = str(row.get("국가", ""))
+      b_item = str(row.get("품목", ""))
+      b_cw = row.get("매출청구중량(kg)", 1.0)
+      b_amount = int(row.get("매출액(원)", 0))
+      total_inv_amount += b_amount
+
+      desc_text = (
+          f"[{b_country}] {b_item}<br><span"
+          f" style='font-size:8pt;color:#64748b;'>선적일: {b_date} | Job:"
+          f" {b_job} | B/L: {b_bl} | 청구중량: {b_cw} KG</span>"
+      )
+
+      inv_rows_html += f"""
+            <tr>
+                <td style="border: 1px solid #64748b; padding: 8px;">{desc_text}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">1식</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: right;">{b_amount:,.0f} 원</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold;">{b_amount:,.0f} 원</td>
+            </tr>
+            """
+  else:
+    inv_rows_html = """
         <tr>
-            <td style="border: 1px solid #64748b; padding: 8px;">{desc}</td>
-            <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{qty}</td>
-            <td style="border: 1px solid #64748b; padding: 8px; text-align: right;">{unit_p:,.0f} 원</td>
-            <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold;">{sub_total:,.0f} 원</td>
+            <td colspan="4" style="border: 1px solid #64748b; padding: 12px; text-align: center; color: #94a3b8;">선택된 B/L 내역이 없습니다. 위에서 청구할 B/L을 체크해주세요.</td>
         </tr>
         """
 
@@ -2059,10 +2095,10 @@ elif selected_menu == "📑 거래처 인보이스 발행":
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
                 <thead>
                     <tr style="background-color: #0f172a; color: white; text-align: center;">
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 45%;">품목 및 내용 (Description)</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 50%;">품목 및 B/L 상세 내역 (Description)</th>
                         <th style="border: 1px solid #64748b; padding: 8px; width: 15%;">수량</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 20%;">단가</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 20%;">금액</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 17.5%;">단가</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 17.5%;">금액</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2113,7 +2149,6 @@ elif selected_menu == "📄 화물 견적서 발행":
       unsafe_allow_html=True,
   )
 
-  # 견적서 입력 폼 설정
   q_col1, q_col2 = st.columns(2)
   with q_col1:
     quote_client_options = (
@@ -2166,9 +2201,6 @@ elif selected_menu == "📄 화물 견적서 발행":
       key="quote_editor_table",
   )
 
-  # 수신처 정보 가져오기
-  client_inf = st.session_state.client_infos.get(selected_q_client, {})
-
   logo_embed_q = (
       f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
       " style='height: 38px; vertical-align: middle; margin-right: 8px;'>"
@@ -2176,7 +2208,6 @@ elif selected_menu == "📄 화물 견적서 발행":
       else ""
   )
 
-  # 표 데이터 HTML 생성
   table_rows_html = ""
   for _, row in edited_quote_table.iterrows():
     table_rows_html += f"""
@@ -2237,7 +2268,6 @@ elif selected_menu == "📄 화물 견적서 발행":
         <div class="quote-container">
             <button class="print-btn no-print" onclick="window.print()">🖨 견적서 인쇄 / PDF 저장하기 (Print / Save as PDF)</button>
 
-            <!-- 로고 및 타이틀 -->
             <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px;">
                 <tr>
                     <td style="width: 60%; border: none;">
@@ -2255,7 +2285,6 @@ elif selected_menu == "📄 화물 견적서 발행":
                 </tr>
             </table>
 
-            <!-- 공문 스타일 기본 정보란 -->
             <table style="width: 100%; font-size: 10pt; margin-bottom: 20px; border-collapse: collapse;">
                 <tr>
                     <td style="width: 15%; padding: 4px 0; font-weight: bold; color: #475569;">문서번호:</td>
@@ -2277,14 +2306,12 @@ elif selected_menu == "📄 화물 견적서 발행":
 
             <hr style="border: 0; border-top: 1px solid #cbd5e1; margin-bottom: 20px;">
 
-            <!-- 본문 인사말 -->
             <div style="margin-bottom: 20px; font-size: 10pt; line-height: 1.6;">
                 1. 귀사의 일일 일취월장을 기원합니다.<br>
                 2. 주식회사 범운해운항공을 이용해 주시는 고객사에 깊은 감사의 말씀을 드립니다.<br>
                 3. 당사에서는 요청하신 품목의 국가별 배송 서비스와 관련하여, 발송 스케줄 및 운임·부피중량 계산 기준을 아래와 같이 정리하여 견적 안내해 드리오니 업무에 참고하시기 바랍니다.
             </div>
 
-            <!-- [아래] 표 영역 -->
             <div style="text-align: center; font-weight: bold; font-size: 11pt; color: #0f172a; margin-bottom: 8px;">[ 아 래 ]</div>
             
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
@@ -2301,7 +2328,6 @@ elif selected_menu == "📄 화물 견적서 발행":
                 </tbody>
             </table>
 
-            <!-- 참고사항 -->
             <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px 15px; border-radius: 6px; margin-bottom: 25px; font-size: 9pt;">
                 <b>[참고사항]</b><br>
                 • 청구 중량 산정 기준: 실중량(Actual Weight)과 부피중량(Volumetric Weight) 중 큰 중량을 기준으로 운임을 부과합니다.<br>
@@ -2312,7 +2338,6 @@ elif selected_menu == "📄 화물 견적서 발행":
                 4. 기타 문의사항: 상세 출고 일정 및 운송 관련 문의는 범운해운항공 물류운송팀으로 연락 주시기 바랍니다.
             </div>
 
-            <!-- 하단 발신 명의 -->
             <div style="text-align: center; font-size: 13pt; font-weight: 900; color: #0f172a; margin-top: 40px; letter-spacing: 1px;">
                 주식회사 범운해운항공
             </div>
