@@ -900,7 +900,7 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 [추가됨] 관리자 전용 데이터 백업 다운로드 및 자동 이어붙이기 업로드 기능
+# 💾 데이터 백업 다운로드 및 자동 이어붙이기 업로드 기능
 # ==========================================
 st.sidebar.subheader("💾 데이터 백업 및 이어붙이기")
 if os.path.exists(DATA_FILE):
@@ -928,7 +928,6 @@ if uploaded_backup_file is not None:
       df_existing = pd.DataFrame(existing_data) if existing_data else pd.DataFrame()
 
       if not df_existing.empty:
-        # B/L 번호 기준으로 중복 제거하며 합치기 (이어붙이기)
         combined_df = (
             pd.concat([df_existing, df_uploaded])
             .drop_duplicates(subset=["B/L 번호"], keep="first")
@@ -939,10 +938,7 @@ if uploaded_backup_file is not None:
 
       st.session_state.bl_data_list = combined_df.to_dict("records")
       save_bl_data(st.session_state.bl_data_list)
-      st.sidebar.success(
-          "🎉 백업 데이터가 기존 데이터에 자동으로 깔끔하게"
-          " 이어붙여졌습니다완료!"
-      )
+      st.sidebar.success("🎉 백업 데이터가 기존 데이터에 이어붙여졌습니다!")
       st.rerun()
   except Exception as e:
     st.sidebar.error(f"파일 업로드 중 오류가 발생했습니다: {e}")
@@ -1442,7 +1438,7 @@ if selected_menu == "📊 수출입 B/L 등록":
 
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역 (누가 수정/삭제했는지 기록 및 표시)
+# [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   st.markdown(
@@ -2065,14 +2061,13 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     ]
   else:
     st.warning(
-        f"⚠️ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
+        f"⚠️️ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
         " 먼저 [수출입 B/L 등록] 메뉴에서 B/L을 등록해주세요."
     )
 
   inv_rows_html = ""
   total_inv_amount = 0
 
-  # [수정된 부분] isinstance 및 대소문자 방어 코드로 AttributeError 완벽 방지
   if isinstance(selected_invoice_rows, pd.DataFrame) and not selected_invoice_rows.empty:
     for _, row in selected_invoice_rows.iterrows():
       b_date = str(row.get("날짜", ""))
@@ -2741,7 +2736,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
 
 # ==========================================
-# [8] 거래처 등록 요금 상세 관리
+# [8] 거래처 등록 요금 상세 관리 (거래처 삭제 기능 포함)
 # ==========================================
 elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
   st.markdown(
@@ -2779,7 +2774,31 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
       "요율 및 정보 수정할 거래처 선택", options=st.session_state.client_list
   )
 
-  if selected_manage_client:
+  # [추가된 거래처 삭제 버튼 기능]
+  del_col1, del_col2 = st.columns([3, 1])
+  with del_col2:
+    if st.button(
+        "🗑 선택한 거래처 삭제", type="secondary", use_container_width=True
+    ):
+      if len(st.session_state.client_list) > 1:
+        if selected_manage_client in st.session_state.client_list:
+          st.session_state.client_list.remove(selected_manage_client)
+        if selected_manage_client in st.session_state.client_infos:
+          del st.session_state.client_infos[selected_manage_client]
+        if selected_manage_client in st.session_state.client_rates:
+          del st.session_state.client_rates[selected_manage_client]
+
+        save_client_data(
+            st.session_state.client_list,
+            st.session_state.client_rates,
+            st.session_state.client_infos,
+        )
+        st.success(f"[{selected_manage_client}] 거래처가 삭제되었습니다.")
+        st.rerun()
+      else:
+        st.warning("최소 1개의 거래처는 남아있어야 합니다.")
+
+  if selected_manage_client and selected_manage_client in st.session_state.client_list:
     info_dict = st.session_state.client_infos.get(selected_manage_client, {})
     with st.form("client_info_edit_form"):
       ci_col1, ci_col2 = st.columns(2)
@@ -2891,7 +2910,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 
 # ==========================================
-# [9] 거래처 미수금관리 (수금완료 시 수정자 기록 연동)
+# [9] 거래처 미수금관리
 # ==========================================
 elif selected_menu == "💵 거래처 미수금관리":
   st.markdown(
