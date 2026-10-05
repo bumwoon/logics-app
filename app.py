@@ -899,46 +899,47 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 엑셀(.xlsx) 데이터 백업 및 자동 이어붙이기 업로드 기능
+# 💾 CSV/엑셀 백업 및 자동 이어붙이기 업로드 기능 (openpyxl 불필요 버전)
 # ==========================================
-st.sidebar.subheader("💾 엑셀(.xlsx) 백업 및 이어붙이기")
+st.sidebar.subheader("💾 데이터 백업 및 이어붙이기")
 
 
-def convert_df_to_excel(df):
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    df.to_excel(writer, index=False, sheet_name="B/L_History")
-  processed_data = output.getvalue()
-  return processed_data
+def convert_df_to_csv(df):
+  return df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
 
 
 existing_data_for_backup = load_bl_data()
 if existing_data_for_backup:
   df_backup = pd.DataFrame(existing_data_for_backup)
-  excel_bytes = convert_df_to_excel(df_backup)
+  csv_bytes = convert_df_to_csv(df_backup)
   st.sidebar.download_button(
-      label="📥 엑셀 백업 파일 다운로드 (.xlsx)",
-      data=excel_bytes,
-      file_name="범운해운항공_물류데이터_백업.xlsx",
-      mime=(
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      label="📥 백업 파일 다운로드 (.csv)",
+      data=csv_bytes,
+      file_name="범운해운항공_물류데이터_백업.csv",
+      mime="text/csv",
+      help=(
+          "현재 저장된 화물 및 B/L 전체 데이터를 백업 파일로 다운로드합니다."
       ),
-      help="현재 저장된 화물 및 B/L 전체 데이터를 엑셀(.xlsx) 파일로 다운로드합니다.",
   )
 else:
   st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
 
 uploaded_excel_file = st.sidebar.file_uploader(
-    "📤 엑셀 백업 파일 자동 이어붙이기 (업로드)",
-    type=["xlsx", "xls"],
+    "📤 백업 파일 자동 이어붙이기 (업로드)",
+    type=["csv", "xlsx", "xls"],
     help=(
-        "이전에 다운로드한 엑셀 백업 파일을 올리면 기존 데이터와 중복 없이"
-        " 자동으로 이어붙여집니다."
+        "이전에 다운로드한 백업 파일이나 엑셀 파일을 올리면 기존 데이터와 중복"
+        " 없이 자동으로 이어붙여집니다."
     ),
 )
 if uploaded_excel_file is not None:
   try:
-    df_uploaded = pd.read_excel(uploaded_excel_file)
+    file_extension = uploaded_excel_file.name.split(".")[-1].lower()
+    if file_extension == "csv":
+      df_uploaded = pd.read_csv(uploaded_excel_file)
+    else:
+      df_uploaded = pd.read_excel(uploaded_excel_file)
+
     if not df_uploaded.empty:
       existing_data = load_bl_data()
       df_existing = pd.DataFrame(existing_data) if existing_data else pd.DataFrame()
@@ -955,11 +956,13 @@ if uploaded_excel_file is not None:
       st.session_state.bl_data_list = combined_df.to_dict("records")
       save_bl_data(st.session_state.bl_data_list)
       st.sidebar.success(
-          "🎉 엑셀 백업 데이터가 기존 데이터에 이어붙여졌습니다!"
+          "🎉 백업 데이터가 기존 데이터에 이어붙여졌습니다!"
       )
       st.rerun()
   except Exception as e:
-    st.sidebar.error(f"엑셀 파일 업로드 중 오류가 발생했습니다: {e}")
+    st.sidebar.error(
+        f"파일 업로드 중 오류가 발생했습니다. (CSV 파일로 변환하여 올려보세요): {e}"
+    )
 
 st.sidebar.markdown("---")
 
@@ -2086,7 +2089,10 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   inv_rows_html = ""
   total_inv_amount = 0
 
-  if isinstance(selected_invoice_rows, pd.DataFrame) and not selected_invoice_rows.empty:
+  if (
+      isinstance(selected_invoice_rows, pd.DataFrame)
+      and not selected_invoice_rows.empty
+  ):
     for _, row in selected_invoice_rows.iterrows():
       b_date = str(row.get("날짜", ""))
       b_bl = str(row.get("B/L 번호", ""))
@@ -2815,7 +2821,10 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
       else:
         st.warning("최소 1개의 거래처는 남아있어야 합니다.")
 
-  if selected_manage_client and selected_manage_client in st.session_state.client_list:
+  if (
+      selected_manage_client
+      and selected_manage_client in st.session_state.client_list
+  ):
     info_dict = st.session_state.client_infos.get(selected_manage_client, {})
     with st.form("client_info_edit_form"):
       ci_col1, ci_col2 = st.columns(2)
