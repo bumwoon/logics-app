@@ -1871,7 +1871,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [4] 거래처 인보이스 발행 (실제 B/L 자동 연동형)
+# [4] 거래처 인보이스 발행 (날짜, 비엘번호, 카톤수, 품명, 금액 칸 분리)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -1881,8 +1881,9 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   )
   st.markdown(
       "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>청구할"
-      " 거래처를 선택하시면, 등록된 <b>실제 B/L 내역(선적일, 품명, 킬로수,"
-      " 매출금액)</b>이 자동으로 연동되어 인보이스에 반영됩니다.</p>",
+      " 거래처를 선택하시면, 등록된 <b>실제 B/L 내역</b>이 <b>날짜, B/L번호,"
+      " 카톤수, 품명, 금액</b> 칸별로 깔끔하게 분리되어 인보이스에"
+      " 반영됩니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -1940,6 +1941,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 "B/L 번호",
                 "국가",
                 "품목",
+                "박스수",
                 "매출청구중량(kg)",
                 "매출액(원)",
             ]
@@ -1955,43 +1957,43 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     ]
   else:
     st.warning(
-        f"⚠️️ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
+        f"⚠ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
         " 먼저 [수출입 B/L 등록] 메뉴에서 B/L을 등록해주세요."
     )
 
-  # 인보이스 품목 구성
+  # 인보이스 품목 구성 (날짜 | B/L번호 | 카톤수 | 품명 | 금액)
   inv_rows_html = ""
   total_inv_amount = 0
 
   if not selected_invoice_rows.empty:
     for _, row in selected_invoice_rows.iterrows():
       b_date = str(row.get("날짜", ""))
-      b_job = str(row.get("Job 번호", ""))
       b_bl = str(row.get("B/L 번호", ""))
+      b_box = str(row.get("박스수", "1 박스"))
       b_country = str(row.get("국가", ""))
       b_item = str(row.get("품목", ""))
       b_cw = row.get("매출청구중량(kg)", 1.0)
       b_amount = int(row.get("매출액(원)", 0))
       total_inv_amount += b_amount
 
-      desc_text = (
-          f"[{b_country}] {b_item}<br><span"
-          f" style='font-size:8pt;color:#64748b;'>선적일: {b_date} | Job:"
-          f" {b_job} | B/L: {b_bl} | 청구중량: {b_cw} KG</span>"
+      item_full_desc = (
+          f"<b>[{b_country}] {b_item}</b><br><span"
+          f" style='font-size:7.5pt; color:#64748b;'>청구중량: {b_cw} KG</span>"
       )
 
       inv_rows_html += f"""
             <tr>
-                <td style="border: 1px solid #64748b; padding: 8px;">{desc_text}</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">1식</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: right;">{b_amount:,.0f} 원</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold;">{b_amount:,.0f} 원</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;">{b_date}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; font-size: 9pt; color: #1e3a8a;">{b_bl}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;">{b_box}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; font-size: 9pt;">{item_full_desc}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold; font-size: 9.5pt;">{b_amount:,.0f} 원</td>
             </tr>
             """
   else:
     inv_rows_html = """
         <tr>
-            <td colspan="4" style="border: 1px solid #64748b; padding: 12px; text-align: center; color: #94a3b8;">선택된 B/L 내역이 없습니다. 위에서 청구할 B/L을 체크해주세요.</td>
+            <td colspan="5" style="border: 1px solid #64748b; padding: 12px; text-align: center; color: #94a3b8;">선택된 B/L 내역이 없습니다. 위에서 청구할 B/L을 체크해주세요.</td>
         </tr>
         """
 
@@ -2029,7 +2031,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 background-color: #ffffff;
             }}
             .invoice-container {{
-                max-width: 760px;
+                max-width: 780px;
                 margin: 0 auto;
                 border: 2px solid #0f172a;
                 padding: 30px;
@@ -2094,11 +2096,12 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
                 <thead>
-                    <tr style="background-color: #0f172a; color: white; text-align: center;">
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 50%;">품목 및 B/L 상세 내역 (Description)</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 15%;">수량</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 17.5%;">단가</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 17.5%;">금액</th>
+                    <tr style="background-color: #0f172a; color: white; text-align: center; font-size: 9pt;">
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 15%;">날짜 (Date)</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 20%;">B/L 번호</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 12%;">카톤수</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 35%;">품명 (Description)</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 18%;">금액</th>
                     </tr>
                 </thead>
                 <tbody>
