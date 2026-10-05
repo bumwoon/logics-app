@@ -2033,7 +2033,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       if str(item.get("화주명(매출)")) == selected_inv_client
   ]
 
-  selected_invoice_rows = []
+  selected_invoice_rows = pd.DataFrame()
   if client_bls:
     df_client_bl = pd.DataFrame(client_bls)
     if "선택" not in df_client_bl.columns:
@@ -2072,7 +2072,8 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   inv_rows_html = ""
   total_inv_amount = 0
 
-  if not selected_invoice_rows.empty:
+  # [수정된 부분] isinstance 및 대소문자 방어 코드로 AttributeError 완벽 방지
+  if isinstance(selected_invoice_rows, pd.DataFrame) and not selected_invoice_rows.empty:
     for _, row in selected_invoice_rows.iterrows():
       b_date = str(row.get("날짜", ""))
       b_bl = str(row.get("B/L 번호", ""))
