@@ -527,7 +527,7 @@ if "meeting_data_list" not in st.session_state:
 TRACKING_STATUS_OPTIONS = [
     "📦 물류센터 입고 및 접수 완료",
     "🔄 수출입 통관 진행 중",
-    "✈️ 항공/해상 선적 완료 (운송 중)",
+    "✈️️ 항공/해상 선적 완료 (운송 중)",
     "📍 현지 공항/항만 도착",
     "🚚 현지 배송 진행 중 (Out for Delivery)",
     "✅ 배송 완료 (Delivered)",
@@ -1871,7 +1871,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [4] 거래처 인보이스 발행 (발행정보 제거, KG 전용칸, 품명칸 부피사이즈 추가)
+# [4] 거래처 인보이스 발행 (세금계산서/영세률 선택 기능 포함)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -1881,9 +1881,8 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   )
   st.markdown(
       "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>청구할"
-      " 거래처를 선택하시면, 등록된 <b>실제 B/L 내역</b>이 <b>날짜, B/L번호,"
-      " 카톤수, 품명 및 부피, 청구중량(KG), 금액</b> 칸별로 깔끔하게 분리되어"
-      " 인보이스에 반영됩니다.</p>",
+      " 거래처를 선택하시고, 세금계산서 발행 유형(영세율, 부과세 10%, 미발행"
+      " 등)을 선택하시면 인보이스 하단에 반영됩니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -1909,6 +1908,16 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   with inv_col2:
     inv_due_date = st.date_input(
         "지불 기한일 (Due Date)", value=date.today(), key="inv_due_input"
+    )
+    tax_invoice_status = st.selectbox(
+        "세금계산서 / 부가세 발행 구분",
+        options=[
+            "영세율 세금계산서 발행",
+            "부과세 10% 과세 계산서",
+            "면세 계산서",
+            "계산서 미발행 (Invoice 전용)",
+        ],
+        index=0,
     )
     inv_remark_memo = st.text_input(
         "비고 메모", value="등록된 B/L 화물 운송비 청구 건"
@@ -2087,7 +2096,8 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                         <b>[BILL TO / 청구받는 곳]</b><br>
                         <b>거래처명:</b> {selected_inv_client} &nbsp;&nbsp;|&nbsp;&nbsp; <b>사업자등록번호:</b> {client_bno_inv}<br>
                         <b>주소:</b> {client_addr_inv}<br>
-                        <b>발행일자 (Date):</b> {str(inv_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>지불기한 (Due Date):</b> {str(inv_due_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>담당자:</b> 대표이사 이상복
+                        <b>발행일자 (Date):</b> {str(inv_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>지불기한 (Due Date):</b> {str(inv_due_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>담당자:</b> 대표이사 이상복<br>
+                        <b>세무 발행 구분:</b> <span style="color: #2563eb; font-weight: bold;">{tax_invoice_status}</span>
                     </td>
                 </tr>
             </table>
@@ -2118,6 +2128,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
             <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px 15px; border-radius: 6px; margin-bottom: 25px; font-size: 9pt;">
                 <b>[비고 및 결제 계좌 안내]</b><br>
+                • 세무 처리 참고: <b>{tax_invoice_status}</b><br>
                 • 메모: {inv_remark_memo}<br>
                 • 입금 계좌: [당사 거래 은행 계좌번호 안내]
             </div>
