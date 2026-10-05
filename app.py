@@ -37,7 +37,7 @@ def load_user_db():
     except Exception:
       pass
   return {
-      "admin": {"pw": "bomwoon123", "role": "관리자(대표)", "name": "이상복"}
+      "lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}
   }
 
 
@@ -107,8 +107,7 @@ def login_screen():
 
     st.markdown(
         "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
-        " margin-top: 20px;'>* 초기 관리자 아이디: <b>admin</b> / 비밀번호:"
-        " <b>bomwoon123</b></p>",
+        " margin-top: 20px;'>* 관리자 아이디: <b>lsb</b> / 비밀번호: <b>7071</b></p>",
         unsafe_allow_html=True,
     )
 
@@ -901,9 +900,9 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 [추가됨] 관리자 전용 데이터 백업 다운로드 버튼
+# 💾 [추가됨] 관리자 전용 데이터 백업 다운로드 및 자동 이어붙이기 업로드 기능
 # ==========================================
-st.sidebar.subheader("💾 데이터 백업 다운로드")
+st.sidebar.subheader("💾 데이터 백업 및 이어붙이기")
 if os.path.exists(DATA_FILE):
   with open(DATA_FILE, "rb") as f:
     st.sidebar.download_button(
@@ -915,6 +914,38 @@ if os.path.exists(DATA_FILE):
     )
 else:
   st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
+
+uploaded_backup_file = st.sidebar.file_uploader(
+    "📤 백업 파일 자동 이어붙이기 (업로드)",
+    type=["csv"],
+    help="이전에 다운로드한 백업 파일을 올리면 기존 데이터와 중복 없이 자동으로 이어붙여집니다.",
+)
+if uploaded_backup_file is not None:
+  try:
+    df_uploaded = pd.read_csv(uploaded_backup_file)
+    if not df_uploaded.empty:
+      existing_data = load_bl_data()
+      df_existing = pd.DataFrame(existing_data) if existing_data else pd.DataFrame()
+
+      if not df_existing.empty:
+        # B/L 번호 기준으로 중복 제거하며 합치기 (이어붙이기)
+        combined_df = (
+            pd.concat([df_existing, df_uploaded])
+            .drop_duplicates(subset=["B/L 번호"], keep="first")
+            .reset_index(drop=True)
+        )
+      else:
+        combined_df = df_uploaded
+
+      st.session_state.bl_data_list = combined_df.to_dict("records")
+      save_bl_data(st.session_state.bl_data_list)
+      st.sidebar.success(
+          "🎉 백업 데이터가 기존 데이터에 자동으로 깔끔하게"
+          " 이어붙여졌습니다완료!"
+      )
+      st.rerun()
+  except Exception as e:
+    st.sidebar.error(f"파일 업로드 중 오류가 발생했습니다: {e}")
 
 st.sidebar.markdown("---")
 
@@ -3247,8 +3278,6 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
     nc_role = st.selectbox("권한 설정", ["직원", "관리자(대표)"])
 
     if st.form_submit_button("➕ 사내 계정 생성하기", type="primary"):
-      if nc_id.strip() and nc_pw.submit(): # type: ignore
-        pass
       if nc_id.strip() and nc_pw.strip():
         st.session_state.user_db[nc_id.strip()] = {
             "pw": nc_pw.strip(),
