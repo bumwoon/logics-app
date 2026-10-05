@@ -2691,7 +2691,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
 
 # ==========================================
-# [8] 거래처 등록 요금 상세 관리
+# [8] 거래처 등록 요금 상세 관리 (국가 선택형 드롭다운 수정 반영)
 # ==========================================
 elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
   st.markdown(
@@ -2781,10 +2781,26 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
                     "국가": country,
                     "운송형태": transport,
                     "품명": item_name,
-                    "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
-                    "기본요금(원)": int(r_val.get("기본요금", 38000)),
-                    "추가단가(원/kg)": int(r_val.get("추가단가", 25000)),
-                    "1CBM당단가(원)": int(r_val.get("1CBM당단가", 3700000)),
+                    "기본중량(kg)": float(
+                        r_val.get("기본중량", 1.0)
+                        if r_val.get("기본중량") is not None
+                        else 1.0
+                    ),
+                    "기본요금(원)": int(
+                        r_val.get("기본요금", 38000)
+                        if r_val.get("기본요금") is not None
+                        else 38000
+                    ),
+                    "추가단가(원/kg)": int(
+                        r_val.get("추가단가", 25000)
+                        if r_val.get("추가단가") is not None
+                        else 25000
+                    ),
+                    "1CBM당단가(원)": int(
+                        r_val.get("1CBM당단가", 3700000)
+                        if r_val.get("1CBM당단가") is not None
+                        else 3700000
+                    ),
                 })
 
     if not rate_rows:
@@ -2799,10 +2815,20 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
       }]
 
     df_rates = pd.DataFrame(rate_rows)
+
+    # 안전한 국가 및 운송형태 선택을 위해 열 설정 추가
     edited_rates_df = st.data_editor(
         df_rates,
         num_rows="dynamic",
         use_container_width=True,
+        column_config={
+            "국가": st.column_config.SelectboxColumn(
+                "도착 국가", options=COUNTRY_LIST, required=True
+            ),
+            "운송형태": st.column_config.SelectboxColumn(
+                "운송형태", options=["항공(Air)", "해상(LCL)"], required=True
+            ),
+        },
         key="client_rates_editor_table",
     )
 
@@ -2815,16 +2841,39 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
         t_val = str(row.get("운송형태", "항공(Air)")).strip()
         i_val = str(row.get("품명", "일반공산품")).strip()
 
+        if not c_val or c_val.lower() == "nan":
+          c_val = "미국"
+
+        try:
+          bw_val = float(row.get("기본중량(kg)", 1.0) or 1.0)
+        except:
+          bw_val = 1.0
+
+        try:
+          bp_val = int(row.get("기본요금(원)", 38000) or 38000)
+        except:
+          bp_val = 38000
+
+        try:
+          ap_val = int(row.get("추가단가(원/kg)", 25000) or 25000)
+        except:
+          ap_val = 25000
+
+        try:
+          cbm_p_val = int(row.get("1CBM당단가(원)", 3700000) or 3700000)
+        except:
+          cbm_p_val = 3700000
+
         if c_val not in new_rate_dict:
           new_rate_dict[c_val] = {}
         if t_val not in new_rate_dict[c_val]:
           new_rate_dict[c_val][t_val] = {}
 
         new_rate_dict[c_val][t_val][i_val] = {
-            "기본중량": float(row.get("기본중량(kg)", 1.0)),
-            "기본요금": int(row.get("기본요금(원)", 38000)),
-            "추가단가": int(row.get("추가단가(원/kg)", 25000)),
-            "1CBM당단가": int(row.get("1CBM당단가(원)", 3700000)),
+            "기본중량": bw_val,
+            "기본요금": bp_val,
+            "추가단가": ap_val,
+            "1CBM당단가": cbm_p_val,
         }
 
       st.session_state.client_rates[selected_manage_client] = new_rate_dict
@@ -3144,7 +3193,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
   st.markdown("---")
   st.markdown(
-      f"#### 👁️️‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
+      f"#### 👁‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
   )
   components.html(account_html_output, height=750, scrolling=True)
 
