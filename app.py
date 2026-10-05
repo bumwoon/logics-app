@@ -1355,7 +1355,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
     else:
       st.warning(
-          "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
+          "⚠️️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
       )
 
 
@@ -2610,7 +2610,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
 
 # ==========================================
-# [8] 거래처 등록 요금 상세 관리
+# [8] 거래처 등록 요금 상세 관리 (원래 요율 설정 표 완전 복원)
 # ==========================================
 elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
   st.markdown(
@@ -2677,8 +2677,86 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
             st.session_state.client_rates,
             st.session_state.client_infos,
         )
-        st.success("거래처 정보가 저장되었습니다!")
+        st.success("거래처 기본 정보가 저장되었습니다!")
         st.rerun()
+
+    st.markdown("---")
+    st.markdown(
+        f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표"
+        " 설정"
+    )
+
+    client_current_rates = st.session_state.client_rates.get(
+        selected_manage_client, {}
+    )
+    rate_rows = []
+    if client_current_rates:
+      for country, trans_dict in client_current_rates.items():
+        if isinstance(trans_dict, dict):
+          for transport, item_dict in trans_dict.items():
+            if isinstance(item_dict, dict):
+              for item_name, r_val in item_dict.items():
+                rate_rows.append({
+                    "국가": country,
+                    "운송형태": transport,
+                    "품명": item_name,
+                    "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
+                    "기본요금(원)": int(r_val.get("기본요금", 38000)),
+                    "추가단가(원/kg)": int(r_val.get("추가단가", 25000)),
+                    "1CBM당단가(원)": int(r_val.get("1CBM당단가", 3700000)),
+                })
+
+    if not rate_rows:
+      rate_rows = [{
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품명": "보톡스 필러",
+          "기본중량(kg)": 1.0,
+          "기본요금(원)": 38000,
+          "추가단가(원/kg)": 25000,
+          "1CBM당단가(원)": 3700000,
+      }]
+
+    df_rates = pd.DataFrame(rate_rows)
+    edited_rates_df = st.data_editor(
+        df_rates,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="client_rates_editor_table",
+    )
+
+    if st.button(
+        "💾 요율표 최종 저장하기", type="primary", use_container_width=True
+    ):
+      new_rate_dict = {}
+      for _, row in edited_rates_df.iterrows():
+        c_val = str(row.get("국가", "미국")).strip()
+        t_val = str(row.get("운송형태", "항공(Air)")).strip()
+        i_val = str(row.get("품명", "일반공산품")).strip()
+
+        if c_val not in new_rate_dict:
+          new_rate_dict[c_val] = {}
+        if t_val not in new_rate_dict[c_val]:
+          new_rate_dict[c_val][t_val] = {}
+
+        new_rate_dict[c_val][t_val][i_val] = {
+            "기본중량": float(row.get("기본중량(kg)", 1.0)),
+            "기본요금": int(row.get("기본요금(원)", 38000)),
+            "추가단가": int(row.get("추가단가(원/kg)", 25000)),
+            "1CBM당단가": int(row.get("1CBM당단가(원)", 3700000)),
+        }
+
+      st.session_state.client_rates[selected_manage_client] = new_rate_dict
+      save_client_data(
+          st.session_state.client_list,
+          st.session_state.client_rates,
+          st.session_state.client_infos,
+      )
+      st.success(
+          f"[{selected_manage_client}] 거래처의 상세 단가표가 정상적으로"
+          " 저장되었습니다!"
+      )
+      st.rerun()
 
 
 # ==========================================
