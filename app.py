@@ -2043,18 +2043,10 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
                         <table style="width: 100%; margin-bottom: 15px; border-collapse: collapse;">
                             <tr>
-                                <td style="width: 50%; border: 1.5px solid #64748b; padding: 12px; background-color: #f8fafc; border-radius: 6px; vertical-align: top;">
-                                    <div style="font-weight: bold; font-size: 9pt; color: #0f172a; margin-bottom: 4px;">[ SUPPLIER / 공급자 ]</div>
-                                    <div><b>상호:</b> (주)범운해운항공</div>
-                                    <div><b>사업자번호:</b> 123-86-xxxxx</div>
-                                    <div><b>주소:</b> 경기도 김포시 풍무동 326-5번지 2층</div>
-                                    <div><b>대표전화:</b> 031-985-xxxx</div>
-                                </td>
-                                <td style="width: 50%; border: 1.5px solid #1e3a8a; padding: 12px; background-color: #eff6ff; border-radius: 6px; vertical-align: top;">
-                                    <div style="font-weight: bold; font-size: 9pt; color: #1e3a8a; margin-bottom: 4px;">[ CLIENT / 공급받는 자 ]</div>
-                                    <div><b>상호:</b> <span style="font-size: 11pt; font-weight: bold; color: #1e3a8a;">{selected_invoice_client}</span></div>
-                                    <div><b>사업자번호:</b> {c_biz_no}</div>
-                                    <div><b>담당자:</b> {c_manager}</div>
+                                <td style="width: 100%; border: 1.5px solid #1e3a8a; padding: 14px; background-color: #eff6ff; border-radius: 6px; vertical-align: top;">
+                                    <div style="font-weight: bold; font-size: 10pt; color: #1e3a8a; margin-bottom: 6px;">[ CLIENT / 공급받는 자 (청구처) ]</div>
+                                    <div style="font-size: 11pt;"><b>상호:</b> <span style="font-size: 12pt; font-weight: bold; color: #1e3a8a;">{selected_invoice_client}</span></div>
+                                    <div><b>사업자등록번호:</b> {c_biz_no} &nbsp;|&nbsp; <b>담당자:</b> {c_manager}</div>
                                     <div><b>주소:</b> {c_addr}</div>
                                 </td>
                             </tr>
