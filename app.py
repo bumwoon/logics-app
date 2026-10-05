@@ -237,7 +237,7 @@ def load_client_data():
           "전화번호": "",
           "주소": "경기도 김포시 풍무동 326-5번지 2층",
       },
-      "카ส": {
+      "카스": {
           "사업자등록번호": "",
           "이메일": "",
           "담당자": "",
@@ -1355,7 +1355,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
     else:
       st.warning(
-          "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
+          "⚠️️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
       )
 
 
@@ -2429,7 +2429,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
 
 
 # ==========================================
-# [7] 금일발송 매니페스트
+# [7] 금일발송 매니페스트 (출력 기능 포함 복원)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
   st.markdown(
@@ -2452,6 +2452,126 @@ elif selected_menu == "📋 금일발송 매니페스트":
         " 집계되었습니다."
     )
     st.dataframe(df_today, use_container_width=True)
+
+    logo_embed_man = (
+        f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
+        " style='height: 38px; vertical-align: middle; margin-right: 8px;'>"
+        if encoded_sidebar_logo
+        else ""
+    )
+
+    man_rows_html = ""
+    for _, row in df_today.iterrows():
+      man_rows_html += f"""
+            <tr>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('Job 번호', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-weight: bold; color: #1e3a8a;">{row.get('B/L 번호', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('국가', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('화주명(매출)', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('해외수하인', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px;">{row.get('품목', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{row.get('박스수', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; color: #dc2626; font-weight: bold;">{row.get('매출청구중량(kg)', 0)} KG</td>
+            </tr>
+            """
+
+    manifest_html_output = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                @media print {{
+                    body {{ -webkit-print-color-adjust: exact; }}
+                    .no-print {{ display: none !important; }}
+                    @page {{ size: A4 landscape; margin: 10mm; }}
+                }}
+                body {{
+                    font-family: 'Pretendard', sans-serif;
+                    color: #1e293b;
+                    font-size: 9.5pt;
+                    line-height: 1.4;
+                    margin: 0;
+                    padding: 10px;
+                    background-color: #ffffff;
+                }}
+                .man-container {{
+                    max-width: 1050px;
+                    margin: 0 auto;
+                    border: 2px solid #0f172a;
+                    padding: 25px;
+                    border-radius: 8px;
+                    background-color: #ffffff;
+                }}
+                .print-btn {{
+                    display: block;
+                    width: 100%;
+                    background-color: #2563eb;
+                    color: white;
+                    text-align: center;
+                    padding: 12px;
+                    font-size: 11.5pt;
+                    font-weight: bold;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    margin-bottom: 20px;
+                }}
+                .print-btn:hover {{ background-color: #1d4ed8; }}
+            </style>
+        </head>
+        <body>
+            <div class="man-container">
+                <button class="print-btn no-print" onclick="window.print()">🖨 금일 발송 매니페스트 인쇄 / PDF 저장하기 (Print / Save as PDF)</button>
+
+                <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px;">
+                    <tr>
+                        <td style="width: 60%; border: none;">
+                            <div style="display: flex; align-items: center;">
+                                {logo_embed_man}
+                                <div>
+                                    <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                    <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="width: 40%; text-align: right; border: none;">
+                            <div style="font-size: 18pt; font-weight: 900; color: #0f172a; letter-spacing: 2px;">금일 발송 화물 매니페스트</div>
+                            <div style="font-size: 9pt; color: #475569; margin-top: 4px;">발송 일자: {today_str}</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                    <thead>
+                        <tr style="background-color: #0f172a; color: white; text-align: center; font-size: 9pt;">
+                            <th style="border: 1px solid #64748b; padding: 8px; width: 12%;">Job 번호</th>
+                            <th style="border: 1px solid #64748b; padding: 8px; width: 15%;">B/L 번호</th>
+                            <th style="border: 1px solid #64748b; padding: 8px; width: 10%;">도착국가</th>
+                            <th style="border: 1px solid #64748b; padding: 8px; width: 13%;">화주명</th>
+                            <th style="border: 1px solid #64748b; padding: 8px; width: 13%;">수하인</th>
+                            <th style="border: 1px solid #64748b; padding: 8px; width: 22%;">품명</th>
+                            <th style="border: 1px solid #64748b; padding: 8px; width: 8%;">박스수</th>
+                            <th style="border: 1px solid #64748b; padding: 8px; width: 7%;">청구중량</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {man_rows_html}
+                    </tbody>
+                </table>
+
+                <div style="text-align: center; font-size: 11pt; font-weight: 900; color: #0f172a; margin-top: 30px;">
+                    주식회사 범운해운항공 물류운송팀 / 대표이사 이상복 [직인생략]
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+    st.markdown("---")
+    st.markdown("#### 👁️️‍🗨️ 금일 발송 매니페스트 정식 출력 미리보기")
+    components.html(manifest_html_output, height=750, scrolling=True)
+
   else:
     st.info(
         f"오늘({today_str}) 날짜로 등록된 선적 B/L 내역이 없습니다. (날짜를"
