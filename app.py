@@ -900,29 +900,47 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 데이터 백업 다운로드 및 자동 이어붙이기 업로드 기능
+# 💾 엑셀(.xlsx) 데이터 백업 및 자동 이어붙이기 업로드 기능
 # ==========================================
-st.sidebar.subheader("💾 데이터 백업 및 이어붙이기")
-if os.path.exists(DATA_FILE):
-  with open(DATA_FILE, "rb") as f:
-    st.sidebar.download_button(
-        label="📥 백업 파일 다운로드 (CSV)",
-        data=f,
-        file_name="범운해운항공_물류데이터_백업.csv",
-        mime="text/csv",
-        help="현재 저장된 화물 및 B/L 전체 데이터를 CSV 파일로 다운로드합니다.",
-    )
+st.sidebar.subheader("💾 엑셀(.xlsx) 백업 및 이어붙이기")
+
+
+# 엑셀 파일 바이트 스트림 생성 함수 (xlsxwriter 또는 openpyxl 이용)
+def convert_df_to_excel(df):
+  output = io.BytesIO()
+  with pd.ExcelWriter(output, engine="openpyxl") as writer:
+    df.to_excel(writer, index=False, sheet_name="B/L_History")
+  processed_data = output.getvalue()
+  return processed_data
+
+
+existing_data_for_backup = load_bl_data()
+if existing_data_for_backup:
+  df_backup = pd.DataFrame(existing_data_for_backup)
+  excel_bytes = convert_df_to_excel(df_backup)
+  st.sidebar.download_button(
+      label="📥 엑셀 백업 파일 다운로드 (.xlsx)",
+      data=excel_bytes,
+      file_name="범운해운항공_물류데이터_백업.xlsx",
+      mime=(
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ),
+      help="현재 저장된 화물 및 B/L 전체 데이터를 엑셀(.xlsx) 파일로 다운로드합니다.",
+  )
 else:
   st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
 
-uploaded_backup_file = st.sidebar.file_uploader(
-    "📤 백업 파일 자동 이어붙이기 (업로드)",
-    type=["csv"],
-    help="이전에 다운로드한 백업 파일을 올리면 기존 데이터와 중복 없이 자동으로 이어붙여집니다.",
+uploaded_excel_file = st.sidebar.file_uploader(
+    "📤 엑셀 백업 파일 자동 이어붙이기 (업로드)",
+    type=["xlsx", "xls"],
+    help=(
+        "이전에 다운로드한 엑셀 백업 파일을 올리면 기존 데이터와 중복 없이"
+        " 자동으로 이어붙여집니다."
+    ),
 )
-if uploaded_backup_file is not None:
+if uploaded_excel_file is not None:
   try:
-    df_uploaded = pd.read_csv(uploaded_backup_file)
+    df_uploaded = pd.read_excel(uploaded_excel_file)
     if not df_uploaded.empty:
       existing_data = load_bl_data()
       df_existing = pd.DataFrame(existing_data) if existing_data else pd.DataFrame()
@@ -938,10 +956,12 @@ if uploaded_backup_file is not None:
 
       st.session_state.bl_data_list = combined_df.to_dict("records")
       save_bl_data(st.session_state.bl_data_list)
-      st.sidebar.success("🎉 백업 데이터가 기존 데이터에 이어붙여졌습니다!")
+      st.sidebar.success(
+          "🎉 엑셀 백업 데이터가 기존 데이터에 이어붙여졌습니다!"
+      )
       st.rerun()
   except Exception as e:
-    st.sidebar.error(f"파일 업로드 중 오류가 발생했습니다: {e}")
+    st.sidebar.error(f"엑셀 파일 업로드 중 오류가 발생했습니다: {e}")
 
 st.sidebar.markdown("---")
 
@@ -2061,7 +2081,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     ]
   else:
     st.warning(
-        f"⚠️️ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
+        f"⚠ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
         " 먼저 [수출입 B/L 등록] 메뉴에서 B/L을 등록해주세요."
     )
 
