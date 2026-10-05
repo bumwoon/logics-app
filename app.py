@@ -190,7 +190,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
+  default_clients = ["아코글로벌", "카스", "주식회사 조은로직스"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -527,7 +527,7 @@ if "meeting_data_list" not in st.session_state:
 TRACKING_STATUS_OPTIONS = [
     "📦 물류센터 입고 및 접수 완료",
     "🔄 수출입 통관 진행 중",
-    "✈️️ 항공/해상 선적 완료 (운송 중)",
+    "✈ 항공/해상 선적 완료 (운송 중)",
     "📍 현지 공항/항만 도착",
     "🚚 현지 배송 진행 중 (Out for Delivery)",
     "✅ 배송 완료 (Delivered)",
@@ -1871,7 +1871,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [4] 거래처 인보이스 발행 (세금계산서/영세률 선택 기능 포함)
+# [4] 거래처 인보이스 발행 (우리은행/카카오뱅크 계좌 자동 연동)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -1880,9 +1880,9 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>청구할"
-      " 거래처를 선택하시고, 세금계산서 발행 유형(영세율, 부과세 10%, 미발행"
-      " 등)을 선택하시면 인보이스 하단에 반영됩니다.</p>",
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>세금계산서"
+      " 발행 유형(법인 계산서 발행, 미발행 등)을 선택하시면 하단에 알맞은"
+      " 입금 계좌정보(우리은행 또는 카카오뱅크)가 자동으로 반영됩니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -1912,10 +1912,10 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     tax_invoice_status = st.selectbox(
         "세금계산서 / 부가세 발행 구분",
         options=[
+            "법인 세금계산서 발행 (우리은행 계좌 연동)",
+            "계산서 미발행 / Invoice 전용 (카카오뱅크 계좌 연동)",
             "영세율 세금계산서 발행",
             "부과세 10% 과세 계산서",
-            "면세 계산서",
-            "계산서 미발행 (Invoice 전용)",
         ],
         index=0,
     )
@@ -1928,7 +1928,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       f"#### 📋 [{selected_inv_client}] 등록된 B/L 내역 중 청구할 건 선택"
   )
 
-  # 해당 거래처의 B/L 내역 필터링
   client_bls = [
       item
       for item in st.session_state.bl_data_list
@@ -1939,7 +1938,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   if client_bls:
     df_client_bl = pd.DataFrame(client_bls)
     if "선택" not in df_client_bl.columns:
-      df_client_bl.insert(0, "선택", True)  # 기본적으로 전체 선택
+      df_client_bl.insert(0, "선택", True)
 
     edited_inv_bl_table = st.data_editor(
         df_client_bl[
@@ -1971,7 +1970,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
         " 먼저 [수출입 B/L 등록] 메뉴에서 B/L을 등록해주세요."
     )
 
-  # 인보이스 품목 구성 (날짜 | B/L번호 | 카톤수 | 품명 및 부피 | 중량(KG) | 금액)
   inv_rows_html = ""
   total_inv_amount = 0
 
@@ -2014,6 +2012,18 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       "주소", "경기도 김포시 풍무동 326-5번지 2층"
   )
   client_bno_inv = client_info_inv.get("사업자등록번호", "-")
+
+  # 선택된 세금계산서 발행 유형에 따라 입금 계좌 자동 전환
+  if "미발행" in tax_invoice_status or "카카오뱅크" in tax_invoice_status:
+    bank_info_html = """
+        • <b>입금 계좌 안내 (카카오뱅크 / 개인사업자통장):</b> <span style="color: #1e3a8a; font-weight: bold;">3333-12-9553477 (예금주: 이상복/범운해운항공)</span><br>
+        • <b>세무 처리:</b> 계산서 미발행 (Invoice 청구 전용 건)
+        """
+  else:
+    bank_info_html = """
+        • <b>입금 계좌 안내 (우리은행 / 법인통장):</b> <span style="color: #1e3a8a; font-weight: bold;">1005-704-932716 (예금주: 주식회사 범운해운항공)</span><br>
+        • <b>세무 처리:</b> 법인 세금계산서 발행 건
+        """
 
   logo_embed_inv = (
       f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
@@ -2089,7 +2099,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 </tr>
             </table>
 
-            <!-- 발행 정보 박스를 제거하고 [BILL TO]를 단독으로 넓게 배치 -->
             <table style="width: 100%; font-size: 10pt; margin-bottom: 20px; border-collapse: collapse;">
                 <tr>
                     <td style="width: 100%; vertical-align: top; border: 1px solid #cbd5e1; padding: 14px; background-color: #f8fafc; border-radius: 6px;">
@@ -2128,9 +2137,8 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
             <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px 15px; border-radius: 6px; margin-bottom: 25px; font-size: 9pt;">
                 <b>[비고 및 결제 계좌 안내]</b><br>
-                • 세무 처리 참고: <b>{tax_invoice_status}</b><br>
-                • 메모: {inv_remark_memo}<br>
-                • 입금 계좌: [당사 거래 은행 계좌번호 안내]
+                {bank_info_html}<br>
+                • 메모: {inv_remark_memo}
             </div>
 
             <div style="text-align: center; font-size: 12pt; font-weight: 900; color: #0f172a; margin-top: 30px;">
