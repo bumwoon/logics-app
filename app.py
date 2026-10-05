@@ -151,6 +151,10 @@ def load_bl_data():
         df["매출액(원)"] = 0
       if "매입액(원)" not in df.columns:
         df["매입액(원)"] = 0
+      if "최종작성자" not in df.columns:
+        df["최종작성자"] = "이상복"
+      if "최종수정자" not in df.columns:
+        df["최종수정자"] = "-"
       return df.to_dict("records")
     except Exception:
       return []
@@ -330,6 +334,10 @@ def save_bl_data(data_list):
       df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
     if "수금상태" not in df.columns:
       df["수금상태"] = "미수"
+    if "최종작성자" not in df.columns:
+      df["최종작성자"] = "이상복"
+    if "최종수정자" not in df.columns:
+      df["최종수정자"] = "-"
     df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
   else:
     if os.path.exists(DATA_FILE):
@@ -868,9 +876,14 @@ st.sidebar.markdown(
 )
 st.sidebar.markdown("---")
 
+current_user_id = st.session_state.logged_in_user
+current_user_info = st.session_state.user_db.get(
+    current_user_id, {"name": "관리자", "role": "관리자(대표)"}
+)
+current_user_name = current_user_info.get("name", "관리자")
+
 st.sidebar.info(
-    f"현재 접속자: **{st.session_state.user_db[st.session_state.logged_in_user]['name']}**님\n\n(권한:"
-    f" {st.session_state.user_role})"
+    f"현재 접속자: **{current_user_name}**님\n\n(권한: {st.session_state.user_role})"
 )
 
 col_sb1, col_sb2 = st.sidebar.columns(2)
@@ -1125,7 +1138,7 @@ header_html = f"""
 st.markdown(header_html, unsafe_allow_html=True)
 
 # ==========================================
-# [1] 수출입 B/L 등록
+# [1] 수출입 B/L 등록 (작성자 자동 기록)
 # ==========================================
 if selected_menu == "📊 수출입 B/L 등록":
   st.markdown(
@@ -1327,6 +1340,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       f"""
     <div style="background-color: #f8fafc; border: 1.5px solid #2563eb; padding: 14px 18px; border-radius: 8px; margin-bottom: 12px;">
         <b>🔍 [B/L 등록 전 실시간 미리보기 요약]</b><br>
+        • 등록 담당자: <b style="color: #2563eb;">{current_user_name}</b><br>
         • 총 CBM: <b>{total_cbm:.3f} CBM</b> | 총 카톤수: <b>{total_ctn}박스</b><br>
         • 화주명(매출처): <b style="color: #1e3a8a;">{shipper_name if shipper_name else '미선택'}</b> (청구중량: <b>{sales_chargeable_weight}kg</b>) → 청구금액: <b style="color: #1e3a8a; font-size: 11pt;">{int(total_sales):,} 원</b><br>
         • 매입처(비용처): <b style="color: #b91c1c;">{purchase_vendor if purchase_vendor else '미선택'}</b> (청구중량: <b>{purchase_chargeable_weight}kg</b>) → 매입금액: <b style="color: #b91c1c; font-size: 11pt;">{int(total_purchase):,} 원</b><br>
@@ -1364,10 +1378,13 @@ if selected_menu == "📊 수출입 B/L 등록":
           "매입액(원)": int(total_purchase),
           "예상Profit(원)": preview_profit,
           "비고": remarks,
+          "최종작성자": current_user_name,
+          "최종수정자": "-",
       })
       save_bl_data(st.session_state.bl_data_list)
       st.success(
-          f"🎉 [성공] B/L 및 Job 번호({job_no})가 성공적으로 등록되었습니다!"
+          f"🎉 [성공] B/L 및 Job 번호({job_no})가 [{current_user_name}]님의"
+          " 이름으로 등록되었습니다!"
       )
     else:
       st.warning(
@@ -1376,7 +1393,7 @@ if selected_menu == "📊 수출입 B/L 등록":
 
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역
+# [2] 등록 B/L 수정 및 Profit 내역 (누가 수정/삭제했는지 기록 및 표시)
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   st.markdown(
@@ -1385,9 +1402,9 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>수정할"
-      " B/L 행의 <b>선택(체크박스)</b>을 체크한 뒤, 아래의 <b>[✏️ 선택한 B/L"
-      " 수정하기]</b> 버튼을 누르면 상세 수정 화면이 열립니다.</p>",
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>각"
+      " 건마다 <b>최종작성자</b>와 <b>최종수정자</b>가 실시간 기록되므로 누가"
+      " 수정·삭제했는지 투명하게 확인할 수 있습니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -1397,6 +1414,10 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
       df_bl.insert(0, "선택", False)
     if "수금상태" not in df_bl.columns:
       df_bl["수금상태"] = "미수"
+    if "최종작성자" not in df_bl.columns:
+      df_bl["최종작성자"] = "이상복"
+    if "최종수정자" not in df_bl.columns:
+      df_bl["최종수정자"] = "-"
 
     edited_table = st.data_editor(
         df_bl,
@@ -1432,9 +1453,11 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
         if len(selected_rows) > 0:
           for idx in selected_rows.index.tolist():
             st.session_state.bl_data_list[idx]["수금상태"] = "수금완료"
+            st.session_state.bl_data_list[idx]["최종수정자"] = current_user_name
           save_bl_data(st.session_state.bl_data_list)
           st.success(
-              "선택하신 B/L 건들이 '수금완료' 상태로 업데이트되었습니다!"
+              f"선택하신 B/L 건들이 '수금완료' 처리되었으며, [{current_user_name}]님이"
+              " 수정자로 기록되었습니다!"
           )
           st.rerun()
         else:
@@ -1446,13 +1469,20 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
       ):
         if len(selected_rows) > 0:
           indices_to_drop = selected_rows.index.tolist()
+          deleted_job_nos = [
+              str(st.session_state.bl_data_list[i].get("Job 번호", ""))
+              for i in indices_to_drop
+          ]
           st.session_state.bl_data_list = [
               item
               for i, item in enumerate(st.session_state.bl_data_list)
               if i not in indices_to_drop
           ]
           save_bl_data(st.session_state.bl_data_list)
-          st.success("선택하신 B/L 내역이 삭제되었습니다!")
+          st.success(
+              f"선택하신 B/L 내역(Job: {', '.join(deleted_job_nos)})이"
+              f" 삭제되었습니다! (삭제자: {current_user_name})"
+          )
           st.rerun()
         else:
           st.warning("삭제할 B/L 행의 체크박스를 선택해주세요.")
@@ -1464,7 +1494,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
         st.markdown("---")
         st.markdown(
             f"#### 📝 [B/L 번호: {target_item.get('B/L 번호', '')}] 상세 수정"
-            " 화면"
+            f" 화면 (수정자: {current_user_name})"
         )
 
         with st.form("detail_edit_form"):
@@ -1601,6 +1631,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
           if st.form_submit_button(
               "💾 수정 완료 및 저장하기", type="primary", use_container_width=True
           ):
+            existing_writer = str(target_item.get("최종작성자", "이상복"))
             st.session_state.bl_data_list[idx] = {
                 "구분": u_io,
                 "날짜": str(u_date),
@@ -1627,10 +1658,15 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 "매입액(원)": u_purchase,
                 "예상Profit(원)": u_sales - u_purchase,
                 "비고": u_remarks,
+                "최종작성자": existing_writer,
+                "최종수정자": current_user_name,
             }
             save_bl_data(st.session_state.bl_data_list)
             del st.session_state.edit_target_index
-            st.success("B/L 정보 및 수금 상태가 안전하게 수정되었습니다!")
+            st.success(
+                f"B/L 정보가 수정되었습니다! (작성자: {existing_writer} / 수정자:"
+                f" {current_user_name})"
+            )
             st.rerun()
   else:
     st.info("등록된 B/L 내역이 없습니다.")
@@ -2385,7 +2421,7 @@ elif selected_menu == "📄 화물 견적서 발행":
 
 
 # ==========================================
-# [6] 거래처 미팅 노트 (거래처별 분류 및 필터 기능 추가)
+# [6] 거래처 미팅 노트
 # ==========================================
 elif selected_menu == "🤝 거래처 미팅 노트":
   st.markdown(
@@ -2423,9 +2459,12 @@ elif selected_menu == "🤝 거래처 미팅 노트":
           "제목": m_title,
           "상세내용": m_content,
           "향후조치": m_action,
+          "작성자": current_user_name,
       })
       save_meeting_data(st.session_state.meeting_data_list)
-      st.success("미팅 노트가 저장되었습니다!")
+      st.success(
+          f"미팅 노트가 저장되었습니다! (작성자: {current_user_name})"
+      )
       st.rerun()
 
   st.markdown("---")
@@ -2433,8 +2472,9 @@ elif selected_menu == "🤝 거래처 미팅 노트":
 
   if st.session_state.meeting_data_list:
     df_meeting_all = pd.DataFrame(st.session_state.meeting_data_list)
+    if "작성자" not in df_meeting_all.columns:
+      df_meeting_all["작성자"] = "이상복"
 
-    # 거래처 선택 셀렉트박스 필터 추가 (전체 보기 포함)
     all_clients_in_meeting = ["전체 거래처 보기"] + sorted(
         df_meeting_all["거래처"].dropna().unique().tolist()
     )
@@ -2801,7 +2841,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 
 # ==========================================
-# [9] 거래처 미수금관리
+# [9] 거래처 미수금관리 (수금완료 시 수정자 기록 연동)
 # ==========================================
 elif selected_menu == "💵 거래처 미수금관리":
   st.markdown(
@@ -2825,6 +2865,10 @@ elif selected_menu == "💵 거래처 미수금관리":
       df_unpaid["수금상태"] = "미수"
     if "매출액(원)" not in df_unpaid.columns:
       df_unpaid["매출액(원)"] = 0
+    if "최종작성자" not in df_unpaid.columns:
+      df_unpaid["최종작성자"] = "이상복"
+    if "최종수정자" not in df_unpaid.columns:
+      df_unpaid["최종수정자"] = "-"
 
     st.markdown("#### 📊 전체 B/L 수금 상태 요약표")
     edited_unpaid_table = st.data_editor(
@@ -2836,6 +2880,8 @@ elif selected_menu == "💵 거래처 미수금관리":
             "화주명(매출)",
             "매출액(원)",
             "수금상태",
+            "최종작성자",
+            "최종수정자",
         ]],
         hide_index=True,
         use_container_width=True,
@@ -2853,9 +2899,11 @@ elif selected_menu == "💵 거래처 미수금관리":
       if len(selected_unpaid_rows) > 0:
         for idx in selected_unpaid_rows.index.tolist():
           st.session_state.bl_data_list[idx]["수금상태"] = "수금완료"
+          st.session_state.bl_data_list[idx]["최종수정자"] = current_user_name
         save_bl_data(st.session_state.bl_data_list)
         st.success(
-            "선택하신 B/L 건들이 성공적으로 '수금완료' 처리되었습니다!"
+            f"선택하신 B/L 건들이 '수금완료' 처리되었습니다! (수정자:"
+            f" {current_user_name})"
         )
         st.rerun()
       else:
@@ -2914,9 +2962,12 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
           "항목": acc_category,
           "금액(원)": int(acc_amount),
           "적요": acc_desc,
+          "작성자": current_user_name,
       })
       save_expense_data(st.session_state.expense_data_list)
-      st.success("입출금 장부에 등록되었습니다!")
+      st.success(
+          f"입출금 장부에 등록되었습니다! (작성자: {current_user_name})"
+      )
       st.rerun()
 
   st.markdown("---")
@@ -2969,6 +3020,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     for r in daily_records:
       g = str(r.get("구분", ""))
       amt = int(r.get("금액(원)", 0))
+      w_name = str(r.get("작성자", "이상복"))
       amt_str = (
           f"<span style='color:#1e3a8a; font-weight:bold;'>+{amt:,}원</span>"
           if "수입" in g
@@ -2980,7 +3032,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold;">{g}</td>
             <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{r.get('항목', '')}</td>
             <td style="border: 1px solid #64748b; padding: 8px; text-align: right;">{amt_str}</td>
-            <td style="border: 1px solid #64748b; padding: 8px;">{r.get('적요', '')}</td>
+            <td style="border: 1px solid #64748b; padding: 8px;">{r.get('적요', '')} (담당: {w_name})</td>
         </tr>
         """
   else:
@@ -3092,7 +3144,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
   st.markdown("---")
   st.markdown(
-      f"#### 👁️‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
+      f"#### 👁️️‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
   )
   components.html(account_html_output, height=750, scrolling=True)
 
@@ -3133,18 +3185,20 @@ elif selected_menu == "📝 업무용 일지":
           "날짜": str(n_date),
           "제목": n_title,
           "내용": n_body,
+          "작성자": current_user_name,
       })
       save_note_data(st.session_state.note_data_list)
-      st.success("업무 일지가 저장되었습니다!")
+      st.success(f"업무 일지가 저장되었습니다! (작성자: {current_user_name})")
       st.rerun()
 
   st.markdown("---")
   if st.session_state.note_data_list:
     for note in reversed(st.session_state.note_data_list):
+      w_author = str(note.get("작성자", "이상복"))
       st.markdown(
           f"""
             <div style="background-color: white; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
-                <b>📅 {note.get('날짜')} | {note.get('제목')}</b><br>
+                <b>📅 {note.get('날짜')} | {note.get('제목')} &nbsp;&nbsp;<span style='color: #2563eb; font-size: 11pt;'>(작성자: {w_author})</span></b><br>
                 <p style="margin: 8px 0 0 0; white-space: pre-line; color: #475569;">{note.get('내용')}</p>
             </div>
             """,
