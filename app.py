@@ -1355,7 +1355,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
     else:
       st.warning(
-          "⚠️️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
+          "⚠ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
       )
 
 
@@ -1871,7 +1871,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [4] 거래처 인보이스 발행 (계산서 발행 여부 선택 및 계좌 자동 연동)
+# [4] 거래처 인보이스 발행
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -2011,7 +2011,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   )
   client_bno_inv = client_info_inv.get("사업자등록번호", "-")
 
-  # 선택된 발행 여부에 따라 입금 계좌 자동 전환
   if "미발행" in tax_invoice_status or "카카오뱅크" in tax_invoice_status:
     bank_info_html = """
         • <b>입금 계좌 안내 (카카오뱅크 / 개인사업자통장):</b> <span style="color: #1e3a8a; font-weight: bold;">3333-12-9553477 (예금주: 이상복/범운해운항공)</span><br>
@@ -2152,7 +2151,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
 
 # ==========================================
-# [5] 화물 견적서 발행 (공문 양식 적용 완료)
+# [5] 화물 견적서 발행
 # ==========================================
 elif selected_menu == "📄 화물 견적서 발행":
   st.markdown(
@@ -2429,7 +2428,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
 
 
 # ==========================================
-# [7] 날짜별 발송 매니페스트 (매입·매출·수익 포함)
+# [7] 날짜별 발송 매니페스트
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
   st.markdown(
@@ -2438,7 +2437,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
       unsafe_allow_html=True,
   )
 
-  # 날짜 선택 필터 추가
   selected_manifest_date = st.date_input(
       "조회할 선적 날짜 선택", value=date.today(), key="manifest_date_picker"
   )
@@ -2610,7 +2608,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
 
 # ==========================================
-# [8] 거래처 등록 요금 상세 관리 (원래 요율 설정 표 완전 복원)
+# [8] 거래처 등록 요금 상세 관리
 # ==========================================
 elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
   st.markdown(
@@ -2805,7 +2803,7 @@ elif selected_menu == "💵 거래처 미수금관리":
 
 
 # ==========================================
-# [10] 일계표 및 입출금 장부
+# [10] 일계표 및 입출금 장부 (날짜별 일계표 조회 및 인쇄 기능 추가)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
   st.markdown(
@@ -2844,7 +2842,184 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
       st.rerun()
 
   st.markdown("---")
-  st.markdown("#### 📋 등록된 입출금 장부 내역")
+  st.markdown("#### 📅 날짜별 정식 일계표 조회 및 출력")
+
+  selected_daily_date = st.date_input(
+      "일계표를 확인할 날짜 선택", value=date.today(), key="daily_ledger_date"
+  )
+  target_daily_str = str(selected_daily_date)
+
+  daily_records = [
+      item
+      for item in st.session_state.expense_data_list
+      if str(item.get("날짜")) == target_daily_str
+  ]
+
+  daily_income_sum = sum(
+      int(r.get("금액(원)", 0))
+      for r in daily_records
+      if str(r.get("구분", "")).startswith("수입")
+  )
+  daily_expense_sum = sum(
+      int(r.get("금액(원)", 0))
+      for r in daily_records
+      if str(r.get("구분", "")).startswith("지출")
+  )
+  daily_balance = daily_income_sum - daily_expense_sum
+
+  st.markdown(
+      f"""
+    <div style="background-color: #eff6ff; border: 1.5px solid #2563eb; padding: 14px 18px; border-radius: 8px; margin-bottom: 15px;">
+        <b>📌 [{target_daily_str}] 일계표 요약</b><br>
+        • 당일 총 수입 (+): <b style="color: #1e3a8a;">{daily_income_sum:,} 원</b><br>
+        • 당일 총 지출 (-): <b style="color: #b91c1c;">{daily_expense_sum:,} 원</b><br>
+        • 당일 순수익 / 잔액: <span style="color: #047857; font-size: 12pt;"><b>{daily_balance:,} 원</b></span>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+  logo_embed_acc = (
+      f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
+      " style='height: 38px; vertical-align: middle; margin-right: 8px;'>"
+      if encoded_sidebar_logo
+      else ""
+  )
+
+  acc_rows_html = ""
+  if daily_records:
+    for r in daily_records:
+      g = str(r.get("구분", ""))
+      amt = int(r.get("금액(원)", 0))
+      amt_str = (
+          f"<span style='color:#1e3a8a; font-weight:bold;'>+{amt:,}원</span>"
+          if "수입" in g
+          else f"<span style='color:#b91c1c; font-weight:bold;'>-{amt:,}원</span>"
+      )
+      acc_rows_html += f"""
+        <tr>
+            <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{r.get('날짜', '')}</td>
+            <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold;">{g}</td>
+            <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{r.get('항목', '')}</td>
+            <td style="border: 1px solid #64748b; padding: 8px; text-align: right;">{amt_str}</td>
+            <td style="border: 1px solid #64748b; padding: 8px;">{r.get('적요', '')}</td>
+        </tr>
+        """
+  else:
+    acc_rows_html = """
+        <tr>
+            <td colspan="5" style="border: 1px solid #64748b; padding: 12px; text-align: center; color: #94a3b8;">선택하신 날짜에 등록된 입출금 내역이 없습니다.</td>
+        </tr>
+        """
+
+  account_html_output = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            @media print {{
+                body {{ -webkit-print-color-adjust: exact; }}
+                .no-print {{ display: none !important; }}
+                @page {{ size: A4 portrait; margin: 15mm; }}
+            }}
+            body {{
+                font-family: 'Pretendard', sans-serif;
+                color: #1e293b;
+                font-size: 10pt;
+                line-height: 1.5;
+                margin: 0;
+                padding: 10px;
+                background-color: #ffffff;
+            }}
+            .acc-container {{
+                max-width: 760px;
+                margin: 0 auto;
+                border: 2px solid #0f172a;
+                padding: 30px;
+                border-radius: 8px;
+                background-color: #ffffff;
+            }}
+            .print-btn {{
+                display: block;
+                width: 100%;
+                background-color: #2563eb;
+                color: white;
+                text-align: center;
+                padding: 12px;
+                font-size: 11.5pt;
+                font-weight: bold;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                margin-bottom: 25px;
+            }}
+            .print-btn:hover {{ background-color: #1d4ed8; }}
+        </style>
+    </head>
+    <body>
+        <div class="acc-container">
+            <button class="print-btn no-print" onclick="window.print()">🖨 일계표 정식 인쇄 / PDF 저장하기 (Print / Save as PDF)</button>
+
+            <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px;">
+                <tr>
+                    <td style="width: 60%; border: none;">
+                        <div style="display: flex; align-items: center;">
+                            {logo_embed_acc}
+                            <div>
+                                <div style="font-size: 15pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                <div style="font-size: 8pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="width: 40%; text-align: right; border: none;">
+                        <div style="font-size: 18pt; font-weight: 900; color: #0f172a; letter-spacing: 2px;">일 계 표 (DAILY REPORT)</div>
+                        <div style="font-size: 9pt; color: #475569; margin-top: 4px;">기준 일자: <b>{target_daily_str}</b></div>
+                    </td>
+                </tr>
+            </table>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr style="background-color: #0f172a; color: white; text-align: center; font-size: 9pt;">
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 16%;">거래일자</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 16%;">구분</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 22%;">항목</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 20%;">금액</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 26%;">적요 및 메모</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {acc_rows_html}
+                </tbody>
+            </table>
+
+            <table style="width: 100%; margin-bottom: 25px; border-collapse: collapse;">
+                <tr>
+                    <td style="border: 1px solid #64748b; padding: 12px; background-color: #f8fafc; font-size: 10pt;">
+                        • <b>총 수입 합계:</b> <span style="color: #1e3a8a; font-weight: bold;">{daily_income_sum:,} 원</span><br>
+                        • <b>총 지출 합계:</b> <span style="color: #b91c1c; font-weight: bold;">{daily_expense_sum:,} 원</span><br>
+                        • <b>당일 순잔액 (Balance):</b> <span style="color: #047857; font-size: 12pt; font-weight: bold;">{daily_balance:,} 원</span>
+                    </td>
+                </tr>
+            </table>
+
+            <div style="text-align: center; font-size: 12pt; font-weight: 900; color: #0f172a; margin-top: 40px;">
+                주식회사 범운해운항공 대표이사 이상복 [직인생략]
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+  st.markdown("---")
+  st.markdown(
+      f"#### 👁️‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
+  )
+  components.html(account_html_output, height=750, scrolling=True)
+
+  st.markdown("---")
+  st.markdown("#### 📋 전체 등록된 입출금 장부 목록")
   if st.session_state.expense_data_list:
     df_exp = pd.DataFrame(st.session_state.expense_data_list)
     st.data_editor(
