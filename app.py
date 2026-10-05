@@ -3300,3 +3300,35 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
         "권한": info.get("role", ""),
     })
   st.dataframe(pd.DataFrame(acc_rows), use_container_width=True)
+from pydrive2.auth import GoogleAuth
+from pydrive2.drive import GoogleDrive
+import os
+
+
+def upload_to_google_drive(file_path, drive_file_name):
+  try:
+    gauth = GoogleAuth()
+    gauth.LocalWebserverAuth()
+    drive = GoogleDrive(gauth)
+
+    if not os.path.exists(file_path):
+      st.error(f"업로드할 파일을 찾을 수 없습니다: {file_path}")
+      return
+
+    file_drive = drive.CreateFile({"title": drive_file_name})
+    file_drive.SetContentFile(file_path)
+    file_drive.Upload()
+
+    st.success(
+        f"구글 드라이브 업로드 성공: {drive_file_name} (저장 완료!)"
+    )
+  except Exception as e:
+    st.error(f"구글 드라이브 업로드 중 오류 발생: {e}")
+
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("☁️ 구글 드라이브 백업")
+
+if st.sidebar.button("🚀 구글 드라이브에 데이터 백업하기"):
+  target_file = "bl_history_data.csv"  # 실제 사용하는 파일명으로 확인 필요
+  upload_to_google_drive(target_file, "범운해운항공_BL백업.csv")
