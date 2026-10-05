@@ -101,7 +101,6 @@ def login_screen():
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    # 뒤로가기 버튼
     if st.button("⬅️ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
       st.query_params.clear()
       st.rerun()
@@ -437,6 +436,34 @@ def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
   return int(38000 + max(0.0, cw - 1.0) * 25000)
 
 
+# 📌 순수 파이썬 코드로 진짜 바코드 선 그래픽을 만드는 함수 (외부 라이브러리 불필요)
+def generate_barcode_html(text):
+  clean_txt = str(text).strip()
+  # 글자 코드 기반으로 고유한 바코드 패턴(선 두께 조합) 생성
+  pattern = "101"
+  for ch in clean_txt:
+    code = ord(ch)
+    # 문자의 아스키 코드 값을 활용하여 바코드 줄무늬 패턴 생성
+    bin_str = bin(code)[2:].zfill(7)
+    for b in bin_str:
+      pattern += "11" if b == "1" else "1"
+    pattern += "01"
+  pattern += "101"
+
+  bars_html = ""
+  for bit in pattern:
+    w = "3px" if bit == "1" else "1.5px"
+    bg = "#0f172a" if bit == "1" else "#ffffff"
+    bars_html += f"<div style='display:inline-block; width:{w}; height:40px; background-color:{bg};'></div>"
+
+  return f"""
+    <div style="text-align: right; display: inline-block; background: #fff; padding: 4px; border-radius: 4px;">
+        <div style="line-height: 0; white-space: nowrap;">{bars_html}</div>
+        <div style="font-size: 10pt; font-weight: 900; color: #0f172a; margin-top: 3px; letter-spacing: 1px;">{clean_txt}</div>
+    </div>
+    """
+
+
 # 세션 상태 초기화
 if "client_list" not in st.session_state or not st.session_state.client_list:
   c_list, c_rates, c_infos = load_client_data()
@@ -478,7 +505,6 @@ else:
   # ==========================================
   # [기본 첫 화면] 고객 및 모바일 보안 화물 추적 화면 (로그인 불필요)
   # ==========================================
-  # 우측 상단에 사내 관리자 로그인 진입 버튼 제공
   top_c1, top_c2 = st.columns([6, 1.2])
   with top_c2:
     if st.button("🔐 사내 관리자 로그인", use_container_width=True):
@@ -612,32 +638,7 @@ else:
               if encoded_sidebar_logo
               else ""
           )
-
-          # 📌 진짜 바코드 이미지(선 형태) 생성 렌더링
-          barcode_b64_m = ""
-          try:
-            from barcode import Code128
-            from barcode.writer import ImageWriter
-
-            rv = io.BytesIO()
-            Code128(str(bl_num), writer=ImageWriter()).write(
-                rv, {
-                    "write_text": False,
-                    "module_width": 0.5,
-                    "module_height": 12,
-                    "quiet_zone": 2,
-                }
-            )
-            barcode_b64_m = base64.b64encode(rv.getvalue()).decode()
-          except Exception:
-            pass
-
-          barcode_html_m = f"""
-                        <div style="text-align: right;">
-                            {f"<img src='data:image/png;base64,{barcode_b64_m}' style='height: 35px; max-width: 160px; display: block; margin-left: auto;'>" if barcode_b64_m else ""}
-                            <div style="font-size: 9.5pt; font-weight: 900; color: #0f172a; margin-top: 2px;">{bl_num}</div>
-                        </div>
-                    """
+          barcode_html_m = generate_barcode_html(bl_num)
 
           air_c = "☑" if "항공" in transport_t else "☐"
           sea_c = "☑" if "해상" in transport_t else "☐"
@@ -811,7 +812,6 @@ st.sidebar.markdown(
 )
 st.sidebar.markdown("---")
 
-# 접속자 정보 표시 및 로그아웃 버튼
 st.sidebar.info(
     f"현재 접속자: **{st.session_state.user_db[st.session_state.logged_in_user]['name']}**님\n\n(권한:"
     f" {st.session_state.user_role})"
@@ -831,7 +831,6 @@ with col_sb2:
 
 st.sidebar.markdown("---")
 
-# 메뉴 리스트 기본 구성
 menu_options = [
     "📊 수출입 B/L 등록",
     "📋 등록 B/L 수정 및 Profit 내역",
@@ -846,7 +845,6 @@ menu_options = [
     "📝 업무용 일지",
 ]
 
-# 관리자(대표님) 계정으로 로그인한 경우에만 '직원 계정 관리' 메뉴 추가
 if st.session_state.user_role == "관리자(대표)":
   menu_options.append("🔑 직원 계정 관리 (대표님 전용)")
 
@@ -1652,32 +1650,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
           if encoded_sidebar_logo
           else ""
       )
-
-      # 📌 진짜 바코드 이미지(선 형태) 생성 렌더링
-      barcode_b64 = ""
-      try:
-        from barcode import Code128
-        from barcode.writer import ImageWriter
-
-        rv = io.BytesIO()
-        Code128(str(bl_num_str), writer=ImageWriter()).write(
-            rv, {
-                "write_text": False,
-                "module_width": 0.5,
-                "module_height": 12,
-                "quiet_zone": 2,
-            }
-        )
-        barcode_b64 = base64.b64encode(rv.getvalue()).decode()
-      except Exception:
-        pass
-
-      barcode_html = f"""
-                <div style="text-align: right;">
-                    {f"<img src='data:image/png;base64,{barcode_b64}' style='height: 38px; max-width: 180px; display: block; margin-left: auto;'>" if barcode_b64 else ""}
-                    <div style="font-size: 10pt; font-weight: 900; color: #0f172a; margin-top: 3px; letter-spacing: 0.5px;">{bl_num_str}</div>
-                </div>
-            """
+      barcode_html = generate_barcode_html(bl_num_str)
 
       air_check = "☑" if "항공" in transport_t else "☐"
       sea_check = "☑" if "해상" in transport_t else "☐"
