@@ -101,7 +101,7 @@ def login_screen():
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    if st.button("⬅️️ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
+    if st.button("⬅ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
       st.query_params.clear()
       st.rerun()
 
@@ -241,7 +241,7 @@ def load_client_data():
           "전화번호": "",
           "주소": "경기도 김포시 풍무동 326-5번지 2층",
       },
-      "카스": {
+      "카ส": {
           "사업자등록번호": "",
           "이메일": "",
           "담당자": "",
@@ -2380,7 +2380,7 @@ elif selected_menu == "📄 화물 견적서 발행":
     """
 
   st.markdown("---")
-  st.markdown("#### 👁️‍🗨️ 정식 견적서 미리보기 및 인쇄")
+  st.markdown("#### 👁️️‍🗨️ 정식 견적서 미리보기 및 인쇄")
   components.html(quotation_html_output, height=800, scrolling=True)
 
 
@@ -2774,7 +2774,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 
 # ==========================================
-# [9] 거래처 미수금관리
+# [9] 거래처 미수금관리 (선택 체크박스 및 수금완료 일괄처리 기능 추가)
 # ==========================================
 elif selected_menu == "💵 거래처 미수금관리":
   st.markdown(
@@ -2782,17 +2782,27 @@ elif selected_menu == "💵 거래처 미수금관리":
       " 거래처별 미수금 및 수금 현황 관리</h3>",
       unsafe_allow_html=True,
   )
+  st.markdown(
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>수금이"
+      " 완료된 건의 <b>선택(체크박스)</b>을 체크한 뒤, 아래의 <b>[💰 선택 건"
+      " [수금완료] 일괄처리]</b> 버튼을 누르면 곧바로 수금 상태가"
+      " 업데이트됩니다.</p>",
+      unsafe_allow_html=True,
+  )
 
   if st.session_state.bl_data_list:
     df_unpaid = pd.DataFrame(st.session_state.bl_data_list)
+    if "선택" not in df_unpaid.columns:
+      df_unpaid.insert(0, "선택", False)
     if "수금상태" not in df_unpaid.columns:
       df_unpaid["수금상태"] = "미수"
     if "매출액(원)" not in df_unpaid.columns:
       df_unpaid["매출액(원)"] = 0
 
     st.markdown("#### 📊 전체 B/L 수금 상태 요약표")
-    st.dataframe(
+    edited_unpaid_table = st.data_editor(
         df_unpaid[[
+            "선택",
             "Job 번호",
             "B/L 번호",
             "날짜",
@@ -2800,8 +2810,31 @@ elif selected_menu == "💵 거래처 미수금관리":
             "매출액(원)",
             "수금상태",
         ]],
+        hide_index=True,
         use_container_width=True,
+        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+        key="unpaid_select_table",
     )
+
+    selected_unpaid_rows = edited_unpaid_table[
+        edited_unpaid_table["선택"] == True
+    ]
+
+    if st.button(
+        "💰 선택 건 [수금완료] 일괄처리", type="primary", use_container_width=True
+    ):
+      if len(selected_unpaid_rows) > 0:
+        for idx in selected_unpaid_rows.index.tolist():
+          st.session_state.bl_data_list[idx]["수금상태"] = "수금완료"
+        save_bl_data(st.session_state.bl_data_list)
+        st.success(
+            "선택하신 B/L 건들이 성공적으로 '수금완료' 처리되었습니다!"
+        )
+        st.rerun()
+      else:
+        st.warning(
+            "수금완료 처리할 B/L 행의 체크박스를 1개 이상 체크해주세요."
+        )
 
     unpaid_only = df_unpaid[df_unpaid["수금상태"] != "수금완료"]
     total_unpaid_sum = (
