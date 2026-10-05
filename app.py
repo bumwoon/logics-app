@@ -109,8 +109,12 @@ def login_screen():
     )
 
 
-# 로그인이 안 되어 있다면 로그인 화면만 표시하고 중단
-if not st.session_state.logged_in_user:
+# 쿼리 파라미터 체크 (명확하게 ?mode=client가 들어온 경우에만 고객 추적 화면 제공)
+query_params = st.query_params
+is_client_mode = query_params.get("mode", "") == "client"
+
+# 고객 모드가 아닐 때 로그인이 안 되어 있다면 로그인 화면만 표시하고 중단
+if not is_client_mode and not st.session_state.logged_in_user:
   login_screen()
   st.stop()
 
@@ -465,11 +469,8 @@ TRACKING_STATUS_OPTIONS = [
     "⚠ 운송 지연 또는 보류",
 ]
 
-query_params = st.query_params
-is_client_mode = query_params.get("mode", "") == "client"
-
 # ==========================================
-# [A] 고객 및 모바일 보안 화물 추적 화면
+# [A] 고객 및 모바일 보안 화물 추적 화면 (?mode=client 접속 시)
 # ==========================================
 if is_client_mode:
   logo_img_tag = ""
@@ -586,9 +587,28 @@ if is_client_mode:
               else ""
           )
 
+          # 정밀 바코드 생성 코드 (Code128 바코드 이미지 렌더링)
+          barcode_b64_m = ""
+          try:
+            from barcode import Code128
+            from barcode.writer import ImageWriter
+
+            rv = io.BytesIO()
+            Code128(str(bl_num), writer=ImageWriter()).write(
+                rv, {
+                    "write_text": False,
+                    "module_width": 0.5,
+                    "module_height": 12,
+                    "quiet_zone": 2,
+                }
+            )
+            barcode_b64_m = base64.b64encode(rv.getvalue()).decode()
+          except Exception:
+            pass
+
           barcode_html_m = f"""
                         <div style="text-align: right;">
-                            <div style="font-family: 'Courier New', monospace; font-size: 15pt; font-weight: bold; letter-spacing: 3px; color: #000; background: #f1f5f9; padding: 4px 8px; border: 1px dashed #cbd5e1; display: inline-block;">*{bl_num}*</div>
+                            {f"<img src='data:image/png;base64,{barcode_b64_m}' style='height: 35px; max-width: 160px; display: block; margin-left: auto;'>" if barcode_b64_m else ""}
                             <div style="font-size: 9.5pt; font-weight: 900; color: #0f172a; margin-top: 2px;">{bl_num}</div>
                         </div>
                     """
@@ -1263,7 +1283,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
     else:
       st.warning(
-          "⚠️️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
+          "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
       )
 
 
@@ -1532,8 +1552,8 @@ elif selected_menu == "🚢 B/L 운송장 출력":
   )
   st.markdown(
       "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>등록된"
-      " B/L 번호를 선택하시면, 범운해운항공 로고와 바코드, 화주 및 수하인"
-      " 정보, 부피 규격, 청구중량이 포함된 정식 운송장(AWB) 양식이"
+      " B/L 번호를 선택하시면, 범운해운항공 로고와 진짜 바코드 이미지, 화주 및"
+      " 수하인 정보, 부피 규격, 청구중량이 포함된 정식 운송장(AWB) 양식이"
       " 생성됩니다.</p>",
       unsafe_allow_html=True,
   )
@@ -1599,9 +1619,28 @@ elif selected_menu == "🚢 B/L 운송장 출력":
           else ""
       )
 
+      # 📌 바코드 이미지 생성 로직 복원 및 보완
+      barcode_b64 = ""
+      try:
+        from barcode import Code128
+        from barcode.writer import ImageWriter
+
+        rv = io.BytesIO()
+        Code128(str(bl_num_str), writer=ImageWriter()).write(
+            rv, {
+                "write_text": False,
+                "module_width": 0.5,
+                "module_height": 12,
+                "quiet_zone": 2,
+            }
+        )
+        barcode_b64 = base64.b64encode(rv.getvalue()).decode()
+      except Exception:
+        pass
+
       barcode_html = f"""
                 <div style="text-align: right;">
-                    <div style="font-family: 'Courier New', monospace; font-size: 16pt; font-weight: bold; letter-spacing: 4px; color: #000; background: #f1f5f9; padding: 4px 8px; border: 1px dashed #cbd5e1; display: inline-block;">*{bl_num_str}*</div>
+                    {f"<img src='data:image/png;base64,{barcode_b64}' style='height: 38px; max-width: 180px; display: block; margin-left: auto;'>" if barcode_b64 else ""}
                     <div style="font-size: 10pt; font-weight: 900; color: #0f172a; margin-top: 3px; letter-spacing: 0.5px;">{bl_num_str}</div>
                 </div>
             """
