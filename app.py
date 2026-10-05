@@ -42,20 +42,15 @@ def load_user_db():
 
 
 def save_user_db(user_db):
-  try:
-    rows = []
-    for uid, info in user_db.items():
-      rows.append({
-          "아이디": uid,
-          "비밀번호": info.get("pw", ""),
-          "권한": info.get("role", "직원"),
-          "성명": info.get("name", ""),
-      })
-    pd.DataFrame(rows).to_csv(
-        ACCOUNT_USER_FILE, index=False, encoding="utf-8-sig"
-    )
-  except Exception:
-    pass
+  rows = []
+  for uid, info in user_db.items():
+    rows.append({
+        "아이디": uid,
+        "비밀번호": info.get("pw", ""),
+        "권한": info.get("role", "직원"),
+        "성명": info.get("name", ""),
+    })
+  pd.DataFrame(rows).to_csv(ACCOUNT_USER_FILE, index=False, encoding="utf-8-sig")
 
 
 if "user_db" not in st.session_state:
@@ -67,26 +62,16 @@ if "logged_in_user" not in st.session_state:
 if "user_role" not in st.session_state:
   st.session_state.user_role = None
 
-if (
-    st.session_state.logged_in_user
-    and st.session_state.logged_in_user not in st.session_state.user_db
-):
-  st.session_state.logged_in_user = None
-  st.session_state.user_role = None
-
-query_params = st.query_params
-is_admin_mode = query_params.get("mode", "") == "admin"
-
 
 def login_screen():
-  """관리자 및 직원 로그인 화면"""
+  """로그인 화면 출력 함수"""
   st.markdown("<br><br>", unsafe_allow_html=True)
   col1, col2, col3 = st.columns([1, 1.2, 1])
 
   with col2:
     st.markdown(
-        "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 사내"
-        " 관리 시스템</h2>",
+        "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 물류"
+        " 시스템</h2>",
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -116,13 +101,28 @@ def login_screen():
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    if st.button("⬅️ 고객 화물 추적 화면으로 돌아가기"):
-      st.query_params.clear()
-      st.rerun()
+    st.markdown(
+        "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
+        " margin-top: 20px;'>* 초기 관리자 아이디: <b>admin</b> / 비밀번호:"
+        " <b>bomwoon123</b></p>",
+        unsafe_allow_html=True,
+    )
 
 
-LOGO_FILE = "lo.png" if os.path.exists("lo.png") else None
+# 로그인이 안 되어 있다면 로그인 화면만 표시하고 중단
+if not st.session_state.logged_in_user:
+  login_screen()
+  st.stop()
 
+
+# 로고 파일 자동 감지
+LOGO_FILE = None
+for filename in os.listdir("."):
+  if filename.startswith("lo"):
+    LOGO_FILE = filename
+    break
+
+# 로고를 Base64로 인코딩
 encoded_sidebar_logo = ""
 if LOGO_FILE and os.path.exists(LOGO_FILE):
   try:
@@ -131,6 +131,7 @@ if LOGO_FILE and os.path.exists(LOGO_FILE):
   except Exception:
     pass
 
+# 데이터 파일 경로 정의
 DATA_FILE = "bl_history_data.csv"
 CLIENT_FILE = "client_data.csv"
 ACCOUNT_FILE = "account_ledger_data.csv"
@@ -314,130 +315,107 @@ def load_meeting_data():
 
 
 def save_bl_data(data_list):
-  try:
-    if data_list:
-      df = pd.DataFrame(data_list)
-      if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
-        df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
-      df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
-    else:
-      if os.path.exists(DATA_FILE):
-        os.remove(DATA_FILE)
-  except Exception:
-    pass
+  if data_list:
+    df = pd.DataFrame(data_list)
+    if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
+      df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
+    df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+  else:
+    if os.path.exists(DATA_FILE):
+      os.remove(DATA_FILE)
 
 
 def save_client_data(client_list, client_rates, client_infos):
-  try:
-    rows = []
-    for client in client_list:
-      info = client_infos.get(
-          client,
-          {
-              "사업자등록번호": "",
-              "이메일": "",
-              "담당자": "",
-              "전화번호": "",
-              "주소": "",
-          },
-      )
-      country_dict = client_rates.get(client, {})
-      if not country_dict:
-        rows.append({
-            "거래처명": client,
-            "사업자등록번호": info.get("사업자등록번호", ""),
-            "이메일": info.get("이메일", ""),
-            "담당자": info.get("담당자", ""),
-            "전화번호": info.get("전화번호", ""),
-            "주소": info.get("주소", ""),
-            "국가": "미국",
-            "운송형태": "항공(Air)",
-            "품명": "보톡스 필러 (Botox & Filler)",
-            "기본중량": 1.0,
-            "기본요금": 38000,
-            "추가단가": 25000,
-            "1CBM당단가": 3700000,
-        })
-      else:
-        for country, trans_dict in country_dict.items():
-          if isinstance(trans_dict, dict):
-            for transport, item_dict in trans_dict.items():
-              if isinstance(item_dict, dict):
-                for item_name, r_val in item_dict.items():
-                  rows.append({
-                      "거래처명": client,
-                      "사업자등록번호": info.get("사업자등록번호", ""),
-                      "이메일": info.get("이메일", ""),
-                      "담당자": info.get("담당자", ""),
-                      "전화번호": info.get("전화번호", ""),
-                      "주소": info.get("주소", ""),
-                      "국가": country,
-                      "운송형태": transport,
-                      "품명": item_name,
-                      "기본중량": r_val.get("기본중량", 1.0),
-                      "기본요금": r_val.get("기본요금", 38000),
-                      "추가단가": r_val.get("추가단가", 25000),
-                      "1CBM당단가": r_val.get("1CBM당단가", 3700000),
-                  })
-    pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
-  except Exception:
-    pass
+  rows = []
+  for client in client_list:
+    info = client_infos.get(
+        client,
+        {
+            "사업자등록번호": "",
+            "이메일": "",
+            "담당자": "",
+            "전화번호": "",
+            "주소": "",
+        },
+    )
+    country_dict = client_rates.get(client, {})
+    if not country_dict:
+      rows.append({
+          "거래처명": client,
+          "사업자등록번호": info.get("사업자등록번호", ""),
+          "이메일": info.get("이메일", ""),
+          "담당자": info.get("담당자", ""),
+          "전화번호": info.get("전화번호", ""),
+          "주소": info.get("주소", ""),
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품명": "보톡스 필러 (Botox & Filler)",
+          "기본중량": 1.0,
+          "기본요금": 38000,
+          "추가단가": 25000,
+          "1CBM당단가": 3700000,
+      })
+    else:
+      for country, trans_dict in country_dict.items():
+        if isinstance(trans_dict, dict):
+          for transport, item_dict in trans_dict.items():
+            if isinstance(item_dict, dict):
+              for item_name, r_val in item_dict.items():
+                rows.append({
+                    "거래처명": client,
+                    "사업자등록번호": info.get("사업자등록번호", ""),
+                    "이메일": info.get("이메일", ""),
+                    "담당자": info.get("담당자", ""),
+                    "전화번호": info.get("전화번호", ""),
+                    "주소": info.get("주소", ""),
+                    "국가": country,
+                    "운송형태": transport,
+                    "품명": item_name,
+                    "기본중량": r_val.get("기본중량", 1.0),
+                    "기본요금": r_val.get("기본요금", 38000),
+                    "추가단가": r_val.get("추가단가", 25000),
+                    "1CBM당단가": r_val.get("1CBM당단가", 3700000),
+                })
+  pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
 
 
 def save_account_data(data_list):
-  try:
-    if data_list:
-      pd.DataFrame(data_list).to_csv(
-          ACCOUNT_FILE, index=False, encoding="utf-8-sig"
-      )
-    else:
-      if os.path.exists(ACCOUNT_FILE):
-        os.remove(ACCOUNT_FILE)
-  except Exception:
-    pass
+  if data_list:
+    pd.DataFrame(data_list).to_csv(
+        ACCOUNT_FILE, index=False, encoding="utf-8-sig"
+    )
+  else:
+    if os.path.exists(ACCOUNT_FILE):
+      os.remove(ACCOUNT_FILE)
 
 
 def save_expense_data(data_list):
-  try:
-    if data_list:
-      df_exp_save = pd.DataFrame(data_list)
-      if (
-          "지출금액(원)" in df_exp_save.columns
-          and "금액(원)" not in df_exp_save.columns
-      ):
-        df_exp_save = df_exp_save.rename(columns={"지출금액(원)": "금액(원)"})
-      df_exp_save.to_csv(EXPENSE_FILE, index=False, encoding="utf-8-sig")
-    else:
-      if os.path.exists(EXPENSE_FILE):
-        os.remove(EXPENSE_FILE)
-  except Exception:
-    pass
+  if data_list:
+    df_exp_save = pd.DataFrame(data_list)
+    if "지출금액(원)" in df_exp_save.columns and "금액(원)" not in df_exp_save.columns:
+      df_exp_save = df_exp_save.rename(columns={"지출금액(원)": "금액(원)"})
+    df_exp_save.to_csv(EXPENSE_FILE, index=False, encoding="utf-8-sig")
+  else:
+    if os.path.exists(EXPENSE_FILE):
+      os.remove(EXPENSE_FILE)
 
 
 def save_note_data(data_list):
-  try:
-    if data_list:
-      pd.DataFrame(data_list).to_csv(
-          NOTE_FILE, index=False, encoding="utf-8-sig"
-      )
-    else:
-      if os.path.exists(NOTE_FILE):
-        os.remove(NOTE_FILE)
-  except Exception:
-    pass
+  if data_list:
+    pd.DataFrame(data_list).to_csv(NOTE_FILE, index=False, encoding="utf-8-sig")
+  else:
+    if os.path.exists(NOTE_FILE):
+      os.remove(NOTE_FILE)
 
 
 def save_meeting_data(data_list):
-  try:
-    if data_list:
-      pd.DataFrame(data_list).to_csv(
-          MEETING_FILE, index=False, encoding="utf-8-sig"
-      )
-    else:
-      if os.path.exists(MEETING_FILE):
-        os.remove(MEETING_FILE)
-  except Exception:
-    pass
+  if data_list:
+    pd.DataFrame(data_list).to_csv(
+        MEETING_FILE, index=False, encoding="utf-8-sig"
+    )
+  else:
+    if os.path.exists(MEETING_FILE):
+      os.remove(MEETING_FILE)
 
 
 def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
@@ -460,6 +438,7 @@ def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
   return int(38000 + max(0.0, cw - 1.0) * 25000)
 
 
+# 세션 상태 초기화
 if "client_list" not in st.session_state or not st.session_state.client_list:
   c_list, c_rates, c_infos = load_client_data()
   st.session_state.client_list = c_list
@@ -486,7 +465,13 @@ TRACKING_STATUS_OPTIONS = [
     "⚠ 운송 지연 또는 보류",
 ]
 
-if not is_admin_mode:
+query_params = st.query_params
+is_client_mode = query_params.get("mode", "") == "client"
+
+# ==========================================
+# [A] 고객 및 모바일 보안 화물 추적 화면
+# ==========================================
+if is_client_mode:
   logo_img_tag = ""
   if encoded_sidebar_logo:
     logo_img_tag = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='width: 250px; max-width: 100%; height: auto; margin-bottom: 8px; border-radius: 8px;'>"
@@ -501,12 +486,6 @@ if not is_admin_mode:
     """,
       unsafe_allow_html=True,
   )
-
-  col_h1, col_h2 = st.columns([4, 1])
-  with col_h2:
-    if st.button("🔐 사내 관리자 로그인", use_container_width=True):
-      st.query_params["mode"] = "admin"
-      st.rerun()
 
   current_bl_data = load_bl_data()
   st.markdown("#### **📦 B/L & 화물 실시간 통합 조회**")
@@ -609,8 +588,8 @@ if not is_admin_mode:
 
           barcode_html_m = f"""
                         <div style="text-align: right;">
-                            <div style="font-family: 'Courier New', monospace; font-size: 16pt; font-weight: bold; letter-spacing: 4px; color: #000; background: #f1f5f9; padding: 4px 8px; border: 1px dashed #cbd5e1; display: inline-block;">*{bl_num}*</div>
-                            <div style="font-size: 10pt; font-weight: 900; color: #0f172a; margin-top: 3px;">{bl_num}</div>
+                            <div style="font-family: 'Courier New', monospace; font-size: 15pt; font-weight: bold; letter-spacing: 3px; color: #000; background: #f1f5f9; padding: 4px 8px; border: 1px dashed #cbd5e1; display: inline-block;">*{bl_num}*</div>
+                            <div style="font-size: 9.5pt; font-weight: 900; color: #0f172a; margin-top: 2px;">{bl_num}</div>
                         </div>
                     """
 
@@ -765,10 +744,9 @@ if not is_admin_mode:
   st.stop()
 
 
-if not st.session_state.logged_in_user:
-  login_screen()
-  st.stop()
-
+# ==========================================
+# [B] 사장님 전용 관리자 프로그램 화면
+# ==========================================
 sidebar_logo_html = ""
 if encoded_sidebar_logo:
   sidebar_logo_html = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 28px; width: auto;'>"
@@ -787,24 +765,19 @@ st.sidebar.markdown(
 )
 st.sidebar.markdown("---")
 
+# 접속자 정보 표시 및 로그아웃 버튼
 st.sidebar.info(
     f"현재 접속자: **{st.session_state.user_db[st.session_state.logged_in_user]['name']}**님\n\n(권한:"
     f" {st.session_state.user_role})"
 )
-col_sb1, col_sb2 = st.sidebar.columns(2)
-with col_sb1:
-  if st.button("로그아웃"):
-    st.session_state.logged_in_user = None
-    st.session_state.user_role = None
-    st.query_params.clear()
-    st.rerun()
-with col_sb2:
-  if st.button("🏠 화물조회로"):
-    st.query_params.clear()
-    st.rerun()
+if st.sidebar.button("로그아웃"):
+  st.session_state.logged_in_user = None
+  st.session_state.user_role = None
+  st.rerun()
 
 st.sidebar.markdown("---")
 
+# 메뉴 리스트 기본 구성
 menu_options = [
     "📊 수출입 B/L 등록",
     "📋 등록 B/L 수정 및 Profit 내역",
@@ -819,6 +792,7 @@ menu_options = [
     "📝 업무용 일지",
 ]
 
+# 관리자(대표님) 계정으로 로그인한 경우에만 '직원 계정 관리' 메뉴 추가
 if st.session_state.user_role == "관리자(대표)":
   menu_options.append("🔑 직원 계정 관리 (대표님 전용)")
 
@@ -834,7 +808,7 @@ mobile_view_mode = st.sidebar.toggle(
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🌐 고객 보안 추적 링크 안내")
 st.sidebar.markdown(
-    "고객들에게 아래 기본 주소만 안내해주시면 로그인 없이 즉시 조회가 가능합니다:<br>`https://logics-app-v6nichbmhtvezr8ia7cnii.streamlit.app`",
+    "고객들에게 아래 주소를 안내해주시면 실시간 조회가 가능합니다:<br>`https://logics-app-v6nichbmhtvezr8ia7cnii.streamlit.app/?mode=client`",
     unsafe_allow_html=True,
 )
 
@@ -1145,14 +1119,14 @@ if selected_menu == "📊 수출입 B/L 등록":
 
     suggested_bl = "BW260003"
     if st.session_state.bl_data_list:
-      try:
-        last_b = str(
-            st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003")
-        )
-        if last_b.startswith("BW") and len(last_b) >= 8:
+      last_b = str(
+          st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003")
+      )
+      if last_b.startswith("BW") and len(last_b) >= 8:
+        try:
           suggested_bl = f"BW{int(last_b[2:]) + 1:06d}"
-      except:
-        pass
+        except:
+          pass
     bl_no = st.text_input("B/L 번호 (운송장 번호)", value=suggested_bl)
     reg_date = st.date_input("선적 날짜", value=date.today())
     dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
@@ -1289,7 +1263,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
     else:
       st.warning(
-          "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
+          "⚠️️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
       )
 
 
@@ -1787,6 +1761,10 @@ elif selected_menu == "🚢 B/L 운송장 출력":
                             </td>
                         </tr>
                     </table>
+
+                    <div style="font-size: 7.5pt; color: #64748b; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; background-color: #f8fafc; margin-top: 6px;">
+                        <b>TERMS & CONDITIONS:</b> In consideration of the transportation charges for the movement of this shipment, it is agreed that the liability of BUMWOON OCEAN & AIR CO., LTD. shall be limited in any event to the sum of $100.00 unless insurance cover is arranged in writing in advance. SHIPPERS COPY.
+                    </div>
                 </div>
             </body>
             </html>
@@ -1946,7 +1924,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                             </tr>
                         </table>
 
-                        <!-- 공급자 영역을 완전히 제외하고 공급받는 자(Client) 정보만 꽉 차게 출력 -->
                         <table style="width: 100%; margin-bottom: 15px; border-collapse: collapse;">
                             <tr>
                                 <td style="width: 100%; border: 1.5px solid #1e3a8a; padding: 14px; background-color: #eff6ff; border-radius: 6px;">
@@ -2149,7 +2126,6 @@ elif selected_menu == "📄 화물 견적서 발행":
                     </tr>
                 </table>
 
-                <!-- 공급자 영역을 완전히 제외하고 수신처(Client) 정보만 꽉 차게 출력 -->
                 <table style="width: 100%; margin-bottom: 15px; border-collapse: collapse;">
                     <tr>
                         <td style="width: 100%; border: 1.5px solid #1e3a8a; padding: 14px; background-color: #eff6ff; border-radius: 6px;">
