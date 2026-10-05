@@ -14,21 +14,13 @@ st.set_page_config(
 )
 
 # ==========================================
-# [데이터 저장 폴더 경로 설정 (바탕화면 bumwoon_date)]
+# [보안 및 계정 파일 저장소 시스템] - 바탕화면 bumwoon_date 경로 연동
 # ==========================================
 desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
 DATA_DIR = os.path.join(desktop_path, "bumwoon_date")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# 파일 경로들을 bumwoon_date 폴더 하위로 지정
 ACCOUNT_USER_FILE = os.path.join(DATA_DIR, "system_user_accounts.csv")
-DATA_FILE = os.path.join(DATA_DIR, "bl_history_data.csv")
-CLIENT_FILE = os.path.join(DATA_DIR, "client_data.csv")
-ACCOUNT_FILE = os.path.join(DATA_DIR, "account_ledger_data.csv")
-EXPENSE_FILE = os.path.join(DATA_DIR, "expense_data.csv")
-NOTE_FILE = os.path.join(DATA_DIR, "daily_note_data.csv")
-MEETING_FILE = os.path.join(DATA_DIR, "meeting_note_data.csv")
-QUOTATION_FILE = os.path.join(DATA_DIR, "quotation_data.csv")
 
 
 def load_user_db():
@@ -125,17 +117,18 @@ def login_screen():
     )
 
 
-# 로고 파일 자동 감지 (현재 폴더 및 bumwoon_date 폴더 탐색)
+# 로고 파일 자동 감지 (bumwoon_date 폴더 및 현재 폴더 탐색)
 LOGO_FILE = None
-for search_dir in [".", DATA_DIR]:
+for search_dir in [DATA_DIR, "."]:
   if os.path.exists(search_dir):
     for filename in os.listdir(search_dir):
-      if filename.lower().startswith("lo"):
+      if filename.startswith("lo"):
         LOGO_FILE = os.path.join(search_dir, filename)
         break
   if LOGO_FILE:
     break
 
+# 로고를 Base64로 인코딩
 encoded_sidebar_logo = ""
 if LOGO_FILE and os.path.exists(LOGO_FILE):
   try:
@@ -143,6 +136,15 @@ if LOGO_FILE and os.path.exists(LOGO_FILE):
       encoded_sidebar_logo = base64.b64encode(f.read()).decode()
   except Exception:
     pass
+
+# 데이터 파일 경로 정의 (바탕화면 bumwoon_date 폴더 연동)
+DATA_FILE = os.path.join(DATA_DIR, "bl_history_data.csv")
+CLIENT_FILE = os.path.join(DATA_DIR, "client_data.csv")
+ACCOUNT_FILE = os.path.join(DATA_DIR, "account_ledger_data.csv")
+EXPENSE_FILE = os.path.join(DATA_DIR, "expense_data.csv")
+NOTE_FILE = os.path.join(DATA_DIR, "daily_note_data.csv")
+MEETING_FILE = os.path.join(DATA_DIR, "meeting_note_data.csv")
+QUOTATION_FILE = os.path.join(DATA_DIR, "quotation_data.csv")
 
 
 def load_bl_data():
@@ -893,7 +895,7 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 [바탕화면 bumwoon_date 연동] 백업 다운로드 버튼
+# 💾 데이터 백업 다운로드
 # ==========================================
 st.sidebar.subheader("💾 데이터 백업 다운로드")
 if os.path.exists(DATA_FILE):
@@ -903,9 +905,7 @@ if os.path.exists(DATA_FILE):
         data=f,
         file_name="범운해운항공_물류데이터_백업.csv",
         mime="text/csv",
-        help=(
-            "바탕화면 bumwoon_date 폴더에 저장된 화물 데이터를 다운로드합니다."
-        ),
+        help="현재 저장된 화물 및 B/L 전체 데이터를 CSV 파일로 다운로드합니다.",
     )
 else:
   st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
@@ -1142,7 +1142,7 @@ header_html = f"""
         {logo_html_str}
         <div>
             <h1 style='color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;'>🚢 (주)범운해운항공 종합 관리 프로그램</h1>
-            <p style='margin: 4px 0 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행 시스템 (바탕화면 bumwoon_date 연동)</p>
+            <p style='margin: 4px 0 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행 시스템</p>
         </div>
     </div>
 </div>
@@ -1396,7 +1396,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       save_bl_data(st.session_state.bl_data_list)
       st.success(
           f"🎉 [성공] B/L 및 Job 번호({job_no})가 [{current_user_name}]님의"
-          " 이름으로 등록되어탕화면 bumwoon_date 폴더에 저장되었습니다!"
+          " 이름으로 등록되었습니다!"
       )
     else:
       st.warning(
@@ -1405,7 +1405,7 @@ if selected_menu == "📊 수출입 B/L 등록":
 
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역
+# [2] 등록 B/L 수정 및 Profit 내역 (누가 수정/삭제했는지 기록 및 표시)
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   st.markdown(
@@ -1468,8 +1468,8 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
             st.session_state.bl_data_list[idx]["최종수정자"] = current_user_name
           save_bl_data(st.session_state.bl_data_list)
           st.success(
-              f"선택하신 B/L 건들이 '수금완료' 처리되었습니다. (수정자:"
-              f" {current_user_name})"
+              f"선택하신 B/L 건들이 '수금완료' 처리되었으며, [{current_user_name}]님이"
+              " 수정자로 기록되었습니다!"
           )
           st.rerun()
         else:
@@ -2853,7 +2853,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 
 # ==========================================
-# [9] 거래처 미수금관리
+# [9] 거래처 미수금관리 (수금완료 시 수정자 기록 연동)
 # ==========================================
 elif selected_menu == "💵 거래처 미수금관리":
   st.markdown(
