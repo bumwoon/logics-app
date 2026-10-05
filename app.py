@@ -607,27 +607,10 @@ if not is_admin_mode:
               else ""
           )
 
-          barcode_b64_m = ""
-          try:
-            from barcode import Code128
-            from barcode.writer import ImageWriter
-
-            rv = io.BytesIO()
-            Code128(str(bl_num), writer=ImageWriter()).write(
-                rv, {
-                    "write_text": False,
-                    "module_width": 0.6,
-                    "module_height": 15,
-                }
-            )
-            barcode_b64_m = base64.b64encode(rv.getvalue()).decode()
-          except:
-            pass
-
           barcode_html_m = f"""
                         <div style="text-align: right;">
-                            {f"<img src='data:image/png;base64,{barcode_b64_m}' style='height: 32px; max-width: 150px; display: block; margin-left: auto;'>" if barcode_b64_m else ""}
-                            <div style="font-size: 9.5pt; font-weight: 900; color: #0f172a; margin-top: 2px;">{bl_num}</div>
+                            <div style="font-family: 'Courier New', monospace; font-size: 16pt; font-weight: bold; letter-spacing: 4px; color: #000; background: #f1f5f9; padding: 4px 8px; border: 1px dashed #cbd5e1; display: inline-block;">*{bl_num}*</div>
+                            <div style="font-size: 10pt; font-weight: 900; color: #0f172a; margin-top: 3px;">{bl_num}</div>
                         </div>
                     """
 
@@ -1642,22 +1625,9 @@ elif selected_menu == "🚢 B/L 운송장 출력":
           else ""
       )
 
-      barcode_b64 = ""
-      try:
-        from barcode import Code128
-        from barcode.writer import ImageWriter
-
-        rv = io.BytesIO()
-        Code128(str(bl_num_str), writer=ImageWriter()).write(
-            rv, {"write_text": False, "module_width": 0.6, "module_height": 15}
-        )
-        barcode_b64 = base64.b64encode(rv.getvalue()).decode()
-      except:
-        pass
-
       barcode_html = f"""
                 <div style="text-align: right;">
-                    {f"<img src='data:image/png;base64,{barcode_b64}' style='height: 38px; max-width: 180px; display: block; margin-left: auto;'>" if barcode_b64 else ""}
+                    <div style="font-family: 'Courier New', monospace; font-size: 16pt; font-weight: bold; letter-spacing: 4px; color: #000; background: #f1f5f9; padding: 4px 8px; border: 1px dashed #cbd5e1; display: inline-block;">*{bl_num_str}*</div>
                     <div style="font-size: 10pt; font-weight: 900; color: #0f172a; margin-top: 3px; letter-spacing: 0.5px;">{bl_num_str}</div>
                 </div>
             """
@@ -1869,10 +1839,8 @@ elif selected_menu == "📑 거래처 인보이스 발행":
         c_info = st.session_state.client_infos.get(
             selected_invoice_client, {}
         )
-        c_biz_no = c_info.get("사업자등록번호", "778-09-03229")
-        c_addr = c_info.get(
-            "주소", "경기도 김포시 풍무동 326-5번지 (범운해운항공 협력사)"
-        )
+        c_biz_no = c_info.get("사업자등록번호", "-")
+        c_addr = c_info.get("주소", "-")
         c_manager = c_info.get("담당자", "담당자 귀하")
 
         invoice_date_val = str(date.today())
@@ -1978,21 +1946,14 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                             </tr>
                         </table>
 
+                        <!-- 공급자 영역을 완전히 제외하고 공급받는 자(Client) 정보만 꽉 차게 출력 -->
                         <table style="width: 100%; margin-bottom: 15px; border-collapse: collapse;">
                             <tr>
-                                <td style="width: 50%; border: 1.5px solid #475569; padding: 12px; background-color: #f8fafc;">
-                                    <div style="font-weight: bold; font-size: 9pt; color: #0f172a; margin-bottom: 4px;">[ 공급자 (ISSUER) ]</div>
-                                    <b>상호:</b> 주식회사 범운해운항공<br>
-                                    <b>사업자등록번호:</b> 778-09-03229<br>
-                                    <b>대표자:</b> 이상복<br>
-                                    <b>주소:</b> 경기도 김포시 풍무동 326-5번지 2층
-                                </td>
-                                <td style="width: 50%; border: 1.5px solid #475569; padding: 12px; background-color: #eff6ff;">
-                                    <div style="font-weight: bold; font-size: 9pt; color: #1e3a8a; margin-bottom: 4px;">[ 공급받는 자 (CLIENT) ]</div>
-                                    <b>거래처명:</b> <span style="font-size: 11pt; font-weight: bold; color: #1e3a8a;">{selected_invoice_client}</span><br>
-                                    <b>사업자등록번호:</b> {c_biz_no}<br>
-                                    <b>담당자:</b> {c_manager}<br>
-                                    <b>주소:</b> {c_addr}
+                                <td style="width: 100%; border: 1.5px solid #1e3a8a; padding: 14px; background-color: #eff6ff; border-radius: 6px;">
+                                    <div style="font-weight: bold; font-size: 10pt; color: #1e3a8a; margin-bottom: 6px;">[ 공급받는 자 (CLIENT) ]</div>
+                                    <div style="font-size: 11pt;"><b>거래처명:</b> <span style="font-size: 12pt; font-weight: bold; color: #1e3a8a;">{selected_invoice_client}</span></div>
+                                    <div><b>사업자등록번호:</b> {c_biz_no} &nbsp;|&nbsp; <b>담당자:</b> {c_manager}</div>
+                                    <div><b>주소:</b> {c_addr}</div>
                                 </td>
                             </tr>
                         </table>
@@ -2106,8 +2067,8 @@ elif selected_menu == "📄 화물 견적서 발행":
 
   if submit_quote:
     q_info = st.session_state.client_infos.get(q_client, {})
-    q_biz = q_info.get("사업자등록번호", "778-09-03229")
-    q_addr = q_info.get("주소", "경기도 김포시 풍무동 326-5번지 2층")
+    q_biz = q_info.get("사업자등록번호", "-")
+    q_addr = q_info.get("주소", "-")
     q_mgr = q_info.get("담당자", "담당자 귀하")
 
     logo_embed_q = (
@@ -2188,21 +2149,14 @@ elif selected_menu == "📄 화물 견적서 발행":
                     </tr>
                 </table>
 
+                <!-- 공급자 영역을 완전히 제외하고 수신처(Client) 정보만 꽉 차게 출력 -->
                 <table style="width: 100%; margin-bottom: 15px; border-collapse: collapse;">
                     <tr>
-                        <td style="width: 50%; border: 1.5px solid #475569; padding: 12px; background-color: #f8fafc;">
-                            <div style="font-weight: bold; font-size: 9pt; color: #0f172a; margin-bottom: 4px;">[ 공급자 (ISSUER) ]</div>
-                            <b>상호:</b> 주식회사 범운해운항공<br>
-                            <b>사업자등록번호:</b> 778-09-03229<br>
-                            <b>대표자:</b> 이상복<br>
-                            <b>주소:</b> 경기도 김포시 풍무동 326-5번지 2층
-                        </td>
-                        <td style="width: 50%; border: 1.5px solid #475569; padding: 12px; background-color: #eff6ff;">
-                            <div style="font-weight: bold; font-size: 9pt; color: #1e3a8a; margin-bottom: 4px;">[ 수신처 (CLIENT) ]</div>
-                            <b>거래처명:</b> <span style="font-size: 11pt; font-weight: bold; color: #1e3a8a;">{q_client}</span><br>
-                            <b>사업자등록번호:</b> {q_biz}<br>
-                            <b>담당자:</b> {q_mgr}<br>
-                            <b>주소:</b> {q_addr}
+                        <td style="width: 100%; border: 1.5px solid #1e3a8a; padding: 14px; background-color: #eff6ff; border-radius: 6px;">
+                            <div style="font-weight: bold; font-size: 10pt; color: #1e3a8a; margin-bottom: 6px;">[ 수신처 (CLIENT) ]</div>
+                            <div style="font-size: 11pt;"><b>거래처명:</b> <span style="font-size: 12pt; font-weight: bold; color: #1e3a8a;">{q_client}</span></div>
+                            <div><b>사업자등록번호:</b> {q_biz} &nbsp;|&nbsp; <b>담당자:</b> {q_mgr}</div>
+                            <div><b>주소:</b> {q_addr}</div>
                         </td>
                     </tr>
                 </table>
@@ -2358,8 +2312,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
     df_today = df_bl_all[df_bl_all["날짜"] == today_str]
 
     st.markdown(
-        f"##### 📅 오늘({today_str}) 발송 예정 화물 총"
-        f" <b>{len(df_today)}건</b>"
+        f"📅 오늘({today_str}) 발송 예정 화물 총 <b>{len(df_today)}건</b>"
     )
 
     if not df_today.empty:
