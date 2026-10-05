@@ -14,20 +14,9 @@ st.set_page_config(
 )
 
 # ==========================================
-# [데이터 통합 폴더 자동 생성 및 경로 설정]
+# [보안 및 계정 파일 저장소 시스템]
 # ==========================================
-DATA_DIR = "data_store"
-if not os.path.exists(DATA_DIR):
-  os.makedirs(DATA_DIR)
-
-ACCOUNT_USER_FILE = os.path.join(DATA_DIR, "system_user_accounts.csv")
-DATA_FILE = os.path.join(DATA_DIR, "bl_history_data.csv")
-CLIENT_FILE = os.path.join(DATA_DIR, "client_data.csv")
-ACCOUNT_FILE = os.path.join(DATA_DIR, "account_ledger_data.csv")
-EXPENSE_FILE = os.path.join(DATA_DIR, "expense_data.csv")
-NOTE_FILE = os.path.join(DATA_DIR, "daily_note_data.csv")
-MEETING_FILE = os.path.join(DATA_DIR, "meeting_note_data.csv")
-QUOTATION_FILE = os.path.join(DATA_DIR, "quotation_data.csv")
+ACCOUNT_USER_FILE = "system_user_accounts.csv"
 
 
 def load_user_db():
@@ -116,18 +105,19 @@ def login_screen():
       st.query_params.clear()
       st.rerun()
 
+    st.markdown(
+        "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
+        " margin-top: 20px;'>* 초기 관리자 아이디: <b>admin</b> / 비밀번호:"
+        " <b>bomwoon123</b></p>",
+        unsafe_allow_html=True,
+    )
 
-# 로고 파일 자동 감지 (현재 폴더 및 data_store 폴더 탐색)
+
+# 로고 파일 자동 감지
 LOGO_FILE = None
-for search_path in [".", DATA_DIR]:
-  if os.path.exists(search_path):
-    for filename in os.listdir(search_path):
-      if filename.lower().startswith("lo") and filename.lower().endswith(
-          (".png", ".jpg", ".jpeg")
-      ):
-        LOGO_FILE = os.path.join(search_path, filename)
-        break
-  if LOGO_FILE:
+for filename in os.listdir("."):
+  if filename.startswith("lo"):
+    LOGO_FILE = filename
     break
 
 # 로고를 Base64로 인코딩
@@ -138,6 +128,15 @@ if LOGO_FILE and os.path.exists(LOGO_FILE):
       encoded_sidebar_logo = base64.b64encode(f.read()).decode()
   except Exception:
     pass
+
+# 데이터 파일 경로 정의
+DATA_FILE = "bl_history_data.csv"
+CLIENT_FILE = "client_data.csv"
+ACCOUNT_FILE = "account_ledger_data.csv"
+EXPENSE_FILE = "expense_data.csv"
+NOTE_FILE = "daily_note_data.csv"
+MEETING_FILE = "meeting_note_data.csv"
+QUOTATION_FILE = "quotation_data.csv"
 
 
 def load_bl_data():
@@ -199,7 +198,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카스", "주식회사 조은로직스"]
+  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -576,6 +575,20 @@ else:
       st.query_params["mode"] = "admin"
       st.rerun()
 
+  LOGO_FILE = None
+  for filename in os.listdir("."):
+    if filename.startswith("lo"):
+      LOGO_FILE = filename
+      break
+
+  encoded_sidebar_logo = ""
+  if LOGO_FILE and os.path.exists(LOGO_FILE):
+    try:
+      with open(LOGO_FILE, "rb") as f:
+        encoded_sidebar_logo = base64.b64encode(f.read()).decode()
+    except Exception:
+      pass
+
   logo_img_tag = ""
   if encoded_sidebar_logo:
     logo_img_tag = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='width: 250px; max-width: 100%; height: auto; margin-bottom: 8px; border-radius: 8px;'>"
@@ -887,7 +900,9 @@ with col_sb2:
 
 st.sidebar.markdown("---")
 
-# 💾 데이터 백업 다운로드 버튼 (통합 폴더 내 데이터 백업)
+# ==========================================
+# 💾 [추가됨] 관리자 전용 데이터 백업 다운로드 버튼
+# ==========================================
 st.sidebar.subheader("💾 데이터 백업 다운로드")
 if os.path.exists(DATA_FILE):
   with open(DATA_FILE, "rb") as f:
@@ -896,10 +911,7 @@ if os.path.exists(DATA_FILE):
         data=f,
         file_name="범운해운항공_물류데이터_백업.csv",
         mime="text/csv",
-        help=(
-            "data_store 폴더에 저장된 화물 및 B/L 전체 데이터를 CSV 파일로"
-            " 다운로드합니다."
-        ),
+        help="현재 저장된 화물 및 B/L 전체 데이터를 CSV 파일로 다운로드합니다.",
     )
 else:
   st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
@@ -1136,7 +1148,7 @@ header_html = f"""
         {logo_html_str}
         <div>
             <h1 style='color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;'>🚢 (주)범운해운항공 종합 관리 프로그램</h1>
-            <p style='margin: 4px 0 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행 시스템 (데이터 통합 폴더 적용)</p>
+            <p style='margin: 4px 0 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행 시스템</p>
         </div>
     </div>
 </div>
@@ -1399,7 +1411,7 @@ if selected_menu == "📊 수출입 B/L 등록":
 
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역
+# [2] 등록 B/L 수정 및 Profit 내역 (누가 수정/삭제했는지 기록 및 표시)
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   st.markdown(
@@ -2847,7 +2859,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 
 # ==========================================
-# [9] 거래처 미수금관리
+# [9] 거래처 미수금관리 (수금완료 시 수정자 기록 연동)
 # ==========================================
 elif selected_menu == "💵 거래처 미수금관리":
   st.markdown(
@@ -3235,6 +3247,8 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
     nc_role = st.selectbox("권한 설정", ["직원", "관리자(대표)"])
 
     if st.form_submit_button("➕ 사내 계정 생성하기", type="primary"):
+      if nc_id.strip() and nc_pw.submit(): # type: ignore
+        pass
       if nc_id.strip() and nc_pw.strip():
         st.session_state.user_db[nc_id.strip()] = {
             "pw": nc_pw.strip(),
