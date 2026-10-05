@@ -2691,7 +2691,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
 
 # ==========================================
-# [8] 거래처 등록 요금 상세 관리 (국가 선택형 드롭다운 수정 반영)
+# [8] 거래처 등록 요금 상세 관리
 # ==========================================
 elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
   st.markdown(
@@ -2781,26 +2781,10 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
                     "국가": country,
                     "운송형태": transport,
                     "품명": item_name,
-                    "기본중량(kg)": float(
-                        r_val.get("기본중량", 1.0)
-                        if r_val.get("기본중량") is not None
-                        else 1.0
-                    ),
-                    "기본요금(원)": int(
-                        r_val.get("기본요금", 38000)
-                        if r_val.get("기본요금") is not None
-                        else 38000
-                    ),
-                    "추가단가(원/kg)": int(
-                        r_val.get("추가단가", 25000)
-                        if r_val.get("추가단가") is not None
-                        else 25000
-                    ),
-                    "1CBM당단가(원)": int(
-                        r_val.get("1CBM당단가", 3700000)
-                        if r_val.get("1CBM당단가") is not None
-                        else 3700000
-                    ),
+                    "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
+                    "기본요금(원)": int(r_val.get("기본요금", 38000)),
+                    "추가단가(원/kg)": int(r_val.get("추가단가", 25000)),
+                    "1CBM당단가(원)": int(r_val.get("1CBM당단가", 3700000)),
                 })
 
     if not rate_rows:
@@ -2815,20 +2799,10 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
       }]
 
     df_rates = pd.DataFrame(rate_rows)
-
-    # 안전한 국가 및 운송형태 선택을 위해 열 설정 추가
     edited_rates_df = st.data_editor(
         df_rates,
         num_rows="dynamic",
         use_container_width=True,
-        column_config={
-            "국가": st.column_config.SelectboxColumn(
-                "도착 국가", options=COUNTRY_LIST, required=True
-            ),
-            "운송형태": st.column_config.SelectboxColumn(
-                "운송형태", options=["항공(Air)", "해상(LCL)"], required=True
-            ),
-        },
         key="client_rates_editor_table",
     )
 
@@ -2841,39 +2815,16 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
         t_val = str(row.get("운송형태", "항공(Air)")).strip()
         i_val = str(row.get("품명", "일반공산품")).strip()
 
-        if not c_val or c_val.lower() == "nan":
-          c_val = "미국"
-
-        try:
-          bw_val = float(row.get("기본중량(kg)", 1.0) or 1.0)
-        except:
-          bw_val = 1.0
-
-        try:
-          bp_val = int(row.get("기본요금(원)", 38000) or 38000)
-        except:
-          bp_val = 38000
-
-        try:
-          ap_val = int(row.get("추가단가(원/kg)", 25000) or 25000)
-        except:
-          ap_val = 25000
-
-        try:
-          cbm_p_val = int(row.get("1CBM당단가(원)", 3700000) or 3700000)
-        except:
-          cbm_p_val = 3700000
-
         if c_val not in new_rate_dict:
           new_rate_dict[c_val] = {}
         if t_val not in new_rate_dict[c_val]:
           new_rate_dict[c_val][t_val] = {}
 
         new_rate_dict[c_val][t_val][i_val] = {
-            "기본중량": bw_val,
-            "기본요금": bp_val,
-            "추가단가": ap_val,
-            "1CBM당단가": cbm_p_val,
+            "기본중량": float(row.get("기본중량(kg)", 1.0)),
+            "기본요금": int(row.get("기본요금(원)", 38000)),
+            "추가단가": int(row.get("추가단가(원/kg)", 25000)),
+            "1CBM당단가": int(row.get("1CBM당단가(원)", 3700000)),
         }
 
       st.session_state.client_rates[selected_manage_client] = new_rate_dict
@@ -3193,7 +3144,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
   st.markdown("---")
   st.markdown(
-      f"#### 👁‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
+      f"#### 👁️️‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
   )
   components.html(account_html_output, height=750, scrolling=True)
 
@@ -3300,35 +3251,3 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
         "권한": info.get("role", ""),
     })
   st.dataframe(pd.DataFrame(acc_rows), use_container_width=True)
-from pydrive2.auth import GoogleAuth
-from pydrive2.drive import GoogleDrive
-import os
-
-
-def upload_to_google_drive(file_path, drive_file_name):
-  try:
-    gauth = GoogleAuth()
-    gauth.LocalWebserverAuth()
-    drive = GoogleDrive(gauth)
-
-    if not os.path.exists(file_path):
-      st.error(f"업로드할 파일을 찾을 수 없습니다: {file_path}")
-      return
-
-    file_drive = drive.CreateFile({"title": drive_file_name})
-    file_drive.SetContentFile(file_path)
-    file_drive.Upload()
-
-    st.success(
-        f"구글 드라이브 업로드 성공: {drive_file_name} (저장 완료!)"
-    )
-  except Exception as e:
-    st.error(f"구글 드라이브 업로드 중 오류 발생: {e}")
-
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("☁️ 구글 드라이브 백업")
-
-if st.sidebar.button("🚀 구글 드라이브에 데이터 백업하기"):
-  target_file = "bl_history_data.csv"  # 실제 사용하는 파일명으로 확인 필요
-  upload_to_google_drive(target_file, "범운해운항공_BL백업.csv")
