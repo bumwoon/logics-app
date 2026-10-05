@@ -14,13 +14,9 @@ st.set_page_config(
 )
 
 # ==========================================
-# [보안 및 계정 파일 저장소 시스템] - 바탕화면 bumwoon_date 경로 연동
+# [보안 및 계정 파일 저장소 시스템]
 # ==========================================
-desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-DATA_DIR = os.path.join(desktop_path, "bumwoon_date")
-os.makedirs(DATA_DIR, exist_ok=True)
-
-ACCOUNT_USER_FILE = os.path.join(DATA_DIR, "system_user_accounts.csv")
+ACCOUNT_USER_FILE = "system_user_accounts.csv"
 
 
 def load_user_db():
@@ -117,15 +113,11 @@ def login_screen():
     )
 
 
-# 로고 파일 자동 감지 (bumwoon_date 폴더 및 현재 폴더 탐색)
+# 로고 파일 자동 감지
 LOGO_FILE = None
-for search_dir in [DATA_DIR, "."]:
-  if os.path.exists(search_dir):
-    for filename in os.listdir(search_dir):
-      if filename.startswith("lo"):
-        LOGO_FILE = os.path.join(search_dir, filename)
-        break
-  if LOGO_FILE:
+for filename in os.listdir("."):
+  if filename.startswith("lo"):
+    LOGO_FILE = filename
     break
 
 # 로고를 Base64로 인코딩
@@ -137,14 +129,14 @@ if LOGO_FILE and os.path.exists(LOGO_FILE):
   except Exception:
     pass
 
-# 데이터 파일 경로 정의 (바탕화면 bumwoon_date 폴더 연동)
-DATA_FILE = os.path.join(DATA_DIR, "bl_history_data.csv")
-CLIENT_FILE = os.path.join(DATA_DIR, "client_data.csv")
-ACCOUNT_FILE = os.path.join(DATA_DIR, "account_ledger_data.csv")
-EXPENSE_FILE = os.path.join(DATA_DIR, "expense_data.csv")
-NOTE_FILE = os.path.join(DATA_DIR, "daily_note_data.csv")
-MEETING_FILE = os.path.join(DATA_DIR, "meeting_note_data.csv")
-QUOTATION_FILE = os.path.join(DATA_DIR, "quotation_data.csv")
+# 데이터 파일 경로 정의
+DATA_FILE = "bl_history_data.csv"
+CLIENT_FILE = "client_data.csv"
+ACCOUNT_FILE = "account_ledger_data.csv"
+EXPENSE_FILE = "expense_data.csv"
+NOTE_FILE = "daily_note_data.csv"
+MEETING_FILE = "meeting_note_data.csv"
+QUOTATION_FILE = "quotation_data.csv"
 
 
 def load_bl_data():
@@ -583,6 +575,20 @@ else:
       st.query_params["mode"] = "admin"
       st.rerun()
 
+  LOGO_FILE = None
+  for filename in os.listdir("."):
+    if filename.startswith("lo"):
+      LOGO_FILE = filename
+      break
+
+  encoded_sidebar_logo = ""
+  if LOGO_FILE and os.path.exists(LOGO_FILE):
+    try:
+      with open(LOGO_FILE, "rb") as f:
+        encoded_sidebar_logo = base64.b64encode(f.read()).decode()
+    except Exception:
+      pass
+
   logo_img_tag = ""
   if encoded_sidebar_logo:
     logo_img_tag = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='width: 250px; max-width: 100%; height: auto; margin-bottom: 8px; border-radius: 8px;'>"
@@ -895,7 +901,7 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 데이터 백업 다운로드
+# 💾 [추가됨] 관리자 전용 데이터 백업 다운로드 버튼
 # ==========================================
 st.sidebar.subheader("💾 데이터 백업 다운로드")
 if os.path.exists(DATA_FILE):
@@ -3241,6 +3247,8 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
     nc_role = st.selectbox("권한 설정", ["직원", "관리자(대표)"])
 
     if st.form_submit_button("➕ 사내 계정 생성하기", type="primary"):
+      if nc_id.strip() and nc_pw.submit(): # type: ignore
+        pass
       if nc_id.strip() and nc_pw.strip():
         st.session_state.user_db[nc_id.strip()] = {
             "pw": nc_pw.strip(),
