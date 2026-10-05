@@ -112,21 +112,6 @@ def login_screen():
     )
 
 
-# 로고 파일 자동 감지
-LOGO_FILE = None
-for filename in os.listdir("."):
-  if filename.startswith("lo"):
-    LOGO_FILE = filename
-    break
-
-encoded_sidebar_logo = ""
-if LOGO_FILE and os.path.exists(LOGO_FILE):
-  try:
-    with open(LOGO_FILE, "rb") as f:
-      encoded_sidebar_logo = base64.b64encode(f.read()).decode()
-  except Exception:
-    pass
-
 # 데이터 파일 경로 정의
 DATA_FILE = "bl_history_data.csv"
 CLIENT_FILE = "client_data.csv"
@@ -157,6 +142,78 @@ def load_bl_data():
     except Exception:
       return []
   return []
+
+
+def save_bl_data(data_list):
+  if data_list:
+    df = pd.DataFrame(data_list)
+    if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
+      df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
+    if "수금상태" not in df.columns:
+      df["수금상태"] = "미수"
+    if "최종작성자" not in df.columns:
+      df["최종작성자"] = "이상복"
+    if "최종수정자" not in df.columns:
+      df["최종수정자"] = "-"
+    df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+  else:
+    if os.path.exists(DATA_FILE):
+      os.remove(DATA_FILE)
+
+
+def load_meeting_data():
+  if os.path.exists(MEETING_FILE):
+    try:
+      return pd.read_csv(MEETING_FILE).to_dict("records")
+    except:
+      return []
+  return []
+
+
+def save_meeting_data(data_list):
+  if data_list:
+    pd.DataFrame(data_list).to_csv(
+        MEETING_FILE, index=False, encoding="utf-8-sig"
+    )
+  else:
+    if os.path.exists(MEETING_FILE):
+      os.remove(MEETING_FILE)
+
+
+def load_expense_data():
+  if os.path.exists(EXPENSE_FILE):
+    try:
+      return pd.read_csv(EXPENSE_FILE).to_dict("records")
+    except:
+      return []
+  return []
+
+
+def save_expense_data(data_list):
+  if data_list:
+    pd.DataFrame(data_list).to_csv(
+        EXPENSE_FILE, index=False, encoding="utf-8-sig"
+    )
+  else:
+    if os.path.exists(EXPENSE_FILE):
+      os.remove(EXPENSE_FILE)
+
+
+def load_note_data():
+  if os.path.exists(NOTE_FILE):
+    try:
+      return pd.read_csv(NOTE_FILE).to_dict("records")
+    except:
+      return []
+  return []
+
+
+def save_note_data(data_list):
+  if data_list:
+    pd.DataFrame(data_list).to_csv(NOTE_FILE, index=False, encoding="utf-8-sig")
+  else:
+    if os.path.exists(NOTE_FILE):
+      os.remove(NOTE_FILE)
 
 
 def load_client_data():
@@ -259,23 +316,6 @@ def load_client_data():
       },
   }
   return default_clients, default_rates, default_infos
-
-
-def save_bl_data(data_list):
-  if data_list:
-    df = pd.DataFrame(data_list)
-    if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
-      df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
-    if "수금상태" not in df.columns:
-      df["수금상태"] = "미수"
-    if "최종작성자" not in df.columns:
-      df["최종작성자"] = "이상복"
-    if "최종수정자" not in df.columns:
-      df["최종수정자"] = "-"
-    df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
-  else:
-    if os.path.exists(DATA_FILE):
-      os.remove(DATA_FILE)
 
 
 def save_client_data(client_list, client_rates, client_infos):
@@ -423,7 +463,7 @@ def generate_barcode_html(text):
     """
 
 
-# 세션 상태 초기화
+# 세션 상태 필수 데이터 초기화
 if "client_list" not in st.session_state or not st.session_state.client_list:
   c_list, c_rates, c_infos = load_client_data()
   st.session_state.client_list = c_list
@@ -431,6 +471,12 @@ if "client_list" not in st.session_state or not st.session_state.client_list:
   st.session_state.client_infos = c_infos
 if "bl_data_list" not in st.session_state:
   st.session_state.bl_data_list = load_bl_data()
+if "meeting_data_list" not in st.session_state:
+  st.session_state.meeting_data_list = load_meeting_data()
+if "expense_data_list" not in st.session_state:
+  st.session_state.expense_data_list = load_expense_data()
+if "note_data_list" not in st.session_state:
+  st.session_state.note_data_list = load_note_data()
 
 TRACKING_STATUS_OPTIONS = [
     "📦 물류센터 입고 및 접수 완료",
@@ -816,7 +862,6 @@ else:
 uploaded_excel_file = st.sidebar.file_uploader(
     "📤 백업 엑셀파일 자동 이어붙이기 (.xlsx)",
     type=["xlsx", "xls", "csv"],
-    key="excel_uploader_widget",
     help=(
         "백업받은 엑셀 파일(.xlsx)을 올리면 기존 데이터와 중복 없이"
         " 이어붙여집니다."
@@ -2372,7 +2417,7 @@ elif selected_menu == "📄 화물 견적서 발행":
     """
 
   st.markdown("---")
-  st.markdown("#### 👁‍‍🗨️ 정식 견적서 미리보기 및 인쇄")
+  st.markdown("#### 👁‍🗨️ 정식 견적서 미리보기 및 인쇄")
   components.html(quotation_html_output, height=750, scrolling=False)
 
 
