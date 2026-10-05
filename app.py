@@ -37,7 +37,7 @@ def load_user_db():
     except Exception:
       pass
   return {
-      "admin": {"pw": "bomwoon123", "role": "관리자(대표)", "name": "이상복"}
+      "lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}
   }
 
 
@@ -107,8 +107,7 @@ def login_screen():
 
     st.markdown(
         "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
-        " margin-top: 20px;'>* 초기 관리자 아이디: <b>admin</b> / 비밀번호:"
-        " <b>bomwoon123</b></p>",
+        " margin-top: 20px;'>* 관리자 아이디: <b>lsb</b> / 비밀번호: <b>7071</b></p>",
         unsafe_allow_html=True,
     )
 
@@ -198,7 +197,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카스", "주식회사 조은로직스"]
+  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -897,6 +896,24 @@ with col_sb2:
     st.session_state.user_role = None
     st.query_params.clear()
     st.rerun()
+
+st.sidebar.markdown("---")
+
+# ==========================================
+# 💾 [추가됨] 관리자 전용 데이터 백업 다운로드 버튼
+# ==========================================
+st.sidebar.subheader("💾 데이터 백업 다운로드")
+if os.path.exists(DATA_FILE):
+  with open(DATA_FILE, "rb") as f:
+    st.sidebar.download_button(
+        label="📥 백업 파일 다운로드 (CSV)",
+        data=f,
+        file_name="범운해운항공_물류데이터_백업.csv",
+        mime="text/csv",
+        help="현재 저장된 화물 및 B/L 전체 데이터를 CSV 파일로 다운로드합니다.",
+    )
+else:
+  st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
 
 st.sidebar.markdown("---")
 
@@ -3144,7 +3161,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
   st.markdown("---")
   st.markdown(
-      f"#### 👁️️‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
+      f"#### 👁‍🗨️ [{target_daily_str}] 정식 일계표 미리보기 및 인쇄"
   )
   components.html(account_html_output, height=750, scrolling=True)
 
