@@ -1871,7 +1871,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [4] 거래처 인보이스 발행 (날짜, 비엘번호, 카톤수, 품명, 금액 칸 분리)
+# [4] 거래처 인보이스 발행 (발행정보 제거, KG 전용칸, 품명칸 부피사이즈 추가)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -1882,8 +1882,8 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
       "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>청구할"
       " 거래처를 선택하시면, 등록된 <b>실제 B/L 내역</b>이 <b>날짜, B/L번호,"
-      " 카톤수, 품명, 금액</b> 칸별로 깔끔하게 분리되어 인보이스에"
-      " 반영됩니다.</p>",
+      " 카톤수, 품명 및 부피, 청구중량(KG), 금액</b> 칸별로 깔끔하게 분리되어"
+      " 인보이스에 반영됩니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -1942,6 +1942,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 "국가",
                 "품목",
                 "박스수",
+                "부피규격",
                 "매출청구중량(kg)",
                 "매출액(원)",
             ]
@@ -1961,7 +1962,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
         " 먼저 [수출입 B/L 등록] 메뉴에서 B/L을 등록해주세요."
     )
 
-  # 인보이스 품목 구성 (날짜 | B/L번호 | 카톤수 | 품명 | 금액)
+  # 인보이스 품목 구성 (날짜 | B/L번호 | 카톤수 | 품명 및 부피 | 중량(KG) | 금액)
   inv_rows_html = ""
   total_inv_amount = 0
 
@@ -1972,13 +1973,14 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       b_box = str(row.get("박스수", "1 박스"))
       b_country = str(row.get("국가", ""))
       b_item = str(row.get("품목", ""))
+      b_vol = str(row.get("부피규격", "-"))
       b_cw = row.get("매출청구중량(kg)", 1.0)
       b_amount = int(row.get("매출액(원)", 0))
       total_inv_amount += b_amount
 
       item_full_desc = (
           f"<b>[{b_country}] {b_item}</b><br><span"
-          f" style='font-size:7.5pt; color:#64748b;'>청구중량: {b_cw} KG</span>"
+          f" style='font-size:8pt; color:#475569;'>• 부피사이즈: {b_vol}</span>"
       )
 
       inv_rows_html += f"""
@@ -1987,13 +1989,14 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; font-size: 9pt; color: #1e3a8a;">{b_bl}</td>
                 <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;">{b_box}</td>
                 <td style="border: 1px solid #64748b; padding: 8px; font-size: 9pt;">{item_full_desc}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; color: #dc2626; font-size: 9.5pt;">{b_cw} KG</td>
                 <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold; font-size: 9.5pt;">{b_amount:,.0f} 원</td>
             </tr>
             """
   else:
     inv_rows_html = """
         <tr>
-            <td colspan="5" style="border: 1px solid #64748b; padding: 12px; text-align: center; color: #94a3b8;">선택된 B/L 내역이 없습니다. 위에서 청구할 B/L을 체크해주세요.</td>
+            <td colspan="6" style="border: 1px solid #64748b; padding: 12px; text-align: center; color: #94a3b8;">선택된 B/L 내역이 없습니다. 위에서 청구할 B/L을 체크해주세요.</td>
         </tr>
         """
 
@@ -2031,7 +2034,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 background-color: #ffffff;
             }}
             .invoice-container {{
-                max-width: 780px;
+                max-width: 800px;
                 margin: 0 auto;
                 border: 2px solid #0f172a;
                 padding: 30px;
@@ -2077,19 +2080,14 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 </tr>
             </table>
 
+            <!-- 발행 정보 박스를 제거하고 [BILL TO]를 단독으로 넓게 배치 -->
             <table style="width: 100%; font-size: 10pt; margin-bottom: 20px; border-collapse: collapse;">
                 <tr>
-                    <td style="width: 50%; vertical-align: top; border: 1px solid #cbd5e1; padding: 12px; background-color: #f8fafc; border-radius: 6px;">
+                    <td style="width: 100%; vertical-align: top; border: 1px solid #cbd5e1; padding: 14px; background-color: #f8fafc; border-radius: 6px;">
                         <b>[BILL TO / 청구받는 곳]</b><br>
-                        <b>거래처명:</b> {selected_inv_client}<br>
-                        <b>사업자등록번호:</b> {client_bno_inv}<br>
-                        <b>주소:</b> {client_addr_inv}
-                    </td>
-                    <td style="width: 50%; vertical-align: top; border: 1px solid #cbd5e1; padding: 12px; background-color: #f8fafc; border-radius: 6px;">
-                        <b>[ISSUE INFO / 발행 정보]</b><br>
-                        <b>발행일자 (Date):</b> {str(inv_date)}<br>
-                        <b>지불기한 (Due Date):</b> {str(inv_due_date)}<br>
-                        <b>담당자:</b> 대표이사 이상복
+                        <b>거래처명:</b> {selected_inv_client} &nbsp;&nbsp;|&nbsp;&nbsp; <b>사업자등록번호:</b> {client_bno_inv}<br>
+                        <b>주소:</b> {client_addr_inv}<br>
+                        <b>발행일자 (Date):</b> {str(inv_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>지불기한 (Due Date):</b> {str(inv_due_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>담당자:</b> 대표이사 이상복
                     </td>
                 </tr>
             </table>
@@ -2097,11 +2095,12 @@ elif selected_menu == "📑 거래처 인보이스 발행":
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
                 <thead>
                     <tr style="background-color: #0f172a; color: white; text-align: center; font-size: 9pt;">
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 15%;">날짜 (Date)</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 20%;">B/L 번호</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 12%;">카톤수</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 35%;">품명 (Description)</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 18%;">금액</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 14%;">날짜 (Date)</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 18%;">B/L 번호</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 11%;">카톤수</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 32%;">품명 및 부피사이즈 (Description)</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 12%;">중량 (KG)</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 13%;">금액</th>
                     </tr>
                 </thead>
                 <tbody>
