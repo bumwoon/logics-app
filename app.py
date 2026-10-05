@@ -208,7 +208,7 @@ def load_client_data():
               }
           }
       },
-      "카스": {
+      "카ส": {
           "미국": {
               "항공(Air)": {
                   "보톡스 필러": {
@@ -2162,7 +2162,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     """
 
   st.markdown("---")
-  st.markdown("#### 👁️‍🗨️ 정식 인보이스 미리보기 및 인쇄")
+  st.markdown("#### 👁‍🗨️ 정식 인보이스 미리보기 및 인쇄")
   components.html(invoice_html_output, height=800, scrolling=True)
 
 
@@ -2380,12 +2380,12 @@ elif selected_menu == "📄 화물 견적서 발행":
     """
 
   st.markdown("---")
-  st.markdown("#### 👁️️‍🗨️ 정식 견적서 미리보기 및 인쇄")
+  st.markdown("#### 👁‍🗨️ 정식 견적서 미리보기 및 인쇄")
   components.html(quotation_html_output, height=800, scrolling=True)
 
 
 # ==========================================
-# [6] 거래처 미팅 노트
+# [6] 거래처 미팅 노트 (거래처별 분류 및 필터 기능 추가)
 # ==========================================
 elif selected_menu == "🤝 거래처 미팅 노트":
   st.markdown(
@@ -2429,13 +2429,40 @@ elif selected_menu == "🤝 거래처 미팅 노트":
       st.rerun()
 
   st.markdown("---")
-  st.markdown("#### 📋 저장된 미팅 노트 목록")
+  st.markdown("#### 📋 거래처별 미팅 노트 조회 및 분류")
+
   if st.session_state.meeting_data_list:
-    df_meeting = pd.DataFrame(st.session_state.meeting_data_list)
-    st.data_editor(
-        df_meeting, use_container_width=True, key="meeting_table_edit"
+    df_meeting_all = pd.DataFrame(st.session_state.meeting_data_list)
+
+    # 거래처 선택 셀렉트박스 필터 추가 (전체 보기 포함)
+    all_clients_in_meeting = ["전체 거래처 보기"] + sorted(
+        df_meeting_all["거래처"].dropna().unique().tolist()
     )
-    if st.button("🗑 선택/전체 미팅노트 초기화"):
+    selected_filter_client = st.selectbox(
+        "🔍 조회할 거래처를 선택하세요 (선택한 거래처의 미팅 내용만 모아봅니다)",
+        options=all_clients_in_meeting,
+        key="meeting_filter_client_sel",
+    )
+
+    if selected_filter_client == "전체 거래처 보기":
+      df_meeting_filtered = df_meeting_all
+    else:
+      df_meeting_filtered = df_meeting_all[
+          df_meeting_all["거래처"] == selected_filter_client
+      ]
+
+    st.markdown(
+        f"현재 <b>{selected_filter_client}</b>의 미팅 내역 총"
+        f" <b>{len(df_meeting_filtered)}건</b>이 조회되었습니다.",
+        unsafe_allow_html=True,
+    )
+    st.data_editor(
+        df_meeting_filtered,
+        use_container_width=True,
+        key="meeting_table_edit",
+    )
+
+    if st.button("🗑 전체 미팅노트 초기화"):
       st.session_state.meeting_data_list = []
       save_meeting_data([])
       st.rerun()
@@ -2774,7 +2801,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 
 # ==========================================
-# [9] 거래처 미수금관리 (선택 체크박스 및 수금완료 일괄처리 기능 추가)
+# [9] 거래처 미수금관리
 # ==========================================
 elif selected_menu == "💵 거래처 미수금관리":
   st.markdown(
