@@ -1,5 +1,5 @@
+from datetime import date, datetime
 import base64
-from datetime import date
 import io
 import math
 import os
@@ -267,7 +267,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직с"]
+  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -375,53 +375,3 @@ def save_client_data(client_list, client_rates, client_infos):
                     "담당자": info.get("담당자", ""),
                     "전화번호": info.get("전화번호", ""),
                     "주소": info.get("주소", ""),
-                    "국가": country,
-                    "운송형태": transport,
-                    "품명": item_name,
-                    "기본중량": r_val.get("기본중량", 1.0),
-                    "기본요금": r_val.get("기본요금", 38000),
-                    "추가단가": r_val.get("추가단가", 25000),
-                    "1CBM당단가": r_val.get("1CBM당단가", 3700000),
-                })
-  pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
-
-
-# [들여쓰기 에러가 발생했던 calculate_auto_price 함수 - 완벽하게 수정됨]
-def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
-  rates_dict = st.session_state.get("client_rates", {}).get(client_name, {})
-  if rates_dict:
-    for country, trans_dict in rates_dict.items():
-      if isinstance(trans_dict, dict):
-        item_dict = trans_dict.get(
-            transport_mode, trans_dict.get("항공(Air)", {})
-        )
-        if isinstance(item_dict, dict):
-          for item_name, r_val in item_dict.items():
-            base_w = float(r_val.get("기본중량", 1.0))
-            base_p = int(r_val.get("기본요금", 38000))
-            add_p = int(r_val.get("추가단가", 25000))
-            if cw <= base_w:
-              return base_p
-            else:
-              return int(base_p + math.ceil(cw - base_w) * add_p)
-  return int(38000 + max(0.0, cw - 1.0) * 25000)
-
-
-def generate_barcode_html(text):
-  clean_txt = str(text).strip()
-  code128_patterns = {
-      "0": "212222",
-      "1": "222122",
-      "2": "222221",
-      "3": "121223",
-      "4": "121322",
-      "5": "131222",
-      "6": "122213",
-      "7": "122312",
-      "8": "132212",
-      "9": "221213",
-      "A": "212321",
-      "B": "232121",
-      "C": "113222",
-      "D": "123122",
-      "E
