@@ -816,6 +816,7 @@ else:
 uploaded_excel_file = st.sidebar.file_uploader(
     "📤 백업 엑셀파일 자동 이어붙이기 (.xlsx)",
     type=["xlsx", "xls", "csv"],
+    key="excel_uploader_widget",
     help=(
         "백업받은 엑셀 파일(.xlsx)을 올리면 기존 데이터와 중복 없이"
         " 이어붙여집니다."
@@ -847,7 +848,6 @@ if uploaded_excel_file is not None:
       st.sidebar.success(
           "🎉 엑셀 백업 데이터가 기존 데이터에 이어붙여졌습니다!"
       )
-      st.rerun()
   except Exception as e:
     st.sidebar.error(f"엑셀 파일 업로드 중 오류가 발생했습니다: {e}")
 
@@ -2372,7 +2372,7 @@ elif selected_menu == "📄 화물 견적서 발행":
     """
 
   st.markdown("---")
-  st.markdown("#### 👁‍🗨️ 정식 견적서 미리보기 및 인쇄")
+  st.markdown("#### 👁‍‍🗨️ 정식 견적서 미리보기 및 인쇄")
   components.html(quotation_html_output, height=750, scrolling=False)
 
 
