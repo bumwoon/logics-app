@@ -37,7 +37,7 @@ def load_user_db():
     except Exception:
       pass
   return {
-      "admin": {"pw": "bomwoon123", "role": "관리자(대표)", "name": "이상복"}
+      "lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}
   }
 
 
@@ -107,8 +107,7 @@ def login_screen():
 
     st.markdown(
         "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
-        " margin-top: 20px;'>* 초기 관리자 아이디: <b>admin</b> / 비밀번호:"
-        " <b>bomwoon123</b></p>",
+        " margin-top: 20px;'>* 관리자 아이디: <b>lsb</b> / 비밀번호: <b>7071</b></p>",
         unsafe_allow_html=True,
     )
 
@@ -3247,8 +3246,6 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
     nc_role = st.selectbox("권한 설정", ["직원", "관리자(대표)"])
 
     if st.form_submit_button("➕ 사내 계정 생성하기", type="primary"):
-      if nc_id.strip() and nc_pw.submit(): # type: ignore
-        pass
       if nc_id.strip() and nc_pw.strip():
         st.session_state.user_db[nc_id.strip()] = {
             "pw": nc_pw.strip(),
