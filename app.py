@@ -101,7 +101,7 @@ def login_screen():
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    if st.button("⬅️ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
+    if st.button("⬅️️ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
       st.query_params.clear()
       st.rerun()
 
@@ -147,6 +147,10 @@ def load_bl_data():
         df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
       if "수금상태" not in df.columns:
         df["수금상태"] = "미수"
+      if "매출액(원)" not in df.columns:
+        df["매출액(원)"] = 0
+      if "매입액(원)" not in df.columns:
+        df["매입액(원)"] = 0
       return df.to_dict("records")
     except Exception:
       return []
@@ -237,7 +241,7 @@ def load_client_data():
           "전화번호": "",
           "주소": "경기도 김포시 풍무동 326-5번지 2층",
       },
-      "카ส": {
+      "카스": {
           "사업자등록번호": "",
           "이메일": "",
           "담당자": "",
@@ -268,7 +272,14 @@ def load_expense_data():
   if os.path.exists(EXPENSE_FILE):
     try:
       df = pd.read_csv(EXPENSE_FILE)
-      for possible_col in ["금액(원)", "지출금액(원)", "금액", "비용(원)", "가격"]:
+      for possible_col in [
+          "금액(원)",
+          "지출금액(원)",
+          "금액",
+          "비용(원)",
+          "가격",
+          "수입/지출금액",
+      ]:
         if possible_col in df.columns:
           df = df.rename(columns={possible_col: "금액(원)"})
           break
@@ -317,6 +328,8 @@ def save_bl_data(data_list):
     df = pd.DataFrame(data_list)
     if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
       df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
+    if "수금상태" not in df.columns:
+      df["수금상태"] = "미수"
     df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
   else:
     if os.path.exists(DATA_FILE):
@@ -390,8 +403,11 @@ def save_account_data(data_list):
 def save_expense_data(data_list):
   if data_list:
     df_exp_save = pd.DataFrame(data_list)
-    if "지출금액(원)" in df_exp_save.columns and "금액(원)" not in df_exp_save.columns:
-      df_exp_save = df_exp_save.rename(columns={"지출금액(원)": "금액(원)"})
+    for col_name in ["금액(원)", "지출금액(원)", "금액"]:
+      if col_name in df_exp_save.columns and col_name != "금액(원)":
+        df_exp_save = df_exp_save.rename(columns={col_name: "금액(원)"})
+    if "금액(원)" not in df_exp_save.columns:
+      df_exp_save["금액(원)"] = 0
     df_exp_save.to_csv(EXPENSE_FILE, index=False, encoding="utf-8-sig")
   else:
     if os.path.exists(EXPENSE_FILE):
@@ -2771,6 +2787,8 @@ elif selected_menu == "💵 거래처 미수금관리":
     df_unpaid = pd.DataFrame(st.session_state.bl_data_list)
     if "수금상태" not in df_unpaid.columns:
       df_unpaid["수금상태"] = "미수"
+    if "매출액(원)" not in df_unpaid.columns:
+      df_unpaid["매출액(원)"] = 0
 
     st.markdown("#### 📊 전체 B/L 수금 상태 요약표")
     st.dataframe(
@@ -2803,7 +2821,7 @@ elif selected_menu == "💵 거래처 미수금관리":
 
 
 # ==========================================
-# [10] 일계표 및 입출금 장부 (날짜별 일계표 조회 및 인쇄 기능 추가)
+# [10] 일계표 및 입출금 장부
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
   st.markdown(
