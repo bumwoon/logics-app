@@ -1563,15 +1563,23 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 step=0.5,
             )
 
+            # 단가표 기반 자동 계산 적용
+            auto_u_sales = calculate_auto_price(
+                u_shipper, u_sales_cw, u_transport
+            )
+            auto_u_purchase = calculate_auto_price(
+                u_vendor, u_purchase_cw, u_transport
+            )
+
             u_sales = st.number_input(
-                "총 매출액 (원)",
-                value=int(target_item.get("매출액(원)", 0)),
+                "총 매출액 (원) [단가표 자동 계산]",
+                value=int(auto_u_sales),
                 step=1000,
                 format="%d",
             )
             u_purchase = st.number_input(
-                "총 매입액 (원)",
-                value=int(target_item.get("매출액(원)", 0)),
+                "총 매입액 (원) [단가표 자동 계산]",
+                value=int(auto_u_purchase),
                 step=1000,
                 format="%d",
             )
