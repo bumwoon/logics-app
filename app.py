@@ -2604,6 +2604,34 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
           else:
             st.warning("거래처명이 비어있거나 이미 존재하는 거래처명입니다.")
 
+    st.markdown("---")
+    with st.expander("🗑 거래처 삭제하기 (불필요한 거래처 제거)"):
+      with st.form("delete_client_form"):
+        del_client_target = st.selectbox(
+            "삭제할 거래처 선택", options=st.session_state.client_list
+        )
+        submit_del_client = st.form_submit_button(
+            "🗑 선택한 거래처 완전 삭제하기", type="secondary"
+        )
+
+        if submit_del_client:
+          if del_client_target in st.session_state.client_list:
+            st.session_state.client_list.remove(del_client_target)
+            if del_client_target in st.session_state.client_rates:
+              del st.session_state.client_rates[del_client_target]
+            if del_client_target in st.session_state.client_infos:
+              del st.session_state.client_infos[del_client_target]
+
+            save_client_data(
+                st.session_state.client_list,
+                st.session_state.client_rates,
+                st.session_state.client_infos,
+            )
+            st.success(
+                f"거래처 '{del_client_target}'이(가) 성공적으로 삭제되었습니다!"
+            )
+            st.rerun()
+
 
 # ==========================================
 # [9] 거래처 미수금관리 메뉴
