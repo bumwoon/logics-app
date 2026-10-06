@@ -267,7 +267,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카스", "주식회사 조은로직스"]
+  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직с"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -296,4 +296,127 @@ def load_client_data():
       "주식회사 조은로직스": {
           "미국": {
               "항공(Air)": {
-                  "일반화물":
+                  "일반화물": {
+                      "기본중량": 1.0,
+                      "기본요금": 38000,
+                      "추가단가": 25000,
+                      "1CBM당단가": 3700000,
+                  }
+              }
+          }
+      },
+  }
+  default_infos = {
+      "아코글로벌": {
+          "사업자등록번호": "778-09-03229",
+          "이메일": "infoakoglobal@gmail.com",
+          "담당자": "박장우대표님",
+          "전화번호": "",
+          "주소": "경기도 김포시 풍무동 326-5번지 2층",
+      },
+      "카ส": {
+          "사업자등록번호": "",
+          "이메일": "",
+          "담당자": "",
+          "전화번호": "",
+          "주소": "",
+      },
+      "주식회사 조은로직스": {
+          "사업자등록번호": "",
+          "이메일": "",
+          "담당자": "조정희 과장",
+          "전화번호": "",
+          "주소": "",
+      },
+  }
+  return default_clients, default_rates, default_infos
+
+
+def save_client_data(client_list, client_rates, client_infos):
+  rows = []
+  for client in client_list:
+    info = client_infos.get(
+        client,
+        {
+            "사업자등록번호": "",
+            "이메일": "",
+            "담당자": "",
+            "전화번호": "",
+            "주소": "",
+        },
+    )
+    country_dict = client_rates.get(client, {})
+    if not country_dict:
+      rows.append({
+          "거래처명": client,
+          "사업자등록번호": info.get("사업자등록번호", ""),
+          "이메일": info.get("이메일", ""),
+          "담당자": info.get("담당자", ""),
+          "전화번호": info.get("전화번호", ""),
+          "주소": info.get("주소", ""),
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품명": "보톡스 필러 (Botox & Filler)",
+          "기본중량": 1.0,
+          "기본요금": 38000,
+          "추가단가": 25000,
+          "1CBM당단가": 3700000,
+      })
+    else:
+      for country, trans_dict in country_dict.items():
+        if isinstance(trans_dict, dict):
+          for transport, item_dict in trans_dict.items():
+            if isinstance(item_dict, dict):
+              for item_name, r_val in item_dict.items():
+                rows.append({
+                    "거래처명": client,
+                    "사업자등록번호": info.get("사업자등록번호", ""),
+                    "이메일": info.get("이메일", ""),
+                    "담당자": info.get("담당자", ""),
+                    "전화번호": info.get("전화번호", ""),
+                    "주소": info.get("주소", ""),
+                    "국가": country,
+                    "운송형태": transport,
+                    "품명": item_name,
+                    "기본중량": r_val.get("기본중량", 1.0),
+                    "기본요금": r_val.get("기본요금", 38000),
+                    "추가단가": r_val.get("추가단가", 25000),
+                    "1CBM당단가": r_val.get("1CBM당단가", 3700000),
+                })
+  pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
+
+
+def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
+  rates_dict = st.session_state.get("client_rates", {}).get(client_name, {})
+  if rates_dict:
+    for country, trans_dict in rates_dict.items():
+      if isinstance(trans_dict, dict):
+        item_dict = trans_dict.get(
+            transport_mode, trans_dict.get("항공(Air)", {})
+        )
+        if isinstance(item_dict, dict):
+          for item_name, r_val in item_dict.items():
+            base_w = float(r_val.get("기본중량", 1.0))
+            base_p = int(r_val.get("기본요금", 38000))
+            add_p = int(r_val.get("추가단가", 25000))
+            if cw <= base_w:
+              return base_p
+            else:
+              return int(base_p + math.ceil(cw - base_w) * add_p)
+  return int(38000 + max(0.0, cw - 1.0) * 25000)
+
+
+def generate_barcode_html(text):
+  clean_txt = str(text).strip()
+  code128_patterns = {
+      "0": "212222",
+      "1": "222122",
+      "2": "222221",
+      "3": "121223",
+      "4": "121322",
+      "5": "131222",
+      "6": "122213",
+      "7": "122312",
+      "8": "132212",
+      "9": "221213",
+      "A
