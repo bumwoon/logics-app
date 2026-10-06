@@ -267,7 +267,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
+  default_clients = ["아코글로벌", "카스", "주식회사 조은로직스"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -668,3 +668,72 @@ else:
                             .t-tbl {{ width: 100%; border-collapse: collapse; margin-bottom: 6px; }}
                             .t-tbl td {{ border: 1px solid #64748b; padding: 6px 8px; vertical-align: top; }}
                             .s-hdr {{ background-color: #0f172a; color: white; font-weight: bold; font-size: 8.5pt; padding: 2px 5px; margin-bottom: 3px; }}
+                            .p-btn {{
+                                display: block;
+                                width: 100%;
+                                background-color: #dc2626;
+                                color: white;
+                                text-align: center;
+                                padding: 12px;
+                                font-size: 11pt;
+                                font-weight: bold;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                margin-bottom: 15px;
+                            }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="awb-box">
+                            <button class="p-btn no-print" onclick="window.print()">🖨 휴대폰에서 B/L 운송장 인쇄 / PDF 저장하기</button>
+
+                            <table style="width: 100%; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 10px;">
+                                <tr>
+                                    <td style="width: 55%; border: none;">
+                                        <div style="display: flex; align-items: center;">
+                                            {logo_embed_m}
+                                            <div>
+                                                <div style="font-size: 12pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                                <div style="font-size: 7pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="width: 45%; text-align: right; border: none;">
+                                        <div style="font-size: 7.5pt; color: #64748b; font-weight: bold;">AIR WAYBILL / B/L NO.</div>
+                                        {barcode_html_m}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table style="width: 100%; background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+                                <tr>
+                                    <td style="border: none; padding: 0;">
+                                        • <b>현재 화물 진행 상태:</b> <span style="color: #2563eb; font-weight: bold; font-size: 10.5pt;">{current_status_str}</span><br>
+                                        • <b>화주명:</b> {shipper_n} | <b>수하인:</b> {consignee_n}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table class="t-tbl">
+                                <tr>
+                                    <td style="width: 50%;">
+                                        <div class="s-hdr">FROM (SHIPPER / 송하인)</div>
+                                        <b>상호:</b> {shipper_n}<br>
+                                        <b>주소:</b> {shipper_addr}<br>
+                                        <b>연락처:</b> {shipper_tel}
+                                    </td>
+                                    <td style="width: 50%;">
+                                        <div class="s-hdr">TO (CONSIGNEE / 수하인)</div>
+                                        <b>수하인:</b> <span style="color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br>
+                                        <b>도착 국가:</b> {dest_c}<br>
+                                        <b>출발지:</b> {origin_p}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table class="t-tbl">
+                                <tr>
+                                    <td style="width: 33%;">
+                                        <div style="font-weight: bold; font-size: 8pt; color: #0f172a;">CARRIER</div>
+                                        {air_c} AIR &nbsp; {sea_c} SEA<br><span style="font-size: 7
