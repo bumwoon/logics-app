@@ -37,7 +37,8 @@ def load_user_db():
     except Exception:
       pass
   return {
-      "lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}
+      "lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"},
+      "admin": {"pw": "bomwoon123", "role": "관리자(대표)", "name": "이상복"},
   }
 
 
@@ -71,7 +72,7 @@ def login_screen():
   with col2:
     st.markdown(
         "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 물류"
-        " 시스템 (사내 관리자)</h2>",
+        " 시스템</h2>",
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -101,10 +102,6 @@ def login_screen():
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    if st.button("⬅ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
-      st.query_params.clear()
-      st.rerun()
-
     st.markdown(
         "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
         " margin-top: 20px;'>* 관리자 아이디: <b>lsb</b> / 비밀번호: <b>7071</b></p>",
@@ -112,19 +109,24 @@ def login_screen():
     )
 
 
-# 데이터 파일 경로 및 로고 공통 정의
-DATA_FILE = "bl_history_data.csv"
-CLIENT_FILE = "client_data.csv"
-EXPENSE_FILE = "expense_data.csv"
-NOTE_FILE = "daily_note_data.csv"
-MEETING_FILE = "meeting_note_data.csv"
+# 쿼리 파라미터 확인 (고객 모드 여부)
+query_params = st.query_params
+is_client_mode = query_params.get("mode", "") == "client"
 
+# 로그인이 안 되어 있고 고객 모드도 아니라면 로그인 화면 출력 후 중단
+if not st.session_state.logged_in_user and not is_client_mode:
+  login_screen()
+  st.stop()
+
+
+# 로고 파일 자동 감지
 LOGO_FILE = None
 for filename in os.listdir("."):
   if filename.startswith("lo"):
     LOGO_FILE = filename
     break
 
+# 로고를 Base64로 인코딩
 encoded_sidebar_logo = ""
 if LOGO_FILE and os.path.exists(LOGO_FILE):
   try:
@@ -132,6 +134,15 @@ if LOGO_FILE and os.path.exists(LOGO_FILE):
       encoded_sidebar_logo = base64.b64encode(f.read()).decode()
   except Exception:
     pass
+
+# 데이터 파일 경로 정의
+DATA_FILE = "bl_history_data.csv"
+CLIENT_FILE = "client_data.csv"
+ACCOUNT_FILE = "account_ledger_data.csv"
+EXPENSE_FILE = "expense_data.csv"
+NOTE_FILE = "daily_note_data.csv"
+MEETING_FILE = "meeting_note_data.csv"
+QUOTATION_FILE = "quotation_data.csv"
 
 
 def load_bl_data():
@@ -142,90 +153,10 @@ def load_bl_data():
         df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
       if "수금상태" not in df.columns:
         df["수금상태"] = "미수"
-      if "매출액(원)" not in df.columns:
-        df["매출액(원)"] = 0
-      if "매입액(원)" not in df.columns:
-        df["매입액(원)"] = 0
-      if "최종작성자" not in df.columns:
-        df["최종작성자"] = "이상복"
-      if "최종수정자" not in df.columns:
-        df["최종수정자"] = "-"
       return df.to_dict("records")
     except Exception:
       return []
   return []
-
-
-def save_bl_data(data_list):
-  if data_list:
-    df = pd.DataFrame(data_list)
-    if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
-      df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
-    if "수금상태" not in df.columns:
-      df["수금상태"] = "미수"
-    if "최종작성자" not in df.columns:
-      df["최종작성자"] = "이상복"
-    if "최종수정자" not in df.columns:
-      df["최종수정자"] = "-"
-    df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
-  else:
-    if os.path.exists(DATA_FILE):
-      os.remove(DATA_FILE)
-
-
-def load_meeting_data():
-  if os.path.exists(MEETING_FILE):
-    try:
-      return pd.read_csv(MEETING_FILE).to_dict("records")
-    except:
-      return []
-  return []
-
-
-def save_meeting_data(data_list):
-  if data_list:
-    pd.DataFrame(data_list).to_csv(
-        MEETING_FILE, index=False, encoding="utf-8-sig"
-    )
-  else:
-    if os.path.exists(MEETING_FILE):
-      os.remove(MEETING_FILE)
-
-
-def load_expense_data():
-  if os.path.exists(EXPENSE_FILE):
-    try:
-      return pd.read_csv(EXPENSE_FILE).to_dict("records")
-    except:
-      return []
-  return []
-
-
-def save_expense_data(data_list):
-  if data_list:
-    pd.DataFrame(data_list).to_csv(
-        EXPENSE_FILE, index=False, encoding="utf-8-sig"
-    )
-  else:
-    if os.path.exists(EXPENSE_FILE):
-      os.remove(EXPENSE_FILE)
-
-
-def load_note_data():
-  if os.path.exists(NOTE_FILE):
-    try:
-      return pd.read_csv(NOTE_FILE).to_dict("records")
-    except:
-      return []
-  return []
-
-
-def save_note_data(data_list):
-  if data_list:
-    pd.DataFrame(data_list).to_csv(NOTE_FILE, index=False, encoding="utf-8-sig")
-  else:
-    if os.path.exists(NOTE_FILE):
-      os.remove(NOTE_FILE)
 
 
 def load_client_data():
@@ -250,7 +181,31 @@ def load_client_data():
           country = row.get("국가", "미국")
           transport = str(row.get("운송형태", "항공(Air)")).strip()
           item = str(row.get("품명", "일반공산품")).strip()
-      return clients, rates, client_infos
+          if country not in rates[client]:
+            rates[client][country] = {}
+          if transport not in rates[client][country]:
+            rates[client][country][transport] = {}
+          rates[client][country][transport][item] = {
+              "기본중량": float(row.get("기본중량", 1.0)),
+              "기본요금": int(row.get("기본요금", 38000)),
+              "추가단가": int(row.get("추가단가", 25000)),
+              "1CBM당단가": int(row.get("1CBM당단가", 3700000)),
+          }
+      if clients:
+        return clients, rates, client_infos
     except Exception:
       pass
-  return [], {}, {}
+
+  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
+  default_rates = {
+      "아코글로벌": {
+          "미국": {
+              "항공(Air)": {
+                  "보톡스 필러": {
+                      "기본중량": 1.0,
+                      "기본요금": 38000,
+                      "추가단가": 25000,
+                      "1CBM당단가": 3700000,
+                  }
+              }
+          }
