@@ -247,13 +247,9 @@ def load_client_data():
             "주소": str(first_row.get("주소", "")),
         }
         for _, row in sub_df.iterrows():
-          try:
-            country = row.get("국가", "미국")
-            transport = str(row.get("운송형태", "항공(Air)")).strip()
-            item = str(row.get("품명", "일반공산품")).strip()
-            # 필요에 따라 rates 구조를 채우는 로직 확장 가능
-          except Exception:
-            continue
+          country = row.get("국가", "미국")
+          transport = str(row.get("운송형태", "항공(Air)")).strip()
+          item = str(row.get("품명", "일반공산품")).strip()
       return clients, rates, client_infos
     except Exception:
       pass
