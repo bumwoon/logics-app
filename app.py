@@ -56,36 +56,4 @@ def save_user_db(user_db):
 if "user_db" not in st.session_state:
   st.session_state.user_db = load_user_db()
 
-if "logged_in_user" not in st.session_state:
-  st.session_state.logged_in_user = None
-
-if "user_role" not in st.session_state:
-  st.session_state.user_role = None
-
-
-def login_screen():
-  """로그인 화면 출력 함수"""
-  st.markdown("<br><br>", unsafe_allow_html=True)
-  col1, col2, col3 = st.columns([1, 1.2, 1])
-
-  with col2:
-    st.markdown(
-        "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 물류"
-        " 시스템 (사내 관리자)</h2>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<p style='text-align: center; color: #64748b; font-size:"
-        " 9.5pt;'>관계자 외 접속이 제한된 보안 구역입니다.</p><br>",
-        unsafe_allow_html=True,
-    )
-
-    with st.form("login_form"):
-      input_id = st.text_input("아이디 (ID)")
-      input_pw = st.text_input("비밀번호 (Password)", type="password")
-      submit_login = st.form_submit_button("로그인", use_container_width=True)
-
-      if submit_login:
-        if (
-            input_id in st.session_state.user_db
-            and st.session_state.user_db[input_id]["pw"] == input_pw
+if "
