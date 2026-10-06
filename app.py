@@ -528,4 +528,36 @@ else:
     <div style="text-align: center; padding: 22px 15px; background-color: white; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); margin-bottom: 15px;">
         <div style="display: inline-block;">{logo_img_tag}</div>
         <h1 style="color: #1e3a8a; font-size: 26px; font-weight: 800; margin-bottom: 3px; letter-spacing: -0.5px;">(주)범운해운항공</h1>
-        <p style="color: #475569; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+        <p style="color: #475569; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; margin: 0;">BUMWOON OCEAN & AIR CO., LTD.</p>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+  current_bl_data = load_bl_data()
+  st.markdown("#### **📦 B/L & 화물 실시간 통합 조회**")
+  search_query = st.text_input(
+      "B/L 번호 또는 UPS 송장번호를 정확히 입력하세요",
+      placeholder="예: BW260001 또는 1ZRR4352...",
+  )
+
+  clean_input_no = "".join(search_query.strip().split())
+  ups_direct_url = (
+      f"https://www.ups.com/track?loc=ko_KR&tracknum={clean_input_no}"
+      if clean_input_no
+      else "https://www.ups.com/track?loc=ko_KR"
+  )
+  track17_direct_url = (
+      f"https://t.17track.net/ko#nums={clean_input_no}"
+      if clean_input_no
+      else "https://t.17track.net/ko"
+  )
+
+  btn_c1, btn_c2 = st.columns(2)
+  with btn_c1:
+    st.markdown(
+        f"<a href='{ups_direct_url}' target='_blank' style='display: block;"
+        " text-align: center; background-color: #ffb500; color: #000; padding:"
+        " 12px; border-radius: 6px; font-weight: bold; text-decoration: none;"
+        " font-size: 13.5px;'>🚚 UPS 바로 추적 시작</a>",
+        
