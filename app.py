@@ -794,17 +794,20 @@ if encoded_sidebar_logo:
 
 st.sidebar.markdown(
     f"""
-    <div style='display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 5px;'>
-        <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 3px;'>
+    <div style='display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 2px;'>
+        <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 2px;'>
             {sidebar_logo_html}
-            <span style='font-size: 17px; font-weight: 800; color: #1e293b;'>(주)범운해운항공</span>
+            <span style='font-size: 16px; font-weight: 800; color: #1e293b;'>(주)범운해운항공</span>
         </div>
-        <div style='font-size: 11.5px; font-weight: 700; color: #475569; letter-spacing: 0.2px; margin-left: 36px;'>BUMWOON OCEAN & AIR CO., LTD.</div>
+        <div style='font-size: 11px; font-weight: 700; color: #475569; letter-spacing: 0.2px; margin-left: 36px;'>BUMWOON OCEAN & AIR CO., LTD.</div>
     </div>
     """,
     unsafe_allow_html=True,
 )
-st.sidebar.markdown("---")
+st.sidebar.markdown(
+    "<hr style='margin: 5px 0 10px 0; border: 0.5px solid #e2e8f0;'>",
+    unsafe_allow_html=True,
+)
 
 current_user_id = st.session_state.logged_in_user
 current_user_info = st.session_state.user_db.get(
@@ -828,12 +831,15 @@ with col_sb2:
     st.query_params.clear()
     st.rerun()
 
-st.sidebar.markdown("---")
+st.sidebar.markdown(
+    "<hr style='margin: 10px 0; border: 0.5px solid #e2e8f0;'>",
+    unsafe_allow_html=True,
+)
 
 # ==========================================
 # 💾 엑셀(.xlsx) 백업 및 자동 이어붙이기 업로드 기능
 # ==========================================
-st.sidebar.subheader("💾 데이터 백업 및 이어붙이기 (엑셀)")
+st.sidebar.subheader("💾 데이터 백업 및 이어붙이기")
 
 
 def convert_df_to_excel_bytes(df):
@@ -854,18 +860,12 @@ if existing_data_for_backup:
       mime=(
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       ),
-      help="현재 저장된 화물 데이터를 정식 엑셀 파일(.xlsx)로 다운로드합니다.",
   )
 else:
-  st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
+  st.sidebar.info("백업할 B/L 데이터가 없습니다.")
 
 uploaded_excel_file = st.sidebar.file_uploader(
-    "📤 백업 엑셀파일 자동 이어붙이기 (.xlsx)",
-    type=["xlsx", "xls", "csv"],
-    help=(
-        "백업받은 엑셀 파일(.xlsx)을 올리면 기존 데이터와 중복 없이"
-        " 이어붙여집니다."
-    ),
+    "📤 백업 엑셀파일 자동 이어붙이기", type=["xlsx", "xls", "csv"]
 )
 if uploaded_excel_file is not None:
   try:
@@ -890,13 +890,14 @@ if uploaded_excel_file is not None:
 
       st.session_state.bl_data_list = combined_df.to_dict("records")
       save_bl_data(st.session_state.bl_data_list)
-      st.sidebar.success(
-          "🎉 엑셀 백업 데이터가 기존 데이터에 이어붙여졌습니다!"
-      )
+      st.sidebar.success("🎉 엑셀 데이터 이어붙이기 완료!")
   except Exception as e:
-    st.sidebar.error(f"엑셀 파일 업로드 중 오류가 발생했습니다: {e}")
+    st.sidebar.error(f"오류: {e}")
 
-st.sidebar.markdown("---")
+st.sidebar.markdown(
+    "<hr style='margin: 10px 0; border: 0.5px solid #e2e8f0;'>",
+    unsafe_allow_html=True,
+)
 
 menu_options = [
     "📊 수출입 B/L 등록",
@@ -917,34 +918,30 @@ if st.session_state.user_role == "관리자(대표)":
 
 selected_menu = st.sidebar.radio("📌 메인 메뉴 이동", menu_options)
 
-st.sidebar.markdown("---")
-mobile_view_mode = st.sidebar.toggle(
-    "📱 스마트폰 화면 최적화 모드",
-    value=False,
-    help="스마트폰 화면 크기에 맞춰 글자와 여백이 컴팩트하게 조정됩니다.",
-)
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🌐 고객 보안 추적 링크 안내")
 st.sidebar.markdown(
-    "고객들에게 아래 주소를 안내해주시면 실시간 조회가 가능합니다:<br>`https://logics-app-v6nichbmhtvezr8ia7cnii.streamlit.app/`",
+    "<hr style='margin: 10px 0; border: 0.5px solid #e2e8f0;'>",
+    unsafe_allow_html=True,
+)
+mobile_view_mode = st.sidebar.toggle("📱 스마트폰 화면 최적화 모드", value=False)
+
+st.sidebar.markdown(
+    "<hr style='margin: 10px 0; border: 0.5px solid #e2e8f0;'>",
+    unsafe_allow_html=True,
+)
+st.sidebar.markdown("### 🌐 고객 보안 추적 링크")
+st.sidebar.markdown(
+    "<span style='font-size: 11px;'>공유 주소:<br>`https://logics-app-v6nichbmhtvezr8ia7cnii.streamlit.app/`</span>",
     unsafe_allow_html=True,
 )
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔍 사내 실시간 화물 추적")
-if "recent_track_list" not in st.session_state:
-  st.session_state.recent_track_list = []
-tracking_no_input = st.sidebar.text_input(
-    "운송장 / B/L 번호 입력", value="", key="sidebar_tracking_no"
+st.sidebar.markdown(
+    "<hr style='margin: 10px 0; border: 0.5px solid #e2e8f0;'>",
+    unsafe_allow_html=True,
 )
-if tracking_no_input and tracking_no_input.strip():
-  clean_tno = tracking_no_input.strip()
-  if clean_tno not in st.session_state.recent_track_list:
-    st.session_state.recent_track_list.insert(0, clean_tno)
-    if len(st.session_state.recent_track_list) > 5:
-      st.session_state.recent_track_list.pop()
-
+st.sidebar.markdown("### 🔍 사내 실시간 화물 추적")
+tracking_no_input = st.sidebar.text_input(
+    "운송장 / B/L 번호", value="", key="sidebar_tracking_no"
+)
 ups_url = (
     f"https://www.ups.com/track?loc=ko_KR&tracknum={tracking_no_input}"
     if tracking_no_input
@@ -952,9 +949,9 @@ ups_url = (
 )
 st.sidebar.markdown(
     f"<a href='{ups_url}' target='_blank' style='display: block; text-align:"
-    " center; background-color: #ffb500; color: #000; padding: 8px 12px;"
-    " border-radius: 6px; font-weight: bold; text-decoration: none; margin-bottom:"
-    " 6px;'>📦 UPS 화물 조회하기</a>",
+    " center; background-color: #ffb500; color: #000; padding: 6px;"
+    " border-radius: 4px; font-weight: bold; text-decoration: none; font-size:"
+    " 12px; margin-bottom: 4px;'>📦 UPS 화물 조회</a>",
     unsafe_allow_html=True,
 )
 
@@ -965,15 +962,18 @@ track17_url = (
 )
 st.sidebar.markdown(
     f"<a href='{track17_url}' target='_blank' style='display: block; text-align:"
-    " center; background-color: #2563eb; color: #fff; padding: 8px 12px;"
-    " border-radius: 6px; font-weight: bold; text-decoration: none; margin-bottom:"
-    " 10px;'>🌐 17TRACK 화물 조회하기</a>",
+    " center; background-color: #2563eb; color: #fff; padding: 6px;"
+    " border-radius: 4px; font-weight: bold; text-decoration: none; font-size:"
+    " 12px; margin-bottom: 8px;'>🌐 17TRACK 화물 조회</a>",
     unsafe_allow_html=True,
 )
 
-st.sidebar.markdown("---")
+st.sidebar.markdown(
+    "<hr style='margin: 10px 0; border: 0.5px solid #e2e8f0;'>",
+    unsafe_allow_html=True,
+)
 st.sidebar.markdown("### 🧮 간이 단위 환산기")
-calc_tab1, calc_tab2 = st.sidebar.tabs(["부피중량(5k/6k)", "중량(kg↔lb)"])
+calc_tab1, calc_tab2 = st.sidebar.tabs(["부피중량", "중량 변환"])
 with calc_tab1:
   sc_w = st.text_input("가로 (cm)", value="0", key="sc_w")
   sc_l = st.text_input("세로 (cm)", value="0", key="sc_l")
@@ -984,7 +984,7 @@ with calc_tab1:
         float(sc_l) if sc_l else 0.0,
         float(sc_h) if sc_h else 0.0,
     )
-  except ValueError:
+  except:
     val_w, val_l, val_h = 0.0, 0.0, 0.0
   if val_w > 0 and val_l > 0 and val_h > 0:
     cbm_val = (val_w * val_l * val_h) / 1000000.0
@@ -1023,13 +1023,16 @@ with calc_tab2:
       "파운드 (lb)", key="widget_lb", on_change=update_lb, placeholder="0.00"
   )
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 💰 간이 미수·미지급 확인")
+st.sidebar.markdown(
+    "<hr style='margin: 10px 0; border: 0.5px solid #e2e8f0;'>",
+    unsafe_allow_html=True,
+)
+st.sidebar.markdown("### 💰 간이 미수 확인")
 sidebar_clients = (
     st.session_state.client_list if st.session_state.client_list else ["없음"]
 )
 selected_side_client = st.sidebar.selectbox(
-    "조회할 거래처 선택", options=sidebar_clients, key="side_client_select"
+    "거래처 선택", options=sidebar_clients, key="side_client_select"
 )
 if selected_side_client and selected_side_client != "없음":
   side_bl_list = st.session_state.bl_data_list
@@ -1044,47 +1047,43 @@ if selected_side_client and selected_side_client != "없음":
       for j in side_bl_list
       if j.get("화주명(매출)") == selected_side_client
   )
-  client_total_purchase = sum(
-      j.get("매입액(원)", 0)
-      for j in side_bl_list
-      if j.get("매입처") == selected_side_client
-  )
   st.sidebar.markdown(
       f"""
-    <div style='background-color: #1e293b; padding: 10px; border-radius: 6px; color: #fff; font-size: 11.5px; line-height: 1.5;'>
-        <b>📌 [{selected_side_client}] 자금 현황</b><br>
-        • 총 매출(청구): <b>{client_total_sales:,} 원</b><br>
-        • 미수금 잔액: <span style='color: #f87171;'><b>{client_unpaid:,} 원</b></span><br>
-        <hr style='border: 0.5px solid #475569; margin: 6px 0;'>
-        • 총 매입(비용): <b>{client_total_purchase:,} 원</b>
+    <div style='background-color: #1e293b; padding: 8px; border-radius: 4px; color: #fff; font-size: 11px;'>
+        <b>📌 {selected_side_client}</b><br>
+        • 총매출: {client_total_sales:,}원<br>
+        • 미수금: <span style='color: #f87171;'><b>{client_unpaid:,}원</b></span>
     </div>
     """,
       unsafe_allow_html=True,
   )
 
-st.sidebar.markdown("---")
-
-font_size_val = "12px" if mobile_view_mode else "13.5px"
-container_padding = "0.5rem" if mobile_view_mode else "1.5rem"
+# 전역 CSS 스타일 주입 (공백 최소화 및 모던 스타일 적용)
+font_size_val = "12px" if mobile_view_mode else "13px"
+container_padding = "0.4rem" if mobile_view_mode else "1rem"
 st.markdown(
     f"""
 <style>
     html, body, [class*="css"] {{
         font-size: {font_size_val} !important;
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif !important;
         color: #1e293b;
     }}
     .stApp {{
         background-color: #f8fafc;
     }}
-    input, select, textarea {{
-        font-size: {font_size_val} !important;
-        border-radius: 6px !important;
-    }}
     .block-container {{
         padding-top: {container_padding};
-        padding-bottom: 3rem;
+        padding-bottom: 2rem;
         max-width: 1400px;
+    }}
+    /* 사이드바 여백 및 컴포넌트 간격 최적화 */
+    section[data-testid="stSidebar"] .block-container {{
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }}
+    iframe {{
+        margin-bottom: 0px !important;
     }}
 </style>
 """,
@@ -1120,15 +1119,15 @@ INCOME_CATEGORIES = [
 
 logo_html_str = ""
 if encoded_sidebar_logo:
-  logo_html_str = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 48px; width: auto; margin-right: 15px; border-radius: 6px;'>"
+  logo_html_str = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 42px; width: auto; margin-right: 12px; border-radius: 4px;'>"
 
 header_html = f"""
-<div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); padding: 20px 24px; border-radius: 12px; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);'>
+<div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); padding: 16px 20px; border-radius: 10px; color: white; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);'>
     <div style='display: flex; align-items: center;'>
         {logo_html_str}
         <div>
-            <h1 style='color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;'>🚢 (주)범운해운항공 종합 관리 프로그램</h1>
-            <p style='margin: 4px 0 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행 시스템</p>
+            <h1 style='color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;'>🚢 (주)범운해운항공 종합 관리 프로그램</h1>
+            <p style='margin: 3px 0 0 0; color: #93c5fd; font-size: 11.5px;'>Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행 시스템</p>
         </div>
     </div>
 </div>
@@ -1140,263 +1139,14 @@ st.markdown(header_html, unsafe_allow_html=True)
 # ==========================================
 if selected_menu == "📊 수출입 B/L 등록":
   st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋"
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 12px;'>📋"
       " 수출입 B/L 및 Profit 등록 관리</h3>",
       unsafe_allow_html=True,
   )
 
   st.markdown(
-      "##### 📦 박스 규격 및 카톤수 입력 (아래 입력창에 가로, 세로, 높이,"
-      " 카톤수를 적어주시면 즉시 부피중량과 CBM이 계산됩니다)"
+      "##### 📦 박스 규격 및 카톤수 입력 (가로, 세로, 높이, 카톤수를 적어주시면"
+      " 즉시 부피중량과 CBM이 계산됩니다)"
   )
 
-  if "box_input_df" not in st.session_state:
-    st.session_state.box_input_df = pd.DataFrame([
-        {"가로(cm)": 100.0, "세로(cm)": 100.0, "높이(cm)": 100.0, "카톤수(개)": 1}
-    ])
-
-  edited_box_df = st.data_editor(
-      st.session_state.box_input_df,
-      num_rows="dynamic",
-      use_container_width=True,
-      key="box_editor_multi_infinite",
-  )
-
-  box_col1, box_col2 = st.columns([1.3, 1])
-  with box_col1:
-    common_gw_str = st.text_input(
-        "실 중량 (kg)", value="55.0", placeholder="실중량", key="common_gw"
-    )
-  with box_col2:
-    sub_d1_col, sub_d2_col = st.columns(2)
-    with sub_d1_col:
-      s_div = st.selectbox("매출 부피기준", [5000, 6000], key="s_div")
-    with sub_d2_col:
-      p_div = st.selectbox("매입 부피기준", [6000, 5000], key="p_div")
-
-  total_cbm = 0.0
-  total_ctn = 0
-  total_vol_wt_sales = 0.0
-  total_vol_wt_purchase = 0.0
-  vol_str_list = []
-
-  try:
-    gw = float(common_gw_str) if common_gw_str else 0.0
-  except ValueError:
-    gw = 0.0
-
-  for _, row in edited_box_df.iterrows():
-    w = float(row.get("가로(cm)", 0) or 0)
-    l = float(row.get("세로(cm)", 0) or 0)
-    h = float(row.get("높이(cm)", 0) or 0)
-    ctn = int(row.get("카톤수(개)", 0) or 0)
-
-    if w > 0 and l > 0 and h > 0 and ctn > 0:
-      box_cbm = ((w * l * h) / 1000000.0) * ctn
-      total_cbm += box_cbm
-      total_ctn += ctn
-
-      box_vol_sales = ((w * l * h) / s_div) * ctn
-      box_vol_purchase = ((w * l * h) / p_div) * ctn
-
-      total_vol_wt_sales += box_vol_sales
-      total_vol_wt_purchase += box_vol_purchase
-
-      vol_str_list.append(f"{int(w)}×{int(l)}×{int(h)}cm({ctn}CTN)")
-
-  calc_sales_cw = float(math.ceil(max(gw, total_vol_wt_sales)))
-  calc_purchase_cw = float(math.ceil(max(gw, total_vol_wt_purchase)))
-  volume_str_result = " / ".join(vol_str_list) if vol_str_list else "-"
-  piece_count_val = (
-      f"{total_ctn} 박스 (CTN)" if total_ctn > 0 else "1 박스 (CTN)"
-  )
-
-  st.markdown("---")
-  st.markdown("#### 📝 B/L 및 청구 금액 실시간 미리보기")
-
-  form_col1, form_col2 = st.columns(2)
-  with form_col1:
-    io_type = st.selectbox("수출입 구분", ["수출 (Export)", "수입 (Import)"])
-
-    suggested_job = "BW-2026-003"
-    if st.session_state.bl_data_list:
-      try:
-        last_job = str(
-            st.session_state.bl_data_list[-1].get("Job 번호", "BW-2026-003")
-        )
-        if "-" in last_job:
-          parts = last_job.split("-")
-          num_part = int(parts[-1]) + 1
-          suggested_job = f"{parts[0]}-{parts[1]}-{num_part:03d}"
-      except:
-        pass
-    job_no = st.text_input(
-        "Job 번호 (필수 입력)",
-        value=suggested_job,
-        placeholder="예: BW-2026-003",
-    )
-
-    suggested_bl = "BW260003"
-    if st.session_state.bl_data_list:
-      last_b = str(
-          st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003")
-      )
-      if last_b.startswith("BW") and len(last_b) >= 8:
-        try:
-          suggested_bl = f"BW{int(last_b[2:]) + 1:06d}"
-        except:
-          pass
-    bl_no = st.text_input("B/L 번호 (운송장 번호)", value=suggested_bl)
-    reg_date = st.date_input("선적 날짜", value=date.today())
-    dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
-    origin_place = st.text_input("출발지", value="대한민국 (KOREA)")
-    item_desc = st.text_input(
-        "품목",
-        value=(
-            "보톡스, 필러 및 관련 의약품/미용용품 (Botox, Filler & Related"
-            " Pharmaceuticals/Cosmetics)"
-        ),
-    )
-
-    shipper_options = [""] + st.session_state.client_list
-    shipper_name = st.selectbox(
-        "화주명 (매출처)",
-        options=shipper_options,
-        index=1 if len(shipper_options) > 1 else 0,
-    )
-
-    consignee_name = st.text_input("해외 수하인")
-
-    purchase_vendor = st.selectbox(
-        "매입처 (비용처)",
-        options=shipper_options,
-        index=2 if len(shipper_options) > 2 else 0,
-    )
-
-    transport_type = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"])
-    service_option = st.selectbox("서비스 옵션", ["Door To Door"])
-    tracking_status = st.selectbox(
-        "현재 진행 상태 선택", options=TRACKING_STATUS_OPTIONS
-    )
-    payment_status_input = st.selectbox(
-        "수금 상태", options=["미수", "수금완료"], index=0
-    )
-
-  with form_col2:
-    piece_count = st.text_input("총 박스 수 (Piece)", value=piece_count_val)
-    volume_dim = st.text_input("부피 규격 (Volume)", value=volume_str_result)
-
-    gross_weight_sales = st.number_input(
-        "매출 실중량(kg)", value=float(gw), min_value=0.0
-    )
-    sales_chargeable_weight = st.number_input(
-        "매출 청구중량(kg) [자동 계산]",
-        value=float(calc_sales_cw),
-        min_value=0.0,
-        step=1.0,
-    )
-
-    auto_sales_price = calculate_auto_price(
-        shipper_name, sales_chargeable_weight, transport_type
-    )
-
-    total_sales = st.number_input(
-        "총 매출액 (원) [자동 계산 및 수정 가능]",
-        value=int(auto_sales_price),
-        min_value=0,
-        step=1000,
-        format="%d",
-    )
-
-    gross_weight_purchase = st.number_input(
-        "매입 실중량(kg)", value=float(gw), min_value=0.0
-    )
-    purchase_chargeable_weight = st.number_input(
-        "매입 청구중량(kg) [자동 계산]",
-        value=float(calc_purchase_cw),
-        min_value=0.0,
-        step=1.0,
-    )
-
-    auto_purchase_price = calculate_auto_price(
-        purchase_vendor, purchase_chargeable_weight, transport_type
-    )
-
-    total_purchase = st.number_input(
-        "총 매입액 (원) [자동 계산 및 수정 가능]",
-        value=int(auto_purchase_price),
-        min_value=0,
-        step=1000,
-        format="%d",
-    )
-
-  remarks = st.text_area("비고")
-
-  st.markdown("---")
-  preview_profit = int(total_sales) - int(total_purchase)
-  st.markdown(
-      f"""
-    <div style="background-color: #f8fafc; border: 1.5px solid #2563eb; padding: 14px 18px; border-radius: 8px; margin-bottom: 12px;">
-        <b>🔍 [B/L 등록 전 실시간 미리보기 요약]</b><br>
-        • 등록 담당자: <b style="color: #2563eb;">{current_user_name}</b><br>
-        • 총 CBM: <b>{total_cbm:.3f} CBM</b> | 총 카톤수: <b>{total_ctn}박스</b><br>
-        • 화주명(매출처): <b style="color: #1e3a8a;">{shipper_name if shipper_name else '미선택'}</b> (청구중량: <b>{sales_chargeable_weight}kg</b>) → 청구금액: <b style="color: #1e3a8a; font-size: 11pt;">{int(total_sales):,} 원</b><br>
-        • 매입처(비용처): <b style="color: #b91c1c;">{purchase_vendor if purchase_vendor else '미선택'}</b> (청구중량: <b>{purchase_chargeable_weight}kg</b>) → 매입금액: <b style="color: #b91c1c; font-size: 11pt;">{int(total_purchase):,} 원</b><br>
-        • 예상 Profit (마진): <span style="color: #047857; font-size: 12pt;"><b>{preview_profit:,} 원</b></span> | 수금상태: <b>{payment_status_input}</b>
-    </div>
-    """,
-      unsafe_allow_html=True,
-  )
-
-  if st.button(
-      "💾 B/L 및 Profit 최종 등록하기", type="primary", use_container_width=True
-  ):
-    if job_no.strip() and shipper_name.strip():
-      st.session_state.bl_data_list.append({
-          "구분": io_type,
-          "날짜": str(reg_date),
-          "Job 번호": job_no,
-          "B/L 번호": bl_no,
-          "국가": dest_country,
-          "출발지": origin_place,
-          "화주명(매출)": shipper_name,
-          "해외수하인": consignee_name,
-          "매입처": purchase_vendor,
-          "운송형태": transport_type,
-          "서비스옵션": service_option,
-          "품목": item_desc,
-          "박스수": piece_count,
-          "부피규격": volume_dim,
-          "매출청구중량(kg)": sales_chargeable_weight,
-          "매입청구중량(kg)": purchase_chargeable_weight,
-          "CBM": f"{total_cbm:.3f} CBM",
-          "현재 상태": tracking_status,
-          "수금상태": payment_status_input,
-          "매출액(원)": int(total_sales),
-          "매입액(원)": int(total_purchase),
-          "예상Profit(원)": preview_profit,
-          "비고": remarks,
-          "최종작성자": current_user_name,
-          "최종수정자": "-",
-      })
-      save_bl_data(st.session_state.bl_data_list)
-      st.success(
-          f"🎉 [성공] B/L 및 Job 번호({job_no})가 [{current_user_name}]님의"
-          " 이름으로 등록되었습니다!"
-      )
-    else:
-      st.warning(
-          "⚠ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
-      )
-
-
-# ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역
-# ==========================================
-elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>📋"
-      " 등록 B/L 수정 및 Profit 내역</h3>",
-      unsafe_allow_html=True,
-  )
-  
+  if "box_input_df
