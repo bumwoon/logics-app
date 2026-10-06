@@ -109,24 +109,19 @@ def login_screen():
     )
 
 
-# 쿼리 파라미터 확인 (고객 모드 여부)
 query_params = st.query_params
 is_client_mode = query_params.get("mode", "") == "client"
 
-# 로그인이 안 되어 있고 고객 모드도 아니라면 로그인 화면 출력 후 중단
 if not st.session_state.logged_in_user and not is_client_mode:
   login_screen()
   st.stop()
 
-
-# 로고 파일 자동 감지
 LOGO_FILE = None
 for filename in os.listdir("."):
   if filename.startswith("lo"):
     LOGO_FILE = filename
     break
 
-# 로고를 Base64로 인코딩
 encoded_sidebar_logo = ""
 if LOGO_FILE and os.path.exists(LOGO_FILE):
   try:
@@ -135,7 +130,6 @@ if LOGO_FILE and os.path.exists(LOGO_FILE):
   except Exception:
     pass
 
-# 데이터 파일 경로 정의
 DATA_FILE = "bl_history_data.csv"
 CLIENT_FILE = "client_data.csv"
 ACCOUNT_FILE = "account_ledger_data.csv"
@@ -209,3 +203,193 @@ def load_client_data():
                   }
               }
           }
+      },
+      "카ส": {
+          "미국": {
+              "항공(Air)": {
+                  "보톡스 필러": {
+                      "기본중량": 1.0,
+                      "기본요금": 35000,
+                      "추가단가": 22000,
+                      "1CBM당단가": 3500000,
+                  }
+              }
+          }
+      },
+      "주식회사 조은로직스": {
+          "미국": {
+              "항공(Air)": {
+                  "일반화물": {
+                      "기본중량": 1.0,
+                      "기본요금": 38000,
+                      "추가단가": 25000,
+                      "1CBM당단가": 3700000,
+                  }
+              }
+          }
+      },
+  }
+  default_infos = {
+      "아코글로벌": {
+          "사업자등록번호": "778-09-03229",
+          "이메일": "infoakoglobal@gmail.com",
+          "담당자": "박장우대표님",
+          "전화번호": "",
+          "주소": "경기도 김포시 풍무동 326-5번지 2층",
+      },
+      "카ส": {
+          "사업자등록번호": "",
+          "이메일": "",
+          "담당자": "",
+          "전화번호": "",
+          "주소": "",
+      },
+      "주식회사 조은로직스": {
+          "사업자등록번호": "",
+          "이메일": "",
+          "담당자": "조정희 과장",
+          "전화번호": "",
+          "주소": "",
+      },
+  }
+  return default_clients, default_rates, default_infos
+
+
+def load_account_data():
+  if os.path.exists(ACCOUNT_FILE):
+    try:
+      return pd.read_csv(ACCOUNT_FILE).to_dict("records")
+    except Exception:
+      return []
+  return []
+
+
+def load_expense_data():
+  if os.path.exists(EXPENSE_FILE):
+    try:
+      df = pd.read_csv(EXPENSE_FILE)
+      for possible_col in ["금액(원)", "지출금액(원)", "금액", "비용(원)", "가격"]:
+        if possible_col in df.columns:
+          df = df.rename(columns={possible_col: "금액(원)"})
+          break
+      else:
+        df["금액(원)"] = 0
+
+      if "구분" not in df.columns:
+        df.insert(1, "구분", "지출 (-)")
+      return df.to_dict("records")
+    except Exception:
+      return []
+  return []
+
+
+def load_note_data():
+  if os.path.exists(NOTE_FILE):
+    try:
+      return pd.read_csv(NOTE_FILE).to_dict("records")
+    except Exception:
+      return []
+  return []
+
+
+def load_meeting_data():
+  if os.path.exists(MEETING_FILE):
+    try:
+      df = pd.read_csv(MEETING_FILE)
+      if "거래처" not in df.columns:
+        df["거래처"] = "일반거래처"
+      if "담당자" not in df.columns:
+        df["담당자"] = "-"
+      if "제목" not in df.columns:
+        df["제목"] = "-"
+      if "상세내용" not in df.columns:
+        df["상세내용"] = "-"
+      if "향후조치" not in df.columns:
+        df["향후조치"] = "-"
+      return df.to_dict("records")
+    except Exception:
+      return []
+  return []
+
+
+def save_bl_data(data_list):
+  if data_list:
+    df = pd.DataFrame(data_list)
+    if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
+      df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
+    df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+  else:
+    if os.path.exists(DATA_FILE):
+      os.remove(DATA_FILE)
+
+
+def save_client_data(client_list, client_rates, client_infos):
+  rows = []
+  for client in client_list:
+    info = client_infos.get(
+        client,
+        {
+            "사업자등록번호": "",
+            "이메일": "",
+            "담당자": "",
+            "전화번호": "",
+            "주소": "",
+        },
+    )
+    country_dict = client_rates.get(client, {})
+    if not country_dict:
+      rows.append({
+          "거래처명": client,
+          "사업자등록번호": info.get("사업자등록번호", ""),
+          "이메일": info.get("이메일", ""),
+          "담당자": info.get("담당자", ""),
+          "전화번호": info.get("전화번호", ""),
+          "주소": info.get("주소", ""),
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품명": "보톡스 필러 (Botox & Filler)",
+          "기본중량": 1.0,
+          "기본요금": 38000,
+          "추가단가": 25000,
+          "1CBM당단가": 3700000,
+      })
+    else:
+      for country, trans_dict in country_dict.items():
+        if isinstance(trans_dict, dict):
+          for transport, item_dict in trans_dict.items():
+            if isinstance(item_dict, dict):
+              for item_name, r_val in item_dict.items():
+                rows.append({
+                    "거래처명": client,
+                    "사업자등록번호": info.get("사업자등록번호", ""),
+                    "이메일": info.get("이메일", ""),
+                    "담당자": info.get("담당자", ""),
+                    "전화번호": info.get("전화번호", ""),
+                    "주소": info.get("주소", ""),
+                    "국가": country,
+                    "운송형태": transport,
+                    "품명": item_name,
+                    "기본중량": r_val.get("기본중량", 1.0),
+                    "기본요금": r_val.get("기본요금", 38000),
+                    "추가단가": r_val.get("추가단가", 25000),
+                    "1CBM당단가": r_val.get("1CBM당단가", 3700000),
+                })
+  pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
+
+
+def save_account_data(data_list):
+  if data_list:
+    pd.DataFrame(data_list).to_csv(
+        ACCOUNT_FILE, index=False, encoding="utf-8-sig"
+    )
+  else:
+    if os.path.exists(ACCOUNT_FILE):
+      os.remove(ACCOUNT_FILE)
+
+
+def save_expense_data(data_list):
+  if data_list:
+    df_exp_save = pd.DataFrame(data_list)
+    if "지출금액(원)" in df_exp_save.columns and "금액(원)" not in df_exp_save.columns:
+      df_exp_save = df_exp_save.rename(columns={"지출금액(원)": "금액(원)"})
+    df_exp_save.to_csv(EXPENSE_FILE
