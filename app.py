@@ -1559,10 +1559,18 @@ st.markdown("---")
 edit_idx = st.session_state.get("edit_target_index", 0)
 bl_list = st.session_state.get("bl_data_list", [])
 target_item = bl_list[edit_idx] if bl_list and 0 <= edit_idx < len(bl_list) else {}
+
+# 세션 변수 안전 초기화 (값이 없을 경우 기존 B/L 데이터 또는 0으로 설정)
+if "edit_sales_amt" not in st.session_state:
+    st.session_state.edit_sales_amt = int(target_item.get("매출액", target_item.get("sales_amt", 0)) or 0)
+if "edit_purchase_amt" not in st.session_state:
+    st.session_state.edit_purchase_amt = int(target_item.get("매입액", target_item.get("purchase_amt", 0)) or 0)
+
 st.markdown(
     f"#### 📦 [B/L 번호: {target_item.get('B/L 번호', '')}] 상세 수정 "
     f"화면 (수정자: {current_user_name})"
-)
+
+
 
 e_col1, e_col2 = st.columns(2)
 with e_col1:
