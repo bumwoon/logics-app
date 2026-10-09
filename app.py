@@ -1216,8 +1216,7 @@ if selected_menu == "📑 수출입 B/L 등록":
         suggested_job = "BW-2026-003"
         if st.session_state.bl_data_list:
             try:
-                last_job = str(st.session_state.bl_data_list[-1].get("Job 번호", "BW-2026-003"))
-                if "-" in last_job:
+                last_job = str(st.session_state.bl_data_list[-1].get("Job 번호", "BW-2026
 
 # ==========================================
 # [2] 등록 B/L 수정 및 Profit 내역
