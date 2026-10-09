@@ -1537,7 +1537,7 @@ if selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
           )
 
 
-     def update_edit_prices():
+  def update_edit_prices():
   u_shipper = st.session_state.get("edit_shipper", "")
   u_vendor = st.session_state.get("edit_vendor", "")
   s_cw = st.session_state.get("edit_sales_cw", 1.0)
@@ -1551,6 +1551,7 @@ if selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
       calculate_auto_price(u_vendor, p_cw, t_transport)
   )
   st.rerun()
+
    
 
         st.markdown("---")
