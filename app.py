@@ -1139,6 +1139,27 @@ st.markdown(header_html, unsafe_allow_html=True)
 # [1] 수출입 B/L 등록 (작성자 자동 기록)
 # ==========================================
 if selected_menu == "📊 수출입 B/L 등록":
+  if "reg_sales_amt" not in st.session_state:
+    st.session_state.reg_sales_amt = 38000
+  if "reg_purchase_amt" not in st.session_state:
+    st.session_state.reg_purchase_amt = 38000
+
+
+  def update_reg_prices():
+    s_name = st.session_state.get("reg_shipper", "")
+    p_vendor = st.session_state.get("reg_vendor", "")
+    s_cw = st.session_state.get("reg_sales_cw", 1.0)
+    p_cw = st.session_state.get("reg_purchase_cw", 1.0)
+    t_type = st.session_state.get("reg_transport", "항공(Air)")
+
+    st.session_state.reg_sales_amt = int(
+        calculate_auto_price(s_name, s_cw, t_type)
+    )
+    st.session_state.reg_purchase_amt = int(
+        calculate_auto_price(p_vendor, p_cw, t_type)
+    )
+
+
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋"
       " 수출입 B/L 및 Profit 등록 관리</h3>",
@@ -1263,6 +1284,8 @@ if selected_menu == "📊 수출입 B/L 등록":
         "화주명 (매출처)",
         options=shipper_options,
         index=1 if len(shipper_options) > 1 else 0,
+        key="reg_shipper",
+        on_change=update_reg_prices,
     )
 
     consignee_name = st.text_input("해외 수하인")
@@ -1271,9 +1294,16 @@ if selected_menu == "📊 수출입 B/L 등록":
         "매입처 (비용처)",
         options=shipper_options,
         index=2 if len(shipper_options) > 2 else 0,
+        key="reg_vendor",
+        on_change=update_reg_prices,
     )
 
-    transport_type = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"])
+    transport_type = st.selectbox(
+        "운송 형태",
+        options=["항공(Air)", "해상(LCL)"],
+        key="reg_transport",
+        on_change=update_reg_prices,
+    )
     service_option = st.selectbox("서비스 옵션", ["Door To Door"])
     tracking_status = st.selectbox(
         "현재 진행 상태 선택", options=TRACKING_STATUS_OPTIONS
@@ -1294,15 +1324,13 @@ if selected_menu == "📊 수출입 B/L 등록":
         value=float(calc_sales_cw),
         min_value=0.0,
         step=1.0,
-    )
-
-    auto_sales_price = calculate_auto_price(
-        shipper_name, sales_chargeable_weight, transport_type
+        key="reg_sales_cw",
+        on_change=update_reg_prices,
     )
 
     total_sales = st.number_input(
         "총 매출액 (원) [자동 계산 및 수정 가능]",
-        value=int(auto_sales_price),
+        value=int(st.session_state.reg_sales_amt),
         min_value=0,
         step=1000,
         format="%d",
@@ -1316,15 +1344,13 @@ if selected_menu == "📊 수출입 B/L 등록":
         value=float(calc_purchase_cw),
         min_value=0.0,
         step=1.0,
-    )
-
-    auto_purchase_price = calculate_auto_price(
-        purchase_vendor, purchase_chargeable_weight, transport_type
+        key="reg_purchase_cw",
+        on_change=update_reg_prices,
     )
 
     total_purchase = st.number_input(
         "총 매입액 (원) [자동 계산 및 수정 가능]",
-        value=int(auto_purchase_price),
+        value=int(st.session_state.reg_purchase_amt),
         min_value=0,
         step=1000,
         format="%d",
@@ -1489,435 +1515,594 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
       idx = st.session_state.edit_target_index
       if idx < len(st.session_state.bl_data_list):
         target_item = st.session_state.bl_data_list[idx]
+
+        if (
+            "edit_initialized_idx" not in st.session_state
+            or st.session_state.edit_initialized_idx != idx
+        ):
+          st.session_state.edit_initialized_idx = idx
+          st.session_state.edit_sales_amt = int(
+              target_item.get("매출액(원)", 38000)
+          )
+          st.session_state.edit_purchase_amt = int(
+              target_item.get("매입액(원)", 38000)
+          )
+          st.session_state.edit_sales_cw = float(
+              target_item.get("매출청구중량(kg)", 1.0)
+          )
+          st.session_state.edit_purchase_cw = float(
+              target_item.get("매입청구중량(kg)", 1.0)
+          )
+
+
+        def update_edit_prices():
+          u_shipper = st.session_state.get("edit_shipper", "")
+          u_vendor = st.session_state.get("edit_vendor", "")
+          s_cw = st.session_state.get("edit_sales_cw", 1.0)
+          p_cw = st.session_state.get("edit_purchase_cw", 1.0)
+          t_transport = st.session_state.get("edit_transport", "항공(Air)")
+
+          st.session_state.edit_sales_amt = int(
+              calculate_auto_price(u_shipper, s_cw, t_transport)
+          )
+          st.session_state.edit_purchase_amt = int(
+              calculate_auto_price(u_vendor, p_cw, t_transport)
+          )
+
+
         st.markdown("---")
         st.markdown(
             f"#### 📝 [B/L 번호: {target_item.get('B/L 번호', '')}] 상세 수정"
             f" 화면 (수정자: {current_user_name})"
         )
 
-        with st.form("detail_edit_form"):
-          e_col1, e_col2 = st.columns(2)
-          with e_col1:
-            u_io = st.selectbox(
-                "수출입 구분",
-                ["수출 (Export)", "수입 (Import)"],
-                index=(
-                    0
-                    if str(target_item.get("구분", "수출 (Export)"))
-                    .startswith("수출")
-                    else 1
-                ),
+        e_col1, e_col2 = st.columns(2)
+        with e_col1:
+          u_io = st.selectbox(
+              "수출입 구분",
+              ["수출 (Export)", "수입 (Import)"],
+              index=(
+                  0
+                  if str(target_item.get("구분", "수출 (Export)"))
+                  .startswith("수출")
+                  else 1
+              ),
+              key="edit_io",
+          )
+          u_job = st.text_input(
+              "Job 번호",
+              value=str(target_item.get("Job 번호", "")),
+              key="edit_job",
+          )
+          u_bl = st.text_input(
+              "B/L 번호",
+              value=str(target_item.get("B/L 번호", "")),
+              key="edit_bl_no",
+          )
+          try:
+            d_val = date.fromisoformat(
+                str(target_item.get("날짜", date.today()))
             )
-            u_job = st.text_input(
-                "Job 번호", value=str(target_item.get("Job 번호", ""))
-            )
-            u_bl = st.text_input(
-                "B/L 번호", value=str(target_item.get("B/L 번호", ""))
-            )
-            try:
-              d_val = date.fromisoformat(
-                  str(target_item.get("날짜", date.today()))
-              )
-            except:
-              d_val = date.today()
-            u_date = st.date_input("선적 날짜", value=d_val)
-            u_country = st.selectbox(
-                "도착 국가",
-                COUNTRY_LIST,
-                index=(
-                    COUNTRY_LIST.index(str(target_item.get("국가", "미국")))
-                    if str(target_item.get("국가")) in COUNTRY_LIST
-                    else 0
-                ),
-            )
-            u_origin = st.text_input(
-                "출발지", value=str(target_item.get("출발지", ""))
-            )
-            u_item = st.text_input(
-                "품명", value=str(target_item.get("품목", ""))
-            )
+          except:
+            d_val = date.today()
+          u_date = st.date_input("선적 날짜", value=d_val, key="edit_date")
+          u_country = st.selectbox(
+              "도착 국가",
+              COUNTRY_LIST,
+              index=(
+                  COUNTRY_LIST.index(str(target_item.get("국가", "미국")))
+                  if str(target_item.get("국가")) in COUNTRY_LIST
+                  else 0
+              ),
+              key="edit_country",
+          )
+          u_origin = st.text_input(
+              "출발지",
+              value=str(target_item.get("출발지", "")),
+              key="edit_origin",
+          )
+          u_item = st.text_input(
+              "품명", value=str(target_item.get("품목", "")), key="edit_item"
+          )
 
-            cur_status_val = str(
-                target_item.get("현재 상태", TRACKING_STATUS_OPTIONS[0])
-            )
-            s_idx_val = (
-                TRACKING_STATUS_OPTIONS.index(cur_status_val)
-                if cur_status_val in TRACKING_STATUS_OPTIONS
-                else 0
-            )
-            u_tracking_status = st.selectbox(
-                "현재 진행 상태 수정",
-                options=TRACKING_STATUS_OPTIONS,
-                index=s_idx_val,
-            )
+          cur_status_val = str(
+              target_item.get("현재 상태", TRACKING_STATUS_OPTIONS[0])
+          )
+          s_idx_val = (
+              TRACKING_STATUS_OPTIONS.index(cur_status_val)
+              if cur_status_val in TRACKING_STATUS_OPTIONS
+              else 0
+          )
+          u_tracking_status = st.selectbox(
+              "현재 진행 상태 수정",
+              options=TRACKING_STATUS_OPTIONS,
+              index=s_idx_val,
+              key="edit_status",
+          )
 
-            cur_pay_status = str(target_item.get("수금상태", "미수"))
-            p_idx_val = 0 if cur_pay_status != "수금완료" else 1
-            u_pay_status = st.selectbox(
-                "수금 상태 (미수 / 수금완료)",
-                options=["미수", "수금완료"],
-                index=p_idx_val,
-            )
+          cur_pay_status = str(target_item.get("수금상태", "미수"))
+          p_idx_val = 0 if cur_pay_status != "수금완료" else 1
+          u_pay_status = st.selectbox(
+              "수금 상태 (미수 / 수금완료)",
+              options=["미수", "수금완료"],
+              index=p_idx_val,
+              key="edit_pay",
+          )
 
-          with e_col2:
-            shipper_options = [""] + st.session_state.client_list
-            s_idx = (
-                shipper_options.index(str(target_item.get("화주명(매출)", "")))
-                if str(target_item.get("화주명(매출)")) in shipper_options
-                else 0
-            )
-            u_shipper = st.selectbox(
-                "화주명", options=shipper_options, index=s_idx
-            )
-            u_consignee = st.text_input(
-                "해외 수하인", value=str(target_item.get("해외수하인", ""))
-            )
-            v_idx = (
-                shipper_options.index(str(target_item.get("매입처", "")))
-                if str(target_item.get("매입처")) in shipper_options
-                else 0
-            )
-            u_vendor = st.selectbox(
-                "매입처", options=shipper_options, index=v_idx
-            )
-            t_options = ["항공(Air)", "해상(LCL)"]
-            t_idx = (
-                t_options.index(str(target_item.get("운송형태", "항공(Air)")))
-                if str(target_item.get("운송형태")) in t_options
-                else 0
-            )
-            u_transport = st.selectbox(
-                "운송 형태", options=t_options, index=t_idx
-            )
+        with e_col2:
+          shipper_options = [""] + st.session_state.client_list
+          s_idx = (
+              shipper_options.index(str(target_item.get("화주명(매출)", "")))
+              if str(target_item.get("화주명(매출)")) in shipper_options
+              else 0
+          )
+          u_shipper = st.selectbox(
+              "화주명",
+              options=shipper_options,
+              index=s_idx,
+              key="edit_shipper",
+              on_change=update_edit_prices,
+          )
+          u_consignee = st.text_input(
+              "해외 수하인",
+              value=str(target_item.get("해외수하인", "")),
+              key="edit_consignee",
+          )
+          v_idx = (
+              shipper_options.index(str(target_item.get("매입처", "")))
+              if str(target_item.get("매입처")) in shipper_options
+              else 0
+          )
+          u_vendor = st.selectbox(
+              "매입처",
+              options=shipper_options,
+              index=v_idx,
+              key="edit_vendor",
+              on_change=update_edit_prices,
+          )
+          t_options = ["항공(Air)", "해상(LCL)"]
+          t_idx = (
+              t_options.index(str(target_item.get("운송형태", "항공(Air)")))
+              if str(target_item.get("운송형태")) in t_options
+              else 0
+          )
+          u_transport = st.selectbox(
+              "운송 형태",
+              options=t_options,
+              index=t_idx,
+              key="edit_transport",
+              on_change=update_edit_prices,
+          )
 
-            u_sales_cw = st.number_input(
-                "매출 청구중량 (kg)",
-                value=float(target_item.get("매출청구중량(kg)", 1.0)),
-                min_value=0.0,
-                step=0.5,
-            )
-            u_purchase_cw = st.number_input(
-                "매입 청구중량 (kg)",
-                value=float(target_item.get("매입청구중량(kg)", 1.0)),
-                min_value=0.0,
-                step=0.5,
-            )
+          u_sales_cw = st.number_input(
+              "매출 청구중량 (kg)",
+              value=float(target_item.get("매출청구중량(kg)", 1.0)),
+              min_value=0.0,
+              step=0.5,
+              key="edit_sales_cw",
+              on_change=update_edit_prices,
+          )
+          u_purchase_cw = st.number_input(
+              "매입 청구중량 (kg)",
+              value=float(target_item.get("매입청구중량(kg)", 1.0)),
+              min_value=0.0,
+              step=0.5,
+              key="edit_purchase_cw",
+              on_change=update_edit_prices,
+          )
 
-            auto_u_sales = calculate_auto_price(
-                u_shipper, u_sales_cw, u_transport
-            )
-            auto_u_purchase = calculate_auto_price(
-                u_vendor, u_purchase_cw, u_transport
-            )
+          u_sales = st.number_input(
+              "총 매출액 (원) [단가표 자동 계산]",
+              value=int(st.session_state.edit_sales_amt),
+              step=1000,
+              format="%d",
+              key="edit_sales_input",
+          )
+          u_purchase = st.number_input(
+              "총 매입액 (원) [단가표 자동 계산]",
+              value=int(st.session_state.edit_purchase_amt),
+              step=1000,
+              format="%d",
+              key="edit_purchase_input",
+          )
+          u_remarks = st.text_area(
+              "비고",
+              value=str(target_item.get("비고", "")),
+              key="edit_remarks",
+          )
 
-            u_sales = st.number_input(
-                "총 매출액 (원) [단가표 자동 계산]",
-                value=int(auto_u_sales),
-                step=1000,
-                format="%d",
-            )
-            u_purchase = st.number_input(
-                "총 매입액 (원) [단가표 자동 계산]",
-                value=int(auto_u_purchase),
-                step=1000,
-                format="%d",
-            )
-            u_remarks = st.text_area(
-                "비고", value=str(target_item.get("비고", ""))
-            )
-
-          if st.form_submit_button(
-              "💾 수정 완료 및 저장하기", type="primary", use_container_width=True
-          ):
-            existing_writer = str(target_item.get("최종작성자", "이상복"))
-            st.session_state.bl_data_list[idx] = {
-                "구분": u_io,
-                "날짜": str(u_date),
-                "Job 번호": u_job,
-                "B/L 번호": u_bl,
-                "국가": u_country,
-                "출발지": u_origin,
-                "화주명(매출)": u_shipper,
-                "해외수하인": u_consignee,
-                "매입처": u_vendor,
-                "운송형태": u_transport,
-                "서비스옵션": str(
-                    target_item.get("서비스옵션", "Door To Door")
-                ),
-                "품목": u_item,
-                "박스수": target_item.get("박스수", "1 박스"),
-                "부피규격": target_item.get("부피규격", "-"),
-                "CBM": target_item.get("CBM", "-"),
-                "매출청구중량(kg)": u_sales_cw,
-                "매입청구중량(kg)": u_purchase_cw,
-                "현재 상태": u_tracking_status,
-                "수금상태": u_pay_status,
-                "매출액(원)": u_sales,
-                "매입액(원)": u_purchase,
-                "예상Profit(원)": u_sales - u_purchase,
-                "비고": u_remarks,
-                "최종작성자": existing_writer,
-                "최종수정자": current_user_name,
-            }
-            save_bl_data(st.session_state.bl_data_list)
+        if st.button(
+            "💾 수정 완료 및 저장하기", type="primary", use_container_width=True
+        ):
+          existing_writer = str(target_item.get("최종작성자", "이상복"))
+          st.session_state.bl_data_list[idx] = {
+              "구분": st.session_state.edit_io,
+              "날짜": str(st.session_state.edit_date),
+              "Job 번호": st.session_state.edit_job,
+              "B/L 번호": st.session_state.edit_bl_no,
+              "국가": st.session_state.edit_country,
+              "출발지": st.session_state.edit_origin,
+              "화주명(매출)": st.session_state.edit_shipper,
+              "해외수하인": st.session_state.edit_consignee,
+              "매입처": st.session_state.edit_vendor,
+              "운송형태": st.session_state.edit_transport,
+              "서비스옵션": str(
+                  target_item.get("서비스옵션", "Door To Door")
+              ),
+              "품목": st.session_state.edit_item,
+              "박스수": target_item.get("박스수", "1 박스"),
+              "부피규격": target_item.get("부피규격", "-"),
+              "CBM": target_item.get("CBM", "-"),
+              "매출청구중량(kg)": st.session_state.edit_sales_cw,
+              "매입청구중량(kg)": st.session_state.edit_purchase_cw,
+              "현재 상태": st.session_state.edit_status,
+              "수금상태": st.session_state.edit_pay,
+              "매출액(원)": int(st.session_state.edit_sales_input),
+              "매입액(원)": int(st.session_state.edit_purchase_input),
+              "예상Profit(원)": int(st.session_state.edit_sales_input)
+              - int(st.session_state.edit_purchase_input),
+              "비고": st.session_state.edit_remarks,
+              "최종작성자": existing_writer,
+              "최종수정자": current_user_name,
+          }
+          save_bl_data(st.session_state.bl_data_list)
+          for k in list(st.session_state.keys()):
+            if k.startswith("edit_"):
+              del st.session_state[k]
+          if "edit_target_index" in st.session_state:
             del st.session_state.edit_target_index
-            st.success(
-                f"B/L 정보가 수정되었습니다! (작성자: {existing_writer} / 수정자:"
-                f" {current_user_name})"
-            )
-            st.rerun()
+          st.success(
+              f"B/L 정보가 수정되었습니다! (작성자: {existing_writer} / 수정자:"
+              f" {current_user_name})"
+          )
+          st.rerun()
   else:
     st.info("등록된 B/L 내역이 없습니다.")
 
 
+
 # ==========================================
-# [3] B/L 운송장 출력 메뉴
+# [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
-elif selected_menu == "🚢 B/L 운송장 출력":
+elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🚢"
-      " (주)범운해운항공 정식 B/L 운송장 출력</h3>",
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>📋"
+      " 등록 B/L 수정 및 Profit 내역</h3>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>등록된"
-      " B/L 번호를 선택하시면, 범운해운항공 로고와 진짜 바코드 이미지, 화주 및"
-      " 수하인 정보, 부피 규격, 청구중량이 포함된 정식 운송장(AWB) 양식이"
-      " 생성됩니다.</p>",
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>각"
+      " 건마다 <b>최종작성자</b>와 <b>최종수정자</b>가 실시간 기록되므로 누가"
+      " 수정·삭제했는지 투명하게 확인할 수 있습니다.</p>",
       unsafe_allow_html=True,
   )
 
   if st.session_state.bl_data_list:
-    bl_number_list = [
-        str(item.get("B/L 번호", "")) for item in st.session_state.bl_data_list
-    ]
-    selected_print_bl = st.selectbox(
-        "출력할 B/L 번호 선택하기", options=bl_number_list
+    df_bl = pd.DataFrame(st.session_state.bl_data_list)
+    if "선택" not in df_bl.columns:
+      df_bl.insert(0, "선택", False)
+    if "수금상태" not in df_bl.columns:
+      df_bl["수금상태"] = "미수"
+    if "최종작성자" not in df_bl.columns:
+      df_bl["최종작성자"] = "이상복"
+    if "최종수정자" not in df_bl.columns:
+      df_bl["최종수정자"] = "-"
+
+    edited_table = st.data_editor(
+        df_bl,
+        hide_index=True,
+        use_container_width=True,
+        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+        key="bl_select_table",
     )
 
-    target_bl_data = next(
-        (
-            item
-            for item in st.session_state.bl_data_list
-            if str(item.get("B/L 번호")) == selected_print_bl
-        ),
-        None,
-    )
+    selected_rows = edited_table[edited_table["선택"] == True]
 
-    if target_bl_data:
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
+    with col_btn1:
+      if st.button(
+          "✏️ 선택한 B/L 수정하기", type="primary", use_container_width=True
+      ):
+        if len(selected_rows) == 1:
+          st.session_state.edit_target_index = edited_table[
+              edited_table["선택"] == True
+          ].index[0]
+          st.rerun()
+        elif len(selected_rows) == 0:
+          st.warning("수정할 B/L 행의 체크박스를 선택해주세요.")
+        else:
+          st.warning(
+              "수정은 한 번에 하나의 B/L만 선택하여 진행하실 수 있습니다."
+          )
 
-      def clean_val(v, default="-"):
-        if v is None:
-          return default
-        s = str(v).strip()
-        if s == "" or s.lower() == "nan":
-          return default
-        return s
+    with col_btn2:
+      if st.button(
+          "💰 선택 건 [수금완료] 일괄처리", use_container_width=True
+      ):
+        if len(selected_rows) > 0:
+          for idx in selected_rows.index.tolist():
+            st.session_state.bl_data_list[idx]["수금상태"] = "수금완료"
+            st.session_state.bl_data_list[idx]["최종수정자"] = current_user_name
+          save_bl_data(st.session_state.bl_data_list)
+          st.success(
+              f"선택하신 B/L 건들이 '수금완료' 처리되었으며, [{current_user_name}]님이"
+              " 수정자로 기록되었습니다!"
+          )
+          st.rerun()
+        else:
+          st.warning("수금완료 처리할 B/L 행을 선택해주세요.")
 
-      shipper_n = clean_val(target_bl_data.get("화주명(매출)"))
-      shipper_inf = st.session_state.client_infos.get(shipper_n, {})
+    with col_btn3:
+      if st.button(
+          "🗑 선택한 B/L 삭제하기", type="secondary", use_container_width=True
+      ):
+        if len(selected_rows) > 0:
+          indices_to_drop = selected_rows.index.tolist()
+          deleted_job_nos = [
+              str(st.session_state.bl_data_list[i].get("Job 번호", ""))
+              for i in indices_to_drop
+          ]
+          st.session_state.bl_data_list = [
+              item
+              for i, item in enumerate(st.session_state.bl_data_list)
+              if i not in indices_to_drop
+          ]
+          save_bl_data(st.session_state.bl_data_list)
+          st.success(
+              f"선택하신 B/L 내역(Job: {', '.join(deleted_job_nos)})이"
+              f" 삭제되었습니다! (삭제자: {current_user_name})"
+          )
+          st.rerun()
+        else:
+          st.warning("삭제할 B/L 행의 체크박스를 선택해주세요.")
 
-      shipper_addr = clean_val(
-          shipper_inf.get("주소"), "경기도 김포시 풍무동 326-5번지 2층"
-      )
-      shipper_bno = clean_val(shipper_inf.get("사업자등록번호"), "-")
-      shipper_mgr = clean_val(shipper_inf.get("담당자"), "-")
-      shipper_tel = clean_val(shipper_inf.get("전화번호"), "-")
+    if "edit_target_index" in st.session_state:
+      idx = st.session_state.edit_target_index
+      if idx < len(st.session_state.bl_data_list):
+        target_item = st.session_state.bl_data_list[idx]
 
-      consignee_n = clean_val(target_bl_data.get("해외수하인"))
-      dest_c = clean_val(target_bl_data.get("국가"))
-      origin_p = clean_val(target_bl_data.get("출발지"), "대한민국 (KOREA)")
-      ship_date = clean_val(target_bl_data.get("날짜"), str(date.today()))
-      bl_num_str = clean_val(target_bl_data.get("B/L 번호"))
-      job_num_str = clean_val(target_bl_data.get("Job 번호"), "-")
-      item_name = clean_val(target_bl_data.get("품목"))
-      box_cnt = clean_val(target_bl_data.get("박스수"), "1 박스")
-      vol_spec = clean_val(target_bl_data.get("부피규격"), "-")
-      cbm_val = clean_val(target_bl_data.get("CBM"), "-")
-      sales_cw = target_bl_data.get("매출청구중량(kg)", 1.0)
-      transport_t = clean_val(target_bl_data.get("운송형태"), "항공(Air)")
-      service_opt = clean_val(target_bl_data.get("서비스옵션"), "Door To Door")
-      current_status_str = clean_val(
-          target_bl_data.get("현재 상태"), "운송 중"
-      )
+        if (
+            "edit_initialized_idx" not in st.session_state
+            or st.session_state.edit_initialized_idx != idx
+        ):
+          st.session_state.edit_initialized_idx = idx
+          st.session_state.edit_sales_amt = int(
+              target_item.get("매출액(원)", 38000)
+          )
+          st.session_state.edit_purchase_amt = int(
+              target_item.get("매입액(원)", 38000)
+          )
+          st.session_state.edit_sales_cw = float(
+              target_item.get("매출청구중량(kg)", 1.0)
+          )
+          st.session_state.edit_purchase_cw = float(
+              target_item.get("매입청구중량(kg)", 1.0)
+          )
 
-      logo_embed_bl = (
-          f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
-          " style='height: 42px; vertical-align: middle; margin-right: 10px;'>"
-          if encoded_sidebar_logo
-          else ""
-      )
-      barcode_html = generate_barcode_html(bl_num_str)
 
-      air_check = "☑" if "항공" in transport_t else "☐"
-      sea_check = "☑" if "해상" in transport_t else "☐"
-      d2d_check = "☑" if "Door" in service_opt else "☐"
+        def update_edit_prices():
+          u_shipper = st.session_state.get("edit_shipper", "")
+          u_vendor = st.session_state.get("edit_vendor", "")
+          s_cw = st.session_state.get("edit_sales_cw", 1.0)
+          p_cw = st.session_state.get("edit_purchase_cw", 1.0)
+          t_transport = st.session_state.get("edit_transport", "항공(Air)")
 
-      awb_html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <style>
-                    @media print {{
-                        body {{ -webkit-print-color-adjust: exact; }}
-                        .no-print {{ display: none !important; }}
-                        @page {{ size: A4 portrait; margin: 10mm; }}
-                    }}
-                    body {{
-                        font-family: 'Pretendard', sans-serif;
-                        color: #1e293b;
-                        font-size: 9.5pt;
-                        line-height: 1.3;
-                        margin: 0;
-                        padding: 10px;
-                        background-color: #ffffff;
-                    }}
-                    .awb-container {{
-                        max-width: 760px;
-                        margin: 0 auto;
-                        border: 2px solid #0f172a;
-                        padding: 20px;
-                        border-radius: 6px;
-                        background-color: #ffffff;
-                    }}
-                    .top-table, .mid-table, .bottom-table {{
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-bottom: 8px;
-                    }}
-                    .top-table td, .mid-table td, .bottom-table td {{
-                        border: 1px solid #64748b;
-                        padding: 8px 10px;
-                        vertical-align: top;
-                    }}
-                    .section-header {{
-                        background-color: #0f172a;
-                        color: white;
-                        font-weight: bold;
-                        font-size: 9pt;
-                        padding: 3px 6px;
-                        margin-bottom: 4px;
-                    }}
-                    .print-btn {{
-                        display: block;
-                        width: 100%;
-                        background-color: #2563eb;
-                        color: white;
-                        text-align: center;
-                        padding: 10px;
-                        font-size: 11pt;
-                        font-weight: bold;
-                        border: none;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        margin-bottom: 15px;
-                    }}
-                    .print-btn:hover {{ background-color: #1d4ed8; }}
-                </style>
-            </head>
-            <body>
-                <div class="awb-container">
-                    <button class="print-btn no-print" onclick="window.print()">🖨 B/L 운송장 인쇄 및 PDF 저장 (Print / Save as PDF)</button>
+          st.session_state.edit_sales_amt = int(
+              calculate_auto_price(u_shipper, s_cw, t_transport)
+          )
+          st.session_state.edit_purchase_amt = int(
+              calculate_auto_price(u_vendor, p_cw, t_transport)
+          )
 
-                    <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
-                        <tr>
-                            <td style="width: 55%; border: none;">
-                                <div style="display: flex; align-items: center;">
-                                    {logo_embed_bl}
-                                    <div>
-                                        <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                        <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD. | www.bumwoon.com</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td style="width: 45%; text-align: right; border: none;">
-                                <div style="font-size: 8.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">AIR WAYBILL / B/L NO.</div>
-                                {barcode_html}
-                            </td>
-                        </tr>
-                    </table>
 
-                    <table class="top-table">
-                        <tr>
-                            <td style="width: 50%;">
-                                <div class="section-header">FROM (SHIPPER / 송하인)</div>
-                                <b>상호:</b> {shipper_n}<br>
-                                <b>사업자등록번호:</b> {shipper_bno}<br>
-                                <b>주소:</b> {shipper_addr}<br>
-                                <b>담당자 / 연락처:</b> {shipper_mgr} / {shipper_tel}<br>
-                                <div style="margin-top: 8px; font-size: 8pt; color: #64748b;">SENT BY: 사장실 / Date: {ship_date}</div>
-                            </td>
-                            <td style="width: 50%;">
-                                <div class="section-header">TO (CONSIGNEE / 수하인)</div>
-                                <b>수하인명:</b> <span style="font-size: 10.5pt; color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br>
-                                <b>도착 국가:</b> {dest_c}<br>
-                                <b>출발지:</b> {origin_p}<br>
-                                <div style="margin-top: 14px; font-size: 8pt; color: #64748b;">ATTENTION OF: 현지 담당자 앞 / TEL: -</div>
-                            </td>
-                        </tr>
-                    </table>
+        st.markdown("---")
+        st.markdown(
+            f"#### 📝 [B/L 번호: {target_item.get('B/L 번호', '')}] 상세 수정"
+            f" 화면 (수정자: {current_user_name})"
+        )
 
-                    <table class="mid-table">
-                        <tr>
-                            <td style="width: 33%;">
-                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">CARRIER / 운송수단</div>
-                                {air_check} AIR &nbsp;&nbsp;&nbsp; {sea_check} SEA (LCL)<br>
-                                <span style="font-size: 8pt; color: #64748b;">Service: {transport_t}</span>
-                            </td>
-                            <td style="width: 33%;">
-                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">SERVICE OPTION</div>
-                                {d2d_check} Door To Door<br>
-                                <span style="font-size: 8pt; color: #64748b;">Status: {current_status_str}</span>
-                            </td>
-                            <td style="width: 34%;">
-                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">DATE / SCHEDULE</div>
-                                선적일자: <b>{ship_date}</b><br>
-                                <span style="font-size: 8pt; color: #64748b;">Job No: {job_num_str}</span>
-                            </td>
-                        </tr>
-                    </table>
+        e_col1, e_col2 = st.columns(2)
+        with e_col1:
+          u_io = st.selectbox(
+              "수출입 구분",
+              ["수출 (Export)", "수입 (Import)"],
+              index=(
+                  0
+                  if str(target_item.get("구분", "수출 (Export)"))
+                  .startswith("수출")
+                  else 1
+              ),
+              key="edit_io",
+          )
+          u_job = st.text_input(
+              "Job 번호",
+              value=str(target_item.get("Job 번호", "")),
+              key="edit_job",
+          )
+          u_bl = st.text_input(
+              "B/L 번호",
+              value=str(target_item.get("B/L 번호", "")),
+              key="edit_bl_no",
+          )
+          try:
+            d_val = date.fromisoformat(
+                str(target_item.get("날짜", date.today()))
+            )
+          except:
+            d_val = date.today()
+          u_date = st.date_input("선적 날짜", value=d_val, key="edit_date")
+          u_country = st.selectbox(
+              "도착 국가",
+              COUNTRY_LIST,
+              index=(
+                  COUNTRY_LIST.index(str(target_item.get("국가", "미국")))
+                  if str(target_item.get("국가")) in COUNTRY_LIST
+                  else 0
+              ),
+              key="edit_country",
+          )
+          u_origin = st.text_input(
+              "출발지",
+              value=str(target_item.get("출발지", "")),
+              key="edit_origin",
+          )
+          u_item = st.text_input(
+              "품명", value=str(target_item.get("품목", "")), key="edit_item"
+          )
 
-                    <table class="top-table">
-                        <tr>
-                            <td style="width: 60%;">
-                                <div class="section-header">DESCRIPTION OF CONTENTS (품명 및 화물 내용)</div>
-                                <div style="font-size: 11pt; font-weight: bold; color: #1e3a8a; padding: 6px 0;">{item_name}</div>
-                                <div style="font-size: 8.5pt; color: #475569;">
-                                    • 총 박스 수: <b>{box_cnt}</b><br>
-                                    • 부피 규격: {vol_spec}<br>
-                                    • CBM 합계: {cbm_val}
-                                </div>
-                            </td>
-                            <td style="width: 40%;">
-                                <div class="section-header">WEIGHT & MEASUREMENT</div>
-                                <table style="width: 100%; border-collapse: collapse; margin-top: 4px;">
-                                    <tr>
-                                        <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">청구중량: <b style="color: #dc2626;">{sales_cw} KG</b></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">박스수: <b>{box_cnt}</b></td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
+          cur_status_val = str(
+              target_item.get("현재 상태", TRACKING_STATUS_OPTIONS[0])
+          )
+          s_idx_val = (
+              TRACKING_STATUS_OPTIONS.index(cur_status_val)
+              if cur_status_val in TRACKING_STATUS_OPTIONS
+              else 0
+          )
+          u_tracking_status = st.selectbox(
+              "현재 진행 상태 수정",
+              options=TRACKING_STATUS_OPTIONS,
+              index=s_idx_val,
+              key="edit_status",
+          )
 
-                    <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
-                        <tr>
-                            <td style="border: 1px solid #64748b; padding: 8px; width: 50%; font-size: 8pt;">
-                                ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>
-                            </td>
-                            <td style="border: 1px solid #64748b; padding: 8px; width: 50%; text-align: right; font-size: 8pt;">
-                                COMPANY STAMP<br><b>[직인생략]</b>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </body>
-            </html>
-            """
-      components.html(awb_html, height=750, scrolling=False)
+          cur_pay_status = str(target_item.get("수금상태", "미수"))
+          p_idx_val = 0 if cur_pay_status != "수금완료" else 1
+          u_pay_status = st.selectbox(
+              "수금 상태 (미수 / 수금완료)",
+              options=["미수", "수금완료"],
+              index=p_idx_val,
+              key="edit_pay",
+          )
+
+        with e_col2:
+          shipper_options = [""] + st.session_state.client_list
+          s_idx = (
+              shipper_options.index(str(target_item.get("화주명(매출)", "")))
+              if str(target_item.get("화주명(매출)")) in shipper_options
+              else 0
+          )
+          u_shipper = st.selectbox(
+              "화주명",
+              options=shipper_options,
+              index=s_idx,
+              key="edit_shipper",
+              on_change=update_edit_prices,
+          )
+          u_consignee = st.text_input(
+              "해외 수하인",
+              value=str(target_item.get("해외수하인", "")),
+              key="edit_consignee",
+          )
+          v_idx = (
+              shipper_options.index(str(target_item.get("매입처", "")))
+              if str(target_item.get("매입처")) in shipper_options
+              else 0
+          )
+          u_vendor = st.selectbox(
+              "매입처",
+              options=shipper_options,
+              index=v_idx,
+              key="edit_vendor",
+              on_change=update_edit_prices,
+          )
+          t_options = ["항공(Air)", "해상(LCL)"]
+          t_idx = (
+              t_options.index(str(target_item.get("운송형태", "항공(Air)")))
+              if str(target_item.get("운송형태")) in t_options
+              else 0
+          )
+          u_transport = st.selectbox(
+              "운송 형태",
+              options=t_options,
+              index=t_idx,
+              key="edit_transport",
+              on_change=update_edit_prices,
+          )
+
+          u_sales_cw = st.number_input(
+              "매출 청구중량 (kg)",
+              value=float(target_item.get("매출청구중량(kg)", 1.0)),
+              min_value=0.0,
+              step=0.5,
+              key="edit_sales_cw",
+              on_change=update_edit_prices,
+          )
+          u_purchase_cw = st.number_input(
+              "매입 청구중량 (kg)",
+              value=float(target_item.get("매입청구중량(kg)", 1.0)),
+              min_value=0.0,
+              step=0.5,
+              key="edit_purchase_cw",
+              on_change=update_edit_prices,
+          )
+
+          u_sales = st.number_input(
+              "총 매출액 (원) [단가표 자동 계산]",
+              value=int(st.session_state.edit_sales_amt),
+              step=1000,
+              format="%d",
+              key="edit_sales_input",
+          )
+          u_purchase = st.number_input(
+              "총 매입액 (원) [단가표 자동 계산]",
+              value=int(st.session_state.edit_purchase_amt),
+              step=1000,
+              format="%d",
+              key="edit_purchase_input",
+          )
+          u_remarks = st.text_area(
+              "비고",
+              value=str(target_item.get("비고", "")),
+              key="edit_remarks",
+          )
+
+        if st.button(
+            "💾 수정 완료 및 저장하기", type="primary", use_container_width=True
+        ):
+          existing_writer = str(target_item.get("최종작성자", "이상복"))
+          st.session_state.bl_data_list[idx] = {
+              "구분": st.session_state.edit_io,
+              "날짜": str(st.session_state.edit_date),
+              "Job 번호": st.session_state.edit_job,
+              "B/L 번호": st.session_state.edit_bl_no,
+              "국가": st.session_state.edit_country,
+              "출발지": st.session_state.edit_origin,
+              "화주명(매출)": st.session_state.edit_shipper,
+              "해외수하인": st.session_state.edit_consignee,
+              "매입처": st.session_state.edit_vendor,
+              "운송형태": st.session_state.edit_transport,
+              "서비스옵션": str(
+                  target_item.get("서비스옵션", "Door To Door")
+              ),
+              "품목": st.session_state.edit_item,
+              "박스수": target_item.get("박스수", "1 박스"),
+              "부피규격": target_item.get("부피규격", "-"),
+              "CBM": target_item.get("CBM", "-"),
+              "매출청구중량(kg)": st.session_state.edit_sales_cw,
+              "매입청구중량(kg)": st.session_state.edit_purchase_cw,
+              "현재 상태": st.session_state.edit_status,
+              "수금상태": st.session_state.edit_pay,
+              "매출액(원)": int(st.session_state.edit_sales_input),
+              "매입액(원)": int(st.session_state.edit_purchase_input),
+              "예상Profit(원)": int(st.session_state.edit_sales_input)
+              - int(st.session_state.edit_purchase_input),
+              "비고": st.session_state.edit_remarks,
+              "최종작성자": existing_writer,
+              "최종수정자": current_user_name,
+          }
+          save_bl_data(st.session_state.bl_data_list)
+          for k in list(st.session_state.keys()):
+            if k.startswith("edit_"):
+              del st.session_state[k]
+          if "edit_target_index" in st.session_state:
+            del st.session_state.edit_target_index
+          st.success(
+              f"B/L 정보가 수정되었습니다! (작성자: {existing_writer} / 수정자:"
+              f" {current_user_name})"
+          )
+          st.rerun()
+  else:
+    st.info("등록된 B/L 내역이 없습니다.")
 
 
 # ==========================================
