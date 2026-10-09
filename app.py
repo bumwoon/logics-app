@@ -1763,10 +1763,6 @@ if st.button(
               f" {current_user_name})"
           )
           st.rerun()
-else:
-    st.info("등록된 B/L 내역이 없습니다.")
-
-
 
 # ==========================================
 # [2] 등록 B/L 수정 및 Profit 내역
