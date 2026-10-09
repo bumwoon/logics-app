@@ -1243,7 +1243,8 @@ if selected_menu == "📑 수출입 B/L 등록":
             st.success(f"[성공] B/L 및 Job 번호({job_no})가 [{current_user_display}]님의 이름으로 등록되었습니다!")
         else:
             st.warning("[경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다.")
-logo_embed_b1, barcode_html = "", ""
+
+logo_embed_b1, barcode_html, shipper_n, shipper_bno, shipper_addr, shipper_mgr, shipper_tel, ship_date, consignee_n, dest_c, origin_p = "", "", "", "", "", "", "", "", "", "", ""
 
 awb_html = f"""
     <div class="awb-container">
