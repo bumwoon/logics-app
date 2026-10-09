@@ -1139,7 +1139,7 @@ st.markdown(header_html, unsafe_allow_html=True)
 # [1] 수출입 B/L 등록 (실시간 자동 정산 & B/L 통합 입력)
 # =========================================================
 if selected_menu == "📑 수출입 B/L 등록":
-       st.markdown(
+    st.markdown(
         """
         <h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 수출입 B/L 및 실시간 자동 정산 등록</h3>
         """,
@@ -1244,139 +1244,7 @@ if selected_menu == "📑 수출입 B/L 등록":
             st.success(f"[성공] B/L 및 Job 번호({job_no})가 [{current_user_display}]님의 이름으로 등록되었습니다!")
         else:
             st.warning("[경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다.")
-
-            save_bl_data(st.session_state.bl_data_list)
-            st.success(f"[성공] B/L 및 Job 번호({job_no})가 [{current_user_display}]님의 이름으로 등록되었습니다!")
-        else:
-            st.warning("[경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다.")
-    
-# ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역
-# ==========================================
-elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>📋"
-      " 등록 B/L 수정 및 Profit 내역</h3>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>각"
-      " 건마다 <b>최종작성자</b>와 <b>최종수정자</b>가 실시간 기록되므로 누가"
-      " 수정·삭제했는지 투명하게 확인할 수 있습니다.</p>",
-      unsafe_allow_html=True,
-  )
-
-  if st.session_state.bl_data_list:
-    df_bl = pd.DataFrame(st.session_state.bl_data_list)
-    if "선택" not in df_bl.columns:
-      df_bl.insert(0, "선택", False)
-    if "수금상태" not in df_bl.columns:
-      df_bl["수금상태"] = "미수"
-    if "최종작성자" not in df_bl.columns:
-      df_bl["최종작성자"] = "이상복"
-    if "최종수정자" not in df_bl.columns:
-      df_bl["최종수정자"] = "-"
-
-    edited_table = st.data_editor(
-        df_bl,
-        hide_index=True,
-        use_container_width=True,
-        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-        key="bl_select_table",
-    )
-
-    selected_rows = edited_table[edited_table["선택"] == True]
-
-    col_btn1, col_btn2, col_btn3 = st.columns(3)
-    with col_btn1:
-      if st.button(
-          "✏️ 선택한 B/L 수정하기", type="primary", use_container_width=True
-      ):
-        if len(selected_rows) == 1:
-          st.session_state.edit_target_index = edited_table[
-              edited_table["선택"] == True
-          ].index[0]
-          st.rerun()
-        elif len(selected_rows) == 0:
-          st.warning("수정할 B/L 행의 체크박스를 선택해주세요.")
-        else:
-          st.warning(
-              "수정은 한 번에 하나의 B/L만 선택하여 진행하실 수 있습니다."
-          )
-
-    with col_btn2:
-      if st.button(
-          "💰 선택 건 [수금완료] 일괄처리", use_container_width=True
-      ):
-        if len(selected_rows) > 0:
-          for idx in selected_rows.index.tolist():
-            st.session_state.bl_data_list[idx]["수금상태"] = "수금완료"
-            st.session_state.bl_data_list[idx]["최종수정자"] = current_user_name
-          save_bl_data(st.session_state.bl_data_list)
-          st.success(
-              f"선택하신 B/L 건들이 '수금완료' 처리되었으며, [{current_user_name}]님이"
-              " 수정자로 기록되었습니다!"
-          )
-          st.rerun()
-        else:
-          st.warning("수금완료 처리할 B/L 행을 선택해주세요.")
-
-    with col_btn3:
-      if st.button(
-          "🗑 선택한 B/L 삭제하기", type="secondary", use_container_width=True
-      ):
-        if len(selected_rows) > 0:
-          indices_to_drop = selected_rows.index.tolist()
-          deleted_job_nos = [
-              str(st.session_state.bl_data_list[i].get("Job 번호", ""))
-              for i in indices_to_drop
-          ]
-          st.session_state.bl_data_list = [
-              item
-              for i, item in enumerate(st.session_state.bl_data_list)
-              if i not in indices_to_drop
-          ]
-          save_bl_data(st.session_state.bl_data_list)
-          st.success(
-              f"선택하신 B/L 내역(Job: {', '.join(deleted_job_nos)})이"
-              f" 삭제되었습니다! (삭제자: {current_user_name})"
-          )
-          st.rerun()
-        else:
-          st.warning("삭제할 B/L 행의 체크박스를 선택해주세요.")
-
-    if "edit_target_index" in st.session_state:
-      idx = st.session_state.edit_target_index
-      if idx < len(st.session_state.bl_data_list):
-        target_item = st.session_state.bl_data_list[idx]
-        st.markdown("---")
-        st.markdown(
-            f"#### 📝 [B/L 번호: {target_item.get('B/L 번호', '')}] 상세 수정"
-            f" 화면 (수정자: {current_user_name})"
-        )
-
-        with st.form("detail_edit_form"):
-          e_col1, e_col2 = st.columns(2)
-          with e_col1:
-            u_io = st.selectbox(
-                "수출입 구분",
-                ["수출 (Export)", "수입 (Import)"],
-                index=(
-                    0
-                    if str(target_item.get("구분", "수출 (Export)"))
-                    .startswith("수출")
-                    else 1
-                ),
-            )
-            u_job = st.text_input(
-                "Job 번호", value=str(target_item.get("Job 번호", ""))
-            )
-            u_bl = st.text_input(
-                "B/L 번호", value=str(target_item.get("B/L 번호", ""))
-            )
-            try:
-              d_val = date.fromisoformat(
-                  str(target_item.get("날짜", date.today()))
+ 
               )
             except:
               d_val = date.today()
