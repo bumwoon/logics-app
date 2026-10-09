@@ -1244,107 +1244,105 @@ if selected_menu == "📑 수출입 B/L 등록":
         else:
             st.warning("[경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다.")
 
-    st.markdown('<div class="awb-container"><button class="print-btn no-print" onclick="window.print()">🖨️ B/L 운송장 인쇄 및 PDF 저장 (Print / Save as PDF)</button></div>', unsafe_allow_html=True)
-      
-   
-                    <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
-                        <tr>
-                            <td style="width: 55%; border: none;">
-                                <div style="display: flex; align-items: center;">
-                                    {logo_embed_bl}
-                                    <div>
-                                        <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                        <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD. | www.bumwoon.com</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td style="width: 45%; text-align: right; border: none;">
-                                <div style="font-size: 8.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">AIR WAYBILL / B/L NO.</div>
-                                {barcode_html}
-                            </td>
-                        </tr>
-                    </table>
+       awb_html = f"""
+    <div class="awb-container">
+        <button class="print-btn no-print" onclick="window.print()">🖨️ B/L 운송장 인쇄 및 PDF 저장 (Print / Save as PDF)</button>
+        <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
+            <tr>
+                <td style="width: 55%; border: none;">
+                    <div style="display: flex; align-items: center;">
+                        {logo_embed_b1}
+                        <div>
+                            <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                            <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
+                        </div>
+                    </div>
+                </td>
+                <td style="width: 45%; text-align: right; border: none;">
+                    <div style="font-size: 8.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">AIR WAYBILL / B/L NO.</div>
+                    {barcode_html}
+                </td>
+            </tr>
+        </table>
+        
+        <table class="top-table">
+            <tr>
+                <td style="width: 50%;">
+                    <div class="section-header">FROM (SHIPPER / 송하인)</div>
+                    <b>상호:</b> {shipper_n}<br>
+                    <b>사업자등록번호:</b> {shipper_bno}<br>
+                    <b>주소:</b> {shipper_addr}<br>
+                    <b>담당자 / 연락처:</b> {shipper_mgr} / {shipper_tel}<br>
+                    <div style="margin-top: 8px; font-size: 8pt; color: #64748b;">SENT BY: {사장실} / Date: {ship_date}</div>
+                </td>
+                <td style="width: 50%;">
+                    <div class="section-header">TO (CONSIGNEE / 수하인)</div>
+                    <b>수하인명:</b> <span style="font-size: 10.5pt; color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br>
+                    <b>도착 국가:</b> {dest_c}<br>
+                    <b>출발지:</b> {origin_p}<br>
+                    <div style="margin-top: 14px; font-size: 8pt; color: #64748b;">ATTENTION OF: 현지 담당자 앞 / TEL: -</div>
+                </td>
+            </tr>
+        </table>
 
-                    <table class="top-table">
-                        <tr>
-                            <td style="width: 50%;">
-                                <div class="section-header">FROM (SHIPPER / 송하인)</div>
-                                <b>상호:</b> {shipper_n}<br>
-                                <b>사업자등록번호:</b> {shipper_bno}<br>
-                                <b>주소:</b> {shipper_addr}<br>
-                                <b>담당자 / 연락처:</b> {shipper_mgr} / {shipper_tel}<br>
-                                <div style="margin-top: 8px; font-size: 8pt; color: #64748b;">SENT BY: 사장실 / Date: {ship_date}</div>
-                            </td>
-                            <td style="width: 50%;">
-                                <div class="section-header">TO (CONSIGNEE / 수하인)</div>
-                                <b>수하인명:</b> <span style="font-size: 10.5pt; color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br>
-                                <b>도착 국가:</b> {dest_c}<br>
-                                <b>출발지:</b> {origin_p}<br>
-                                <div style="margin-top: 14px; font-size: 8pt; color: #64748b;">ATTENTION OF: 현지 담당자 앞 / TEL: -</div>
-                            </td>
-                        </tr>
-                    </table>
+        <table class="mid-table">
+            <tr>
+                <td style="width: 33%;">
+                    <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">CARRIER / 운송사</div>
+                    {air_check} AIR &nbsp;&nbsp;&nbsp; {sea_check} SEA (LCL)<br>
+                    <span style="font-size: 8pt; color: #64748b;">Service: {transport_t}</span>
+                </td>
+                <td style="width: 33%;">
+                    <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">SERVICE OPTION / 서비스 옵션</div>
+                    {d2d_check} Door To Door<br>
+                    <span style="font-size: 8pt; color: #64748b;">Status: {current_status_str}</span>
+                </td>
+                <td style="width: 34%;">
+                    <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">DATE / SCHEDULE / 일정</div>
+                    선적일자: <b>{ship_date}</b><br>
+                    <span style="font-size: 8pt; color: #64748b;">Job No: {job_num_str}</span>
+                </td>
+            </tr>
+        </table>
 
-                    <table class="mid-table">
+        <table class="top-table">
+            <tr>
+                <td style="width: 60%;">
+                    <div class="section-header">DESCRIPTION OF CONTENTS (품명 및 화물 내용)</div>
+                    <div style="font-size: 11pt; font-weight: bold; color: #1e3a8a; padding: 6px 0;">{item_name}</div>
+                    <div style="font-size: 8.5pt; color: #475569;">
+                        • 총 박스 수: <b>{box_cnt}</b><br>
+                        • 부피 규격: {vol_spec}<br>
+                        • CBM 합계: {cbm_val}
+                    </div>
+                </td>
+                <td style="width: 40%;">
+                    <div class="section-header">WEIGHT & MEASUREMENT</div>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 4px;">
                         <tr>
-                            <td style="width: 33%;">
-                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">CARRIER / 운송수단</div>
-                                {air_check} AIR &nbsp;&nbsp;&nbsp; {sea_check} SEA (LCL)<br>
-                                <span style="font-size: 8pt; color: #64748b;">Service: {transport_t}</span>
-                            </td>
-                            <td style="width: 33%;">
-                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">SERVICE OPTION</div>
-                                {d2d_check} Door To Door<br>
-                                <span style="font-size: 8pt; color: #64748b;">Status: {current_status_str}</span>
-                            </td>
-                            <td style="width: 34%;">
-                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">DATE / SCHEDULE</div>
-                                선적일자: <b>{ship_date}</b><br>
-                                <span style="font-size: 8pt; color: #64748b;">Job No: {job_num_str}</span>
-                            </td>
+                            <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">청구중량: <b style="color: #1e3a8a;">{chargeable_weight}</b></td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">박스수: <b>{box_cnt}</b></td>
                         </tr>
                     </table>
+                </td>
+            </tr>
+        </table>
 
-                    <table class="top-table">
-                        <tr>
-                            <td style="width: 60%;">
-                                <div class="section-header">DESCRIPTION OF CONTENTS (품명 및 화물 내용)</div>
-                                <div style="font-size: 11pt; font-weight: bold; color: #1e3a8a; padding: 6px 0;">{item_name}</div>
-                                <div style="font-size: 8.5pt; color: #475569;">
-                                    • 총 박스 수: <b>{box_cnt}</b><br>
-                                    • 부피 규격: {vol_spec}<br>
-                                    • CBM 합계: {cbm_val}
-                                </div>
-                            </td>
-                            <td style="width: 40%;">
-                                <div class="section-header">WEIGHT & MEASUREMENT</div>
-                                <table style="width: 100%; border-collapse: collapse; margin-top: 4px;">
-                                    <tr>
-                                        <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">청구중량: <b style="color: #dc2626;">{sales_cw} KG</b></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">박스수: <b>{box_cnt}</b></td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-
-                    <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
-                        <tr>
-                            <td style="border: 1px solid #64748b; padding: 8px; width: 50%; font-size: 8pt;">
-                                ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>
-                            </td>
-                            <td style="border: 1px solid #64748b; padding: 8px; width: 50%; text-align: right; font-size: 8pt;">
-                                COMPANY STAMP<br><b>[직인생략]</b>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </body>
-            </html>
-            """
-      components.html(awb_html, height=750, scrolling=False)
+        <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+            <tr>
+                <td style="border: 1px solid #64748b; padding: 8px; width: 50%; font-size: 8pt;">
+                    ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>
+                </td>
+                <td style="border: 1px solid #64748b; padding: 8px; width: 50%; text-align: right; font-size: 8pt;">
+                    COMPANY STAMP<br><b>[직인생략]</b>
+                </td>
+            </tr>
+        </table>
+    </div>
+      """
+    components.html(awb_html, height=750, scrolling=False)
 
 
 # ==========================================
