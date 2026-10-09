@@ -2754,7 +2754,6 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
               "전화번호": new_tel,
               "주소": new_addr,
           }
-          # 기본 요율표 세팅
           if "client_rates" not in st.session_state:
             st.session_state.client_rates = {}
           st.session_state.client_rates[c_name] = {
@@ -2775,7 +2774,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
               st.session_state.client_infos,
           )
           st.success(
-              f"🎉 '{c_name}' 거래처와 사업자 정보가 성공적으로 등록되었습니다!"
+              f"🎉 [{c_name}] 거래처와 사업자 정보가 안전하게 추가 및 저장되었습니다!"
           )
           st.rerun()
         else:
@@ -2843,13 +2842,17 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
           valid_df = edited_rates_df
 
         st.session_state[rate_key] = valid_df.to_dict("records")
-        st.success(f"[{client_select_m}] 단가표가 안전하게 저장되었습니다!")
+        st.success(
+            f"✅ [{client_select_m}] 국가별·운송형태별 단가 및 요율표가 성공적으로"
+            " 추가 저장되었습니다!"
+        )
         st.rerun()
   else:
     st.warning(
         "등록된 거래처가 없습니다. 위 입력창에서 신규 거래처를 먼저 등록해"
         " 주세요."
     )
+
 
 
 
