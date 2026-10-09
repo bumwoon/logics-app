@@ -1537,20 +1537,22 @@ if selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
           )
 
 
-       def update_edit_prices():
-  u_shipper = st.session_state.get("edit_shipper", "")
-  u_vendor = st.session_state.get("edit_vendor", "")
-  s_cw = st.session_state.get("edit_sales_cw", 1.0)
-  p_cw = st.session_state.get("edit_purchase_cw", 1.0)
-  t_transport = st.session_state.get("edit_transport", "항공(Air)")
+def update_edit_prices():
+    u_shipper = st.session_state.get("edit_shipper", "")
+    u_vendor = st.session_state.get("edit_vendor", "")
+    s_cw = st.session_state.get("edit_sales_cw", 1.0)
+    p_cw = st.session_state.get("edit_purchase_cw", 1.0)
+    t_transport = st.session_state.get("edit_transport", "항공(Air)")
 
-  st.session_state.edit_sales_amt = int(
-      calculate_auto_price(u_shipper, s_cw, t_transport)
-  )
-  st.session_state.edit_purchase_amt = int(
-      calculate_auto_price(u_vendor, p_cw, t_transport)
-  )
-  st.rerun()
+    st.session_state.edit_sales_amt = int(
+        calculate_auto_price(u_shipper, s_cw, t_transport)
+    )
+    st.session_state.edit_purchase_amt = int(
+        calculate_auto_price(u_vendor, p_cw, t_transport)
+    )
+    st.rerun()
+
+
 
 
    
