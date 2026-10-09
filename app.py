@@ -1139,13 +1139,13 @@ st.markdown(header_html, unsafe_allow_html=True)
 # [1] 수출입 B/L 등록 (실시간 자동 정산 & B/L 통합 입력)
 # =========================================================
 if selected_menu == "📑 수출입 B/L 등록":
-    st.markdown(
+
+     st.markdown(
         """
         <h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 수출입 B/L 및 실시간 자동 정산 등록</h3>
         """,
         unsafe_allow_html=True,
     )
-
     col1, col2, col3 = st.columns(3)
     with col1:
         io_type = st.selectbox("구분 (I/O)", ["IMPORT", "EXPORT"])
@@ -1244,160 +1244,7 @@ if selected_menu == "📑 수출입 B/L 등록":
             st.success(f"[성공] B/L 및 Job 번호({job_no})가 [{current_user_display}]님의 이름으로 등록되었습니다!")
         else:
             st.warning("[경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다.")
- 
-              )
-            except:
-              d_val = date.today()
-            u_date = st.date_input("선적 날짜", value=d_val)
-            u_country = st.selectbox(
-                "도착 국가",
-                COUNTRY_LIST,
-                index=(
-                    COUNTRY_LIST.index(str(target_item.get("국가", "미국")))
-                    if str(target_item.get("국가")) in COUNTRY_LIST
-                    else 0
-                ),
-            )
-            u_origin = st.text_input(
-                "출발지", value=str(target_item.get("출발지", ""))
-            )
-            u_item = st.text_input(
-                "품명", value=str(target_item.get("품목", ""))
-            )
-
-            cur_status_val = str(
-                target_item.get("현재 상태", TRACKING_STATUS_OPTIONS[0])
-            )
-            s_idx_val = (
-                TRACKING_STATUS_OPTIONS.index(cur_status_val)
-                if cur_status_val in TRACKING_STATUS_OPTIONS
-                else 0
-            )
-            u_tracking_status = st.selectbox(
-                "현재 진행 상태 수정",
-                options=TRACKING_STATUS_OPTIONS,
-                index=s_idx_val,
-            )
-
-            cur_pay_status = str(target_item.get("수금상태", "미수"))
-            p_idx_val = 0 if cur_pay_status != "수금완료" else 1
-            u_pay_status = st.selectbox(
-                "수금 상태 (미수 / 수금완료)",
-                options=["미수", "수금완료"],
-                index=p_idx_val,
-            )
-
-          with e_col2:
-            shipper_options = [""] + st.session_state.client_list
-            s_idx = (
-                shipper_options.index(str(target_item.get("화주명(매출)", "")))
-                if str(target_item.get("화주명(매출)")) in shipper_options
-                else 0
-            )
-            u_shipper = st.selectbox(
-                "화주명", options=shipper_options, index=s_idx
-            )
-            u_consignee = st.text_input(
-                "해외 수하인", value=str(target_item.get("해외수하인", ""))
-            )
-            v_idx = (
-                shipper_options.index(str(target_item.get("매입처", "")))
-                if str(target_item.get("매입처")) in shipper_options
-                else 0
-            )
-            u_vendor = st.selectbox(
-                "매입처", options=shipper_options, index=v_idx
-            )
-            t_options = ["항공(Air)", "해상(LCL)"]
-            t_idx = (
-                t_options.index(str(target_item.get("운송형태", "항공(Air)")))
-                if str(target_item.get("운송형태")) in t_options
-                else 0
-            )
-            u_transport = st.selectbox(
-                "운송 형태", options=t_options, index=t_idx
-            )
-
-            u_sales_cw = st.number_input(
-                "매출 청구중량 (kg)",
-                value=float(target_item.get("매출청구중량(kg)", 1.0)),
-                min_value=0.0,
-                step=0.5,
-            )
-            u_purchase_cw = st.number_input(
-                "매입 청구중량 (kg)",
-                value=float(target_item.get("매입청구중량(kg)", 1.0)),
-                min_value=0.0,
-                step=0.5,
-            )
-
-            auto_u_sales = calculate_auto_price(
-                u_shipper, u_sales_cw, u_transport
-            )
-            auto_u_purchase = calculate_auto_price(
-                u_vendor, u_purchase_cw, u_transport
-            )
-
-            u_sales = st.number_input(
-                "총 매출액 (원) [단가표 자동 계산]",
-                value=int(auto_u_sales),
-                step=1000,
-                format="%d",
-            )
-            u_purchase = st.number_input(
-                "총 매입액 (원) [단가표 자동 계산]",
-                value=int(auto_u_purchase),
-                step=1000,
-                format="%d",
-            )
-            u_remarks = st.text_area(
-                "비고", value=str(target_item.get("비고", ""))
-            )
-
-          if st.form_submit_button(
-              "💾 수정 완료 및 저장하기", type="primary", use_container_width=True
-          ):
-            existing_writer = str(target_item.get("최종작성자", "이상복"))
-            st.session_state.bl_data_list[idx] = {
-                "구분": u_io,
-                "날짜": str(u_date),
-                "Job 번호": u_job,
-                "B/L 번호": u_bl,
-                "국가": u_country,
-                "출발지": u_origin,
-                "화주명(매출)": u_shipper,
-                "해외수하인": u_consignee,
-                "매입처": u_vendor,
-                "운송형태": u_transport,
-                "서비스옵션": str(
-                    target_item.get("서비스옵션", "Door To Door")
-                ),
-                "품목": u_item,
-                "박스수": target_item.get("박스수", "1 박스"),
-                "부피규격": target_item.get("부피규격", "-"),
-                "CBM": target_item.get("CBM", "-"),
-                "매출청구중량(kg)": u_sales_cw,
-                "매입청구중량(kg)": u_purchase_cw,
-                "현재 상태": u_tracking_status,
-                "수금상태": u_pay_status,
-                "매출액(원)": u_sales,
-                "매입액(원)": u_purchase,
-                "예상Profit(원)": u_sales - u_purchase,
-                "비고": u_remarks,
-                "최종작성자": existing_writer,
-                "최종수정자": current_user_name,
-            }
-            save_bl_data(st.session_state.bl_data_list)
-            del st.session_state.edit_target_index
-            st.success(
-                f"B/L 정보가 수정되었습니다! (작성자: {existing_writer} / 수정자:"
-                f" {current_user_name})"
-            )
-            st.rerun()
-  else:
-    st.info("등록된 B/L 내역이 없습니다.")
-
-
+   
 # ==========================================
 # [3] B/L 운송장 출력 메뉴
 # ==========================================
