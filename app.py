@@ -1138,7 +1138,7 @@ st.markdown(header_html, unsafe_allow_html=True)
 # =========================================================
 # [1] 수출입 B/L 등록 (실시간 자동 정산 & B/L 통합 입력)
 # =========================================================
-elif selected_menu == "📑 수출입 B/L 등록":
+if selected_menu == "📑 수출입 B/L 등록":
     st.markdown(
         "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📑 수출입 B/L 및 실시간 자동 정산 등록</h3>",
         unsafe_allow_html=True,
