@@ -1636,7 +1636,7 @@ with e_col1:
               key="edit_pay",
           )
 
-        with e_col2:
+with e_col2:
           shipper_options = [""] + st.session_state.client_list
           s_idx = (
               shipper_options.index(str(target_item.get("화주명(매출)", "")))
