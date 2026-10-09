@@ -959,7 +959,7 @@ with calc_tab2:
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 💰 간이 미수·미지급 확인")
 sidebar_clients = (
-    st.session_state.client_list if st.session_state.client_list else ["없음"]
+    st.session_state.get("client_list") or ["없음"]
 )
 selected_side_client = st.sidebar.selectbox(
     "조회할 거래처 선택", options=sidebar_clients, key="side_client_select"
