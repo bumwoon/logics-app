@@ -2692,7 +2692,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
 
 # ==========================================
-# [8] 거래처 등록 요금 상세 관리 (신규 등록 + 사업자 정보 + 요율 관리)
+# [8] 거래처 등록 요금 상세 관리 (신규 등록 + 사업자 정보 + 요율 관리 + 삭제 포함)
 # ==========================================
 elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700;'>🏢 거래처 등록 요금 상세 관리</h3>", unsafe_allow_html=True)
@@ -2740,6 +2740,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
                     save_client_data(st.session_state.client_list, st.session_state.client_rates, st.session_state.client_infos)
                     st.success(f"🎉 [{c_name}] 거래처와 사업자 정보가 성공적으로 추가 및 저장되었습니다!")
                     st.toast(f"'{c_name}' 등록 완료!", icon="🎉")
+                    st.rerun()
                 else:
                     st.warning("이미 등록되어 있는 거래처명입니다.")
             else:
@@ -2784,11 +2785,38 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
                     valid_df = edited_rates_df
                 
                 st.session_state[rate_key] = valid_df.to_dict("records")
-                # 💡 요율표 저장 성공 메시지 및 토스트 팝업 확실히 노출
                 st.success(f"✅ [{client_select_m}] 국가별·운송형태별 단가 및 요율표가 성공적으로 추가 저장되었습니다!")
                 st.toast(f"'{client_select_m}' 요율표 저장 완료!", icon="💾")
+                st.rerun()
+
+        st.divider()
+
+        # 3. 거래처 삭제 영역 (복구 완료)
+        st.markdown("#### 🗑️ 거래처 삭제 관리")
+        del_col1, del_col2 = st.columns([2, 3])
+        with del_col1:
+            del_client_select = st.selectbox("삭제할 거래처 선택", options=st.session_state.client_list, key="delete_client_select")
+        with del_col2:
+            st.write("")
+            st.write("")
+            if st.button("🗑️ 선택한 거래처 삭제하기", type="secondary", key="btn_delete_client"):
+                if del_client_select in st.session_state.client_list:
+                    st.session_state.client_list.remove(del_client_select)
+                    if "client_infos" in st.session_state and del_client_select in st.session_state.client_infos:
+                        del st.session_state.client_infos[del_client_select]
+                    if "client_rates" in st.session_state and del_client_select in st.session_state.client_rates:
+                        del st.session_state.client_rates[del_client_select]
+                    del_rate_key = f"rates_{del_client_select}"
+                    if del_rate_key in st.session_state:
+                        del st.session_state[del_rate_key]
+                        
+                    save_client_data(st.session_state.client_list, st.session_state.client_rates, st.session_state.client_infos)
+                    st.success(f"🗑️ [{del_client_select}] 거래처와 관련 정보가 안전하게 삭제되었습니다!")
+                    st.toast(f"'{del_client_select}' 삭제 완료", icon="🗑️")
+                    st.rerun()
     else:
-      st.warning("등록된 거래처가 없습니다. 위 입력창에서 신규 거래처를 먼저 등록해 주세요.")
+        st.warning("등록된 거래처가 없습니다. 위 입력창에서 신규 거래처를 먼저 등록해 주세요.")
+
 
 
 
