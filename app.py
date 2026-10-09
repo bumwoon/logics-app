@@ -1552,17 +1552,16 @@ def update_edit_prices():
     )
     st.rerun()
 
-    edit_idx = st.session_state.get("edit_target_index", 0)
-    bl_list = st.session_state.get("bl_data_list", [])
-    target_item = bl_list[edit_idx] if bl_list and 0 <= edit_idx < len(bl_list) else {}
-
-
+   
    
 
 st.markdown("---")
+edit_idx = st.session_state.get("edit_target_index", 0)
+bl_list = st.session_state.get("bl_data_list", [])
+target_item = bl_list[edit_idx] if bl_list and 0 <= edit_idx < len(bl_list) else {}
 st.markdown(
-f"#### 📝 [B/L 번호: {target_item.get('B/L 번호', '')}] 상세 수정"
-f" 화면 (수정자: {current_user_name})"
+    f"#### 📦 [B/L 번호: {target_item.get('B/L 번호', '')}] 상세 수정 "
+    f"화면 (수정자: {current_user_name})"
 )
 
 e_col1, e_col2 = st.columns(2)
