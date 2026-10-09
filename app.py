@@ -1552,7 +1552,9 @@ def update_edit_prices():
     )
     st.rerun()
 
-
+    edit_idx = st.session_state.get("edit_target_index", 0)
+    bl_list = st.session_state.get("bl_data_list", [])
+    target_item = bl_list[edit_idx] if bl_list and 0 <= edit_idx < len(bl_list) else {}
 
 
    
