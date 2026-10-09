@@ -1139,8 +1139,7 @@ st.markdown(header_html, unsafe_allow_html=True)
 # [1] 수출입 B/L 등록 (실시간 자동 정산 & B/L 통합 입력)
 # =========================================================
 if selected_menu == "📑 수출입 B/L 등록":
-
-     st.markdown(
+    st.markdown(
         """
         <h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 수출입 B/L 및 실시간 자동 정산 등록</h3>
         """,
@@ -1244,155 +1243,7 @@ if selected_menu == "📑 수출입 B/L 등록":
             st.success(f"[성공] B/L 및 Job 번호({job_no})가 [{current_user_display}]님의 이름으로 등록되었습니다!")
         else:
             st.warning("[경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다.")
-   
-# ==========================================
-# [3] B/L 운송장 출력 메뉴
-# ==========================================
-elif selected_menu == "🚢 B/L 운송장 출력":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🚢"
-      " (주)범운해운항공 정식 B/L 운송장 출력</h3>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>등록된"
-      " B/L 번호를 선택하시면, 범운해운항공 로고와 진짜 바코드 이미지, 화주 및"
-      " 수하인 정보, 부피 규격, 청구중량이 포함된 정식 운송장(AWB) 양식이"
-      " 생성됩니다.</p>",
-      unsafe_allow_html=True,
-  )
 
-  if st.session_state.bl_data_list:
-    bl_number_list = [
-        str(item.get("B/L 번호", "")) for item in st.session_state.bl_data_list
-    ]
-    selected_print_bl = st.selectbox(
-        "출력할 B/L 번호 선택하기", options=bl_number_list
-    )
-
-    target_bl_data = next(
-        (
-            item
-            for item in st.session_state.bl_data_list
-            if str(item.get("B/L 번호")) == selected_print_bl
-        ),
-        None,
-    )
-
-    if target_bl_data:
-
-      def clean_val(v, default="-"):
-        if v is None:
-          return default
-        s = str(v).strip()
-        if s == "" or s.lower() == "nan":
-          return default
-        return s
-
-      shipper_n = clean_val(target_bl_data.get("화주명(매출)"))
-      shipper_inf = st.session_state.client_infos.get(shipper_n, {})
-
-      shipper_addr = clean_val(
-          shipper_inf.get("주소"), "경기도 김포시 풍무동 326-5번지 2층"
-      )
-      shipper_bno = clean_val(shipper_inf.get("사업자등록번호"), "-")
-      shipper_mgr = clean_val(shipper_inf.get("담당자"), "-")
-      shipper_tel = clean_val(shipper_inf.get("전화번호"), "-")
-
-      consignee_n = clean_val(target_bl_data.get("해외수하인"))
-      dest_c = clean_val(target_bl_data.get("국가"))
-      origin_p = clean_val(target_bl_data.get("출발지"), "대한민국 (KOREA)")
-      ship_date = clean_val(target_bl_data.get("날짜"), str(date.today()))
-      bl_num_str = clean_val(target_bl_data.get("B/L 번호"))
-      job_num_str = clean_val(target_bl_data.get("Job 번호"), "-")
-      item_name = clean_val(target_bl_data.get("품목"))
-      box_cnt = clean_val(target_bl_data.get("박스수"), "1 박스")
-      vol_spec = clean_val(target_bl_data.get("부피규격"), "-")
-      cbm_val = clean_val(target_bl_data.get("CBM"), "-")
-      sales_cw = target_bl_data.get("매출청구중량(kg)", 1.0)
-      transport_t = clean_val(target_bl_data.get("운송형태"), "항공(Air)")
-      service_opt = clean_val(target_bl_data.get("서비스옵션"), "Door To Door")
-      current_status_str = clean_val(
-          target_bl_data.get("현재 상태"), "운송 중"
-      )
-
-      logo_embed_bl = (
-          f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
-          " style='height: 42px; vertical-align: middle; margin-right: 10px;'>"
-          if encoded_sidebar_logo
-          else ""
-      )
-      barcode_html = generate_barcode_html(bl_num_str)
-
-      air_check = "☑" if "항공" in transport_t else "☐"
-      sea_check = "☑" if "해상" in transport_t else "☐"
-      d2d_check = "☑" if "Door" in service_opt else "☐"
-
-      awb_html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <style>
-                    @media print {{
-                        body {{ -webkit-print-color-adjust: exact; }}
-                        .no-print {{ display: none !important; }}
-                        @page {{ size: A4 portrait; margin: 10mm; }}
-                    }}
-                    body {{
-                        font-family: 'Pretendard', sans-serif;
-                        color: #1e293b;
-                        font-size: 9.5pt;
-                        line-height: 1.3;
-                        margin: 0;
-                        padding: 10px;
-                        background-color: #ffffff;
-                    }}
-                    .awb-container {{
-                        max-width: 760px;
-                        margin: 0 auto;
-                        border: 2px solid #0f172a;
-                        padding: 20px;
-                        border-radius: 6px;
-                        background-color: #ffffff;
-                    }}
-                    .top-table, .mid-table, .bottom-table {{
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-bottom: 8px;
-                    }}
-                    .top-table td, .mid-table td, .bottom-table td {{
-                        border: 1px solid #64748b;
-                        padding: 8px 10px;
-                        vertical-align: top;
-                    }}
-                    .section-header {{
-                        background-color: #0f172a;
-                        color: white;
-                        font-weight: bold;
-                        font-size: 9pt;
-                        padding: 3px 6px;
-                        margin-bottom: 4px;
-                    }}
-                    .print-btn {{
-                        display: block;
-                        width: 100%;
-                        background-color: #2563eb;
-                        color: white;
-                        text-align: center;
-                        padding: 10px;
-                        font-size: 11pt;
-                        font-weight: bold;
-                        border: none;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        margin-bottom: 15px;
-                    }}
-                    .print-btn:hover {{ background-color: #1d4ed8; }}
-                </style>
-            </head>
-            <body>
-                <div class="awb-container">
                     <button class="print-btn no-print" onclick="window.print()">🖨 B/L 운송장 인쇄 및 PDF 저장 (Print / Save as PDF)</button>
 
                     <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
@@ -1545,6 +1396,43 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     inv_remark_memo = st.text_input(
         "비고 메모", value="등록된 B/L 화물 운송비 청구 건"
     )
+    if st.button("B/L 및 Profit 최종 등록하기", type="primary", use_container_width=True):
+        if job_no.strip() and shipper_name.strip():
+            if "bl_data_list" not in st.session_state:
+                st.session_state.bl_data_list = []
+            
+            st.session_state.bl_data_list.append({
+                "구분": io_type,
+                "날짜": str(reg_date),
+                "Job 번호": job_no,
+                "B/L 번호": bl_no,
+                "국가": dest_country,
+                "출발지": origin_place,
+                "화주명(매출)": shipper_name,
+                "해외수하인": consignee_name,
+                "매입처": purchase_vendor,
+                "운송형태": transport_type,
+                "서비스옵션": service_option,
+                "품목": item_desc,
+                "박스수": piece_count,
+                "부피규격": volume_dim,
+                "매출청구중량(kg)": sales_chargeable_weight,
+                "매입청구중량(kg)": purchase_chargeable_weight,
+                "CBM": f"{total_cbm:.3f} CBM",
+                "현재 상태": tracking_status,
+                "수금상태": payment_status_input,
+                "매출액(원)": int(total_sales),
+                "매입액(원)": int(total_purchase),
+                "예상Profit(원)": preview_profit,
+                "비고": remarks,
+                "최종작성자": current_user_display,
+                "최종수정자": "-",
+            })
+            if "save_bl_data" in globals():
+                save_bl_data(st.session_state.bl_data_list)
+            st.success(f"[성공] B/L 및 Job 번호({job_no})가 [{current_user_display}]님의 이름으로 등록되었습니다!")
+        else:
+            st.warning("[경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다.")
 
   st.markdown("---")
   st.markdown(
