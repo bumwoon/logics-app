@@ -2694,10 +2694,34 @@ elif selected_menu == "📋 금일발송 매니페스트":
 # ==========================================
 # [8] 거래처 등록 요금 상세 관리 (거래처 삭제 기능 포함)
 # ==========================================
-# 🏢 거래처 등록 요금 상세 관리 (행 삭제 완벽 반영)
+# 🏢 거래처 등록 요금 상세 관리 (신규 등록 + 요율 관리 + 행 삭제 완벽 반영)
 elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700;'>🏢 거래처 등록 요금 상세 관리</h3>", unsafe_allow_html=True)
     
+    # 1. 신규 거래처 등록 영역
+    st.markdown("#### ➕ 신규 거래처 등록")
+    col_new_c1, col_new_c2 = st.columns([3, 1])
+    with col_new_c1:
+        new_c_name = st.text_input("등록할 신규 거래처명", placeholder="예: (주)조은로직스", key="input_new_client_name")
+    with col_new_c2:
+        st.write("")
+        st.write("")
+        if st.button("➕ 거래처 추가", type="primary", key="btn_add_new_client"):
+            if new_c_name.strip():
+                if "client_list" not in st.session_state:
+                    st.session_state.client_list = []
+                if new_c_name.strip() not in st.session_state.client_list:
+                    st.session_state.client_list.append(new_c_name.strip())
+                    st.success(f"'{new_c_name.strip()}' 거래처가 성공적으로 등록되었습니다!")
+                    st.rerun()
+                else:
+                    st.warning("이미 등록되어 있는 거래처명입니다.")
+            else:
+                st.warning("거래처명을 입력해 주세요.")
+                
+    st.divider()
+    
+    # 2. 거래처별 요율 및 단가 상세 관리 영역
     if "client_list" in st.session_state and st.session_state.client_list:
         client_select_m = st.selectbox("관리할 거래처 선택", options=st.session_state.client_list, key="rate_client_select")
         
@@ -2708,7 +2732,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
             ]
         
         st.markdown(f"#### 📦 [{client_select_m}] 국가별·운송형태별 단가 및 요율표")
-        st.info("💡 잘못 입력한 행은 맨 앞의 **[삭제 선택]**에 체크하신 후, 아래의 **[요율표 최종 저장하기]** 버튼을 누르시면 삭제됩니다.")
+        st.info("💡 **행 추가**: 표 맨 아래 빈 칸을 클릭하여 새 요율을 입력하세요.\n💡 **행 삭제**: 삭제할 행 맨 앞의 **[삭제 선택]**에 체크 후 **[요율표 최종 저장하기]**를 누르세요.")
         
         df_rates = pd.DataFrame(st.session_state[rate_key])
         if "삭제" not in df_rates.columns:
@@ -2737,7 +2761,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
                 st.success(f"[{client_select_m}] 단가표가 안전하게 저장되었습니다!")
                 st.rerun()
     else:
-        st.warning("등록된 거래처가 없습니다.")
+        st.warning("등록된 거래처가 없습니다. 위 입력창에서 신규 거래처를 먼저 등록해 주세요.")
 
 
 
