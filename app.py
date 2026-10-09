@@ -1419,7 +1419,6 @@ elif selected_menu == "📝 등록 B/L 수정 및 Profit 내역":
     if not st.session_state.bl_data_list:
         st.info("등록된 B/L 내역이 없습니다.")
     else:
-        # 수정할 B/L 선택 옵션 구성
         bl_options = [f"{item.get('Job 번호', '')} / {item.get('B/L 번호', '')} / {item.get('화주명(매출)', '')}" for item in st.session_state.bl_data_list]
         selected_bl_str = st.selectbox("수정할 B/L 선택", options=bl_options)
         
@@ -1469,9 +1468,7 @@ elif selected_menu == "📝 등록 B/L 수정 및 Profit 내역":
                 
                 e_sales_cw = st.number_input("매출 청구중량(kg)", value=float(target_item.get("매출청구중량(kg)", 1.0)), min_value=0.0, step=1.0)
 
-                # ----------------------------------------------------
-                # [수정 화면] 화주별 요율표 기반 실시간 매출액 계산
-                # ----------------------------------------------------
+                # 화주별 요율표 기반 실시간 매출액 계산
                 e_auto_sales = 0
                 e_s_rate_key = f"rates_{e_shipper_name}" if e_shipper_name else ""
                 e_s_rates = st.session_state.get(e_s_rate_key, [])
@@ -1498,9 +1495,7 @@ elif selected_menu == "📝 등록 B/L 수정 및 Profit 내역":
 
                 e_purchase_cw = st.number_input("매입 청구중량(kg)", value=float(target_item.get("매입청구중량(kg)", 1.0)), min_value=0.0, step=1.0)
 
-                # ----------------------------------------------------
-                # [수정 화면] 매입처별 요율표 기반 실시간 매입액 계산
-                # ----------------------------------------------------
+                # 매입처별 요율표 기반 실시간 매입액 계산
                 e_auto_purchase = 0
                 e_p_rate_key = f"rates_{e_purchase_vendor}" if e_purchase_vendor else ""
                 e_p_rates = st.session_state.get(e_p_rate_key, [])
@@ -1573,6 +1568,7 @@ elif selected_menu == "📝 등록 B/L 수정 및 Profit 내역":
                 save_bl_data(st.session_state.bl_data_list)
                 st.success(f"🗑️ [삭제 완료] 선택하신 B/L이 삭제되었습니다.")
                 st.rerun()
+
 
 
 # ==========================================
