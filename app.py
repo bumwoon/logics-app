@@ -1330,13 +1330,13 @@ if selected_menu == "📑 수출입 B/L 등록":
         )
 
         remarks = st.text_area("비고")
-         st.markdown("---")
+        st.markdown("---")
     preview_profit = int(total_sales) - int(total_purchase)
     current_user_display = st.session_state.get("current_user_name", "관리자")
 
     st.markdown(
-
         f"""
+
         <div style="background-color: #f8fafc; border: 1.5px solid #2563eb; padding: 14px 18px; border-radius: 8px; margin-bottom: 12px;">
             <b>🔍 [B/L 등록 전 실시간 미리보기 요약]</b><br>
             • 등록 담당자: <b style="color: #2563eb;">{current_user_display}</b><br>
