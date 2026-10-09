@@ -1421,7 +1421,7 @@ def update_reg_prices():
 # ==========================================
 # [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
-elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
+if selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>📋"
       " 등록 B/L 수정 및 Profit 내역</h3>",
