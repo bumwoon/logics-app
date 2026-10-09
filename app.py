@@ -1342,7 +1342,7 @@ awb_html = f"""
         </table>
     </div>
       """
-    components.html(awb_html, height=750, scrolling=False)
+components.html(awb_html, height=750, scrolling=False)
 
 
 # ==========================================
