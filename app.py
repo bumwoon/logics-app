@@ -1348,7 +1348,7 @@ components.html(awb_html, height=750, scrolling=False)
 # ==========================================
 # [4] 거래처 인보이스 발행
 # ==========================================
-elif selected_menu == "📑 거래처 인보이스 발행":
+if selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📑"
       " 거래처 정식 인보이스 (INVOICE) 발행</h3>",
