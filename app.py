@@ -1467,34 +1467,10 @@ elif selected_menu == "📝 등록 B/L 수정 및 Profit 내역":
                 e_volume_dim = st.text_input("부피 규격 (Volume)", value=target_item.get("부피규격", ""))
                 
                 e_sales_cw = st.number_input("매출 청구중량(kg)", value=float(target_item.get("매출청구중량(kg)", 1.0)), min_value=0.0, step=1.0)
-
-                # 화주별 요율표 기반 자동 매출 계산
-                e_auto_sales = 0
-                e_s_rates = st.session_state.get(f"rates_{e_shipper_name}", []) if e_shipper_name else []
-                e_matched_s = next((r for r in e_s_rates if r.get("국가") == e_dest_country and r.get("운송형태") == e_transport_type), None)
-                
-                if e_matched_s:
-                    es_base_wt = float(e_matched_s.get("기본중량(kg)", 1.0))
-                    es_base_fee = float(e_matched_s.get("기본요금(원)", 0))
-                    es_add_rate = float(e_matched_s.get("추가단가(원/kg)", 0))
-                    e_auto_sales = es_base_fee if e_sales_cw <= es_base_wt else es_base_fee + ((e_sales_cw - es_base_wt) * es_add_rate)
-
-                e_total_sales = st.number_input("총 매출액 (원)", value=int(target_item.get("매출액(원)", e_auto_sales)), min_value=0, step=1000, format="%d")
+                e_total_sales = st.number_input("총 매출액 (원)", value=int(target_item.get("매출액(원)", 0)), min_value=0, step=1000, format="%d")
 
                 e_purchase_cw = st.number_input("매입 청구중량(kg)", value=float(target_item.get("매입청구중량(kg)", 1.0)), min_value=0.0, step=1.0)
-
-                # 매입처별 요율표 기반 자동 매입 계산
-                e_auto_purchase = 0
-                e_p_rates = st.session_state.get(f"rates_{e_purchase_vendor}", []) if e_purchase_vendor else []
-                e_matched_p = next((r for r in e_p_rates if r.get("국가") == e_dest_country and r.get("운송형태") == e_transport_type), None)
-                
-                if e_matched_p:
-                    ep_base_wt = float(e_matched_p.get("기본중량(kg)", 1.0))
-                    ep_base_fee = float(e_matched_p.get("기본요금(원)", 0))
-                    ep_add_rate = float(e_matched_p.get("추가단가(원/kg)", 0))
-                    e_auto_purchase = ep_base_fee if e_purchase_cw <= ep_base_wt else ep_base_fee + ((e_purchase_cw - ep_base_wt) * ep_add_rate)
-
-                e_total_purchase = st.number_input("총 매입액 (원)", value=int(target_item.get("매입액(원)", e_auto_purchase)), min_value=0, step=1000, format="%d")
+                e_total_purchase = st.number_input("총 매입액 (원)", value=int(target_item.get("매입액(원)", 0)), min_value=0, step=1000, format="%d")
 
             e_remarks = st.text_area("비고", value=target_item.get("비고", ""))
             
@@ -1544,6 +1520,7 @@ elif selected_menu == "📝 등록 B/L 수정 및 Profit 내역":
                 save_bl_data(st.session_state.bl_data_list)
                 st.success(f"🗑️ [삭제 완료] 선택하신 B/L이 삭제되었습니다.")
                 st.rerun()
+
 
 
 
