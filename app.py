@@ -1244,8 +1244,9 @@ if selected_menu == "📑 수출입 B/L 등록":
         else:
             st.warning("[경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다.")
 
-                    <button class="print-btn no-print" onclick="window.print()">🖨 B/L 운송장 인쇄 및 PDF 저장 (Print / Save as PDF)</button>
-
+       st.markdown('<div class="awb-container"><button class="print-btn no-print" onclick="window.print()">🖨️ B/L 운송장 인쇄 및 PDF 저장 (Print / Save as PDF)</button></div>', unsafe_allow_html=True)
+   
+   
                     <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
                         <tr>
                             <td style="width: 55%; border: none;">
