@@ -1246,7 +1246,7 @@ if selected_menu == "📑 수출입 B/L 등록":
 
 logo_embed_b1, barcode_html, shipper_n, shipper_bno, shipper_addr, shipper_mgr, shipper_tel, ship_date, consignee_n, dest_c, origin_p, current_user_display, 사장실 = "", "", "", "", "", "", "", "", "", "", "", "", ""
 
-awb_html = f"""
+awb_html = """
     <div class="awb-container">
         <button class="print-btn no-print" onclick="window.print()">🖨️ B/L 운송장 인쇄 및 PDF 저장 (Print / Save as PDF)</button>
         <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
