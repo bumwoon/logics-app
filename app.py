@@ -2692,7 +2692,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
 
 # ==========================================
-# [8] 거래처 등록 요금 상세 관리 (신규 등록 + 사업자 정보 + 요율 관리 + 삭제 포함)
+# [8] 거래처 등록 요금 상세 관리 (최종 완벽 통합 버전)
 # ==========================================
 elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700;'>🏢 거래처 등록 요금 상세 관리</h3>", unsafe_allow_html=True)
@@ -2748,7 +2748,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
                 
     st.divider()
     
-    # 2. 거래처별 요율 및 단가 상세 관리 영역
+    # 2. 거래처별 요율 및 단가 상세 관리 영역 (저장 버튼 포함)
     if "client_list" in st.session_state and st.session_state.client_list:
         client_select_m = st.selectbox("관리할 거래처 선택", options=st.session_state.client_list, key="rate_client_select")
         
@@ -2787,11 +2787,10 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
                 st.session_state[rate_key] = valid_df.to_dict("records")
                 st.success(f"✅ [{client_select_m}] 국가별·운송형태별 단가 및 요율표가 성공적으로 추가 저장되었습니다!")
                 st.toast(f"'{client_select_m}' 요율표 저장 완료!", icon="💾")
-                st.rerun()
 
         st.divider()
 
-        # 3. 거래처 삭제 영역 (복구 완료)
+        # 3. 거래처 삭제 영역
         st.markdown("#### 🗑️ 거래처 삭제 관리")
         del_col1, del_col2 = st.columns([2, 3])
         with del_col1:
@@ -2816,7 +2815,6 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
                     st.rerun()
     else:
         st.warning("등록된 거래처가 없습니다. 위 입력창에서 신규 거래처를 먼저 등록해 주세요.")
-
 
 
 
