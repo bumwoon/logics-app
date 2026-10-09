@@ -1139,197 +1139,56 @@ st.markdown(header_html, unsafe_allow_html=True)
 # [1] 수출입 B/L 등록 (실시간 자동 정산 & B/L 통합 입력)
 # =========================================================
 if selected_menu == "📑 수출입 B/L 등록":
-    st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📑 수출입 B/L 및 실시간 자동 정산 등록</h3>",
+       st.markdown(
+        """
+        <h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 수출입 B/L 및 실시간 자동 정산 등록</h3>
+        """,
         unsafe_allow_html=True,
     )
 
-    # ---------------------------------------------------------
-    # 1. 화물 박스 규격 및 CBM / 청구중량 실시간 자동 계산
-    # ---------------------------------------------------------
-    st.markdown("##### 📦 박스 규격 및 카톤수 입력 (아래 입력창에 가로, 세로, 높이, 카톤수를 적어주시면 즉시 부피중량과 CBM이 계산됩니다)")
-
-    if "box_input_df" not in st.session_state:
-        st.session_state.box_input_df = pd.DataFrame([
-            {"가로(cm)": 100.0, "세로(cm)": 100.0, "높이(cm)": 100.0, "카톤수(개)": 1}
-        ])
-
-    edited_box_df = st.data_editor(
-        st.session_state.box_input_df,
-        num_rows="dynamic",
-        use_container_width=True,
-        key="box_editor_multi_infinite"
-    )
-
-    box_col1, box_col2 = st.columns([1.3, 1])
-    with box_col1:
-        common_gw_str = st.text_input("실 중량 (kg)", value="55.0", placeholder="실중량", key="common_gw")
-    with box_col2:
-        sub_d1_col, sub_d2_col = st.columns(2)
-        with sub_d1_col:
-            s_div = st.selectbox("매출 부미기준", [5000, 6000], key="s_div")
-        with sub_d2_col:
-            p_div = st.selectbox("매입 부미기준", [6000, 5000], key="p_div")
-
-    total_cbm = 0.0
-    total_ctn = 0
-    total_vol_wt_sales = 0.0
-    total_vol_wt_purchase = 0.0
-    vol_str_list = []
-
-    try:
-        gw = float(common_gw_str) if common_gw_str else 0.0
-    except ValueError:
-        gw = 0.0
-
-    for _, row in edited_box_df.iterrows():
-        w = float(row.get("가로(cm)", 0) or 0)
-        l = float(row.get("세로(cm)", 0) or 0)
-        h = float(row.get("높이(cm)", 0) or 0)
-        ctn = int(row.get("카톤수(개)", 0) or 0)
-
-        if w > 0 and l > 0 and h > 0 and ctn > 0:
-            box_cbm = ((w * l * h) / 1000000.0) * ctn
-            total_cbm += box_cbm
-            total_ctn += ctn
-
-            box_vol_sales = ((w * l * h) / s_div) * ctn
-            box_vol_purchase = ((w * l * h) / p_div) * ctn
-            total_vol_wt_sales += box_vol_sales
-            total_vol_wt_purchase += box_vol_purchase
-
-            vol_str_list.append(f"{int(w)}x{int(l)}x{int(h)}cm({ctn}CTN)")
-
-    calc_sales_cw = float(math.ceil(max(gw, total_vol_wt_sales)))
-    calc_purchase_cw = float(math.ceil(max(gw, total_vol_wt_purchase)))
-    volume_str_result = " / ".join(vol_str_list) if vol_str_list else "-"
-    piece_count_val = f"{total_ctn} 박스 (CTN)" if total_ctn > 0 else "1 박스 (CTN)"
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        io_type = st.selectbox("구분 (I/O)", ["IMPORT", "EXPORT"])
+        reg_date = st.date_input("등록 날짜")
+        job_no = st.text_input("Job 번호", placeholder="예: BW-2026-001")
+        bl_no = st.text_input("B/L 번호", placeholder="B/L 번호 입력")
+    with col2:
+        dest_country = st.text_input("국가 (도착지)", placeholder="예: 중국, 미국 등")
+        origin_place = st.text_input("출발지", placeholder="예: 인천항, 상하이 등")
+        shipper_name = st.text_input("화주명 (매출처)", placeholder="화주 상호명 입력")
+        consignee_name = st.text_input("해외수하인", placeholder="수하인 입력")
+    with col3:
+        purchase_vendor = st.text_input("매입처 (비용처)", placeholder="선사/항공사/파트너")
+        transport_type = st.selectbox("운송 형태", ["SEA (해상)", "AIR (항공)", "EXPRESS/LCL"])
+        service_option = st.text_input("서비스 옵션", placeholder="FCL / LCL / Door to Door")
+        item_desc = st.text_input("품목 (Item)", placeholder="품명 입력")
 
     st.markdown("---")
-    st.markdown("##### 📑 B/L 및 청구 금액 실시간 미리보기")
+    col4, col5, col6, col7 = st.columns(4)
+    with col4:
+        piece_count = st.text_input("박스수 (Piece)", placeholder="예: 10 CTNS")
+    with col5:
+        volume_dim = st.text_input("부피규격 (Dimension)", placeholder="가로x세로x높이")
+    with col6:
+        total_cbm = st.number_input("총 CBM", min_value=0.0, step=0.001, format="%.3f")
+        total_ctn = st.number_input("총 카톤수", min_value=0, step=1, format="%d")
+    with col7:
+        tracking_status = st.selectbox("현재 상태", ["접수완료", "선적대기", "운송중", "통관진행", "배송완료"])
 
-    form_col1, form_col2 = st.columns(2)
+    st.markdown("---")
+    col8, col9, col10, col11 = st.columns(4)
+    with col8:
+        sales_chargeable_weight = st.number_input("매출 청구중량 (kg)", min_value=0.0, step=1.0)
+    with col9:
+        total_sales = st.number_input("매출액 (원)", min_value=0, step=1000, format="%d")
+    with col10:
+        purchase_chargeable_weight = st.number_input("매입 청구중량 (kg)", min_value=0.0, step=1.0)
+    with col11:
+        total_purchase = st.number_input("매입액 (원)", min_value=0, step=1000, format="%d")
 
-    with form_col1:
-        io_type = st.selectbox("수출입 구분", ["수출 (Export)", "수입 (Import)"])
+    payment_status_input = st.selectbox("수금 상태", ["미수금", "부분수금", "수금완료", "후불합의"])
+    remarks = st.text_area("비고")
 
-        suggested_job = "BW-2026-003"
-        if st.session_state.bl_data_list:
-            try:
-                last_job = str(st.session_state.bl_data_list[-1].get("Job 번호", "BW-2026-003"))
-                if "-" in last_job:
-                    parts = last_job.split("-")
-                    num_part = int(parts[-1]) + 1
-                    suggested_job = f"{parts[0]}-{parts[1]}-{num_part:03d}"
-            except Exception:
-                pass
-
-        job_no = st.text_input(
-            "Job 번호 (필수 입력)",
-            value=suggested_job,
-            placeholder="예: BW-2026-003",
-        )
-
-        suggested_bl = "BW260003"
-        if st.session_state.bl_data_list:
-            last_b = str(st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003"))
-            if last_b.startswith("BW") and len(last_b) >= 8:
-                try:
-                    suggested_bl = f"BW{int(last_b[2:]) + 1:06d}"
-                except Exception:
-                    pass
-
-        bl_no = st.text_input("B/L 번호 (운송장 번호)", value=suggested_bl)
-        reg_date = st.date_input("선적 날짜", value=date.today())
-        dest_country = st.selectbox("도착 국가", COUNTRY_LIST if "COUNTRY_LIST" in globals() else ["중국", "태국", "베트남", "미국", "호주", "기타"])
-        origin_place = st.text_input("출발지", value="대한민국 (KOREA)")
-        item_desc = st.text_input(
-            "품목",
-            value="보톡스, 필러 및 관련 의약품/미용용품 (Botox, Filler & Related Pharmaceuticals/Cosmetics)",
-        )
-
-        shipper_options = [""] + (st.session_state.client_list if "client_list" in st.session_state else [])
-        shipper_name = st.selectbox(
-            "화주명 (매출처)",
-            options=shipper_options,
-            index=1 if len(shipper_options) > 1 else 0,
-        )
-        consignee_name = st.text_input("해외 수하인")
-
-        purchase_vendor = st.selectbox(
-            "매입처 (비용처)",
-            options=shipper_options,
-            index=2 if len(shipper_options) > 2 else 0,
-        )
-        transport_type = st.selectbox("운송 형태", ["항공 (Air)", "해상 (LCL)"])
-        service_option = st.selectbox("서비스 옵션", ["Door To Door"])
-        tracking_status = st.selectbox(
-            "현재 진행 상태 선택",
-            options=TRACKING_STATUS_OPTIONS if "TRACKING_STATUS_OPTIONS" in globals() else ["물류센터 입고 및 접수 완료"],
-        )
-        payment_status_input = st.selectbox(
-            "수금 상태", options=["미수", "수금완료"], index=0
-        )
-
-    with form_col2:
-        piece_count = st.text_input("총 박스 수 (Piece)", value=piece_count_val)
-        volume_dim = st.text_input("부피 규격 (Volume)", value=volume_str_result)
-
-        gross_weight_sales = st.number_input(
-            "매출 실중량(kg)", value=float(gw), min_value=0.0
-        )
-        sales_chargeable_weight = st.number_input(
-            "매출 청구중량(kg) [자동 계산]",
-            value=float(calc_sales_cw),
-            min_value=0.0,
-            step=1.0,
-        )
-
-        auto_sales_price = 0
-        if "calculate_auto_price" in globals():
-            try:
-                auto_sales_price = calculate_auto_price(
-                    shipper_name, sales_chargeable_weight, transport_type
-                )
-            except Exception:
-                auto_sales_price = 0
-
-        total_sales = st.number_input(
-            "총 매출액 (원) [자동 계산 및 수정 가능]",
-            value=int(auto_sales_price),
-            min_value=0,
-            step=1000,
-            format="%d",
-        )
-
-        gross_weight_purchase = st.number_input(
-            "매입 실중량(kg)", value=float(gw), min_value=0.0
-        )
-        purchase_chargeable_weight = st.number_input(
-            "매입 청구중량(kg) [자동 계산]",
-            value=float(calc_purchase_cw),
-            min_value=0.0,
-            step=1.0,
-        )
-
-        auto_purchase_price = 0
-        if "calculate_auto_price" in globals():
-            try:
-                auto_purchase_price = calculate_auto_price(
-                    purchase_vendor, purchase_chargeable_weight, transport_type
-                )
-            except Exception:
-                auto_purchase_price = 0
-
-        total_purchase = st.number_input(
-            "총 매입액 (원) [자동 계산 및 수정 가능]",
-            value=int(auto_purchase_price),
-            min_value=0,
-            step=1000,
-            format="%d",
-        )
-
-        remarks = st.text_area("비고")
     st.markdown("---")
     preview_profit = int(total_sales) - int(total_purchase)
     current_user_display = st.session_state.get("current_user_name", "관리자")
@@ -1350,6 +1209,9 @@ if selected_menu == "📑 수출입 B/L 등록":
 
     if st.button("B/L 및 Profit 최종 등록하기", type="primary", use_container_width=True):
         if job_no.strip() and shipper_name.strip():
+            if "bl_data_list" not in st.session_state:
+                st.session_state.bl_data_list = []
+            
             st.session_state.bl_data_list.append({
                 "구분": io_type,
                 "날짜": str(reg_date),
@@ -1377,6 +1239,12 @@ if selected_menu == "📑 수출입 B/L 등록":
                 "최종작성자": current_user_display,
                 "최종수정자": "-",
             })
+            if "save_bl_data" in globals():
+                save_bl_data(st.session_state.bl_data_list)
+            st.success(f"[성공] B/L 및 Job 번호({job_no})가 [{current_user_display}]님의 이름으로 등록되었습니다!")
+        else:
+            st.warning("[경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다.")
+
             save_bl_data(st.session_state.bl_data_list)
             st.success(f"[성공] B/L 및 Job 번호({job_no})가 [{current_user_display}]님의 이름으로 등록되었습니다!")
         else:
