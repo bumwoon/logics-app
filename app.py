@@ -439,6 +439,8 @@ def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
 # ==========================================
 # [관리자 로그인 모드 (?mode=admin)]
 # ==========================================
+query_params = st.query_params
+mode_param = query_params.get("mode", "")
 if mode_param == "admin":
   if not st.session_state.logged_in_user:
     login_screen()
