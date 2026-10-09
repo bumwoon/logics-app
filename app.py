@@ -1563,8 +1563,8 @@ f"#### 📝 [B/L 번호: {target_item.get('B/L 번호', '')}] 상세 수정"
 f" 화면 (수정자: {current_user_name})"
 )
 
-        e_col1, e_col2 = st.columns(2)
-        with e_col1:
+e_col1, e_col2 = st.columns(2)
+with e_col1:
           u_io = st.selectbox(
               "수출입 구분",
               ["수출 (Export)", "수입 (Import)"],
