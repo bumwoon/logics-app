@@ -882,17 +882,19 @@ if uploaded_excel_file is not None:
     if file_extension == "csv":
       df_uploaded = pd.read_csv(uploaded_excel_file)
     else:
-      df_uploaded = pd.read_excel(uploaded_excel_file)
+      df_uploaded = pd.read_excel(uploaded_excel_file, sheet_name=0)
 
     if not df_uploaded.empty:
+      # 컬럼명 공백 제거
+      df_uploaded.columns = df_uploaded.columns.astype(str).str.strip()
+
       existing_data = load_bl_data()
       df_existing = pd.DataFrame(existing_data) if existing_data else pd.DataFrame()
 
       if not df_existing.empty:
-        df_existing.columns = df_existing.columns.str.strip()
-        df_uploaded.columns = df_uploaded.columns.str.strip()
+        df_existing.columns = df_existing.columns.astype(str).str.strip()
 
-              # 기존 데이터의 B/L 번호 목록 추출
+        # 기존 데이터의 B/L 번호 목록 추출
         existing_bls = (
             df_existing["B/L 번호"].astype(str).tolist()
             if "B/L 번호" in df_existing.columns
@@ -911,10 +913,18 @@ if uploaded_excel_file is not None:
         combined_df = pd.concat(
             [df_existing, df_new_only], ignore_index=True
         )
-  
+      else:
+        combined_df = df_uploaded
 
+      # 세션 및 파일 저장소에 즉시 반영
       st.session_state.bl_data_list = combined_df.to_dict("records")
       save_bl_data(st.session_state.bl_data_list)
+
+      # 화면 새로고침 트리거 설정
+      if "refresh_key" not in st.session_state:
+        st.session_state.refresh_key = 0
+      st.session_state.refresh_key += 1
+
       st.sidebar.success(
           "🎉 엑셀 백업 데이터가 기존 데이터에 이어붙여졌습니다!"
       )
