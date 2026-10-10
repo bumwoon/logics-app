@@ -1737,12 +1737,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
           target_bl_data.get("현재 상태"), "운송 중"
       )
 
-      logo_embed_bl = (
-          f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
-          " style='height: 42px; vertical-align: middle; margin-right: 10px;'>"
-          if encoded_sidebar_logo
-          else ""
-      )
+     
       barcode_html = generate_barcode_html(bl_num_str)
 
       air_check = "☑" if "항공" in transport_t else "☐"
