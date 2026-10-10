@@ -1744,7 +1744,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
       sea_check = "☑" if "해상" in transport_t else "☐"
       d2d_check = "☑" if "Door" in service_opt else "☐"
 
-awb_html = f'''
+awb_html = '''
             <!DOCTYPE html>
             <html>
             <head>
