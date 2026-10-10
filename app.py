@@ -1815,7 +1815,7 @@ awb_html = f'''
                         <tr>
                             <td style="width: 55%; border: none;">
                                 <div style="display: flex; align-items: center;">
-                                    {logo_embed_bl}
+                                    
                                     <div>
                                         <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
                                         <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD. | www.bumwoon.com</div>
