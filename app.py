@@ -2727,76 +2727,202 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
 
 # ==========================================
-# [8] 거래처 등록 요금 상세 관리 (거래처 삭제 기능 포함)
+# [거래처 등록 요금 상세 관리 메뉴]
 # ==========================================
-# 🏢 거래처 등록 요금 상세 관리 (신규 등록 + 요율 관리 + 행 삭제 완벽 반영)
 elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
-    st.markdown("<h3 style='color: #0f172a; font-weight: 700;'>🏢 거래처 등록 요금 상세 관리</h3>", unsafe_allow_html=True)
-    
-    # 1. 신규 거래처 등록 영역
-    st.markdown("#### ➕ 신규 거래처 등록")
-    col_new_c1, col_new_c2 = st.columns([3, 1])
-    with col_new_c1:
-        new_c_name = st.text_input("등록할 신규 거래처명", placeholder="예: (주)조은로직스", key="input_new_client_name")
-    with col_new_c2:
-        st.write("")
-        st.write("")
-        if st.button("➕ 거래처 추가", type="primary", key="btn_add_new_client"):
-            if new_c_name.strip():
-                if "client_list" not in st.session_state:
-                    st.session_state.client_list = []
-                if new_c_name.strip() not in st.session_state.client_list:
-                    st.session_state.client_list.append(new_c_name.strip())
-                    st.success(f"'{new_c_name.strip()}' 거래처가 성공적으로 등록되었습니다!")
-                    st.rerun()
-                else:
-                    st.warning("이미 등록되어 있는 거래처명입니다.")
-            else:
-                st.warning("거래처명을 입력해 주세요.")
-                
-    st.divider()
-    
-    # 2. 거래처별 요율 및 단가 상세 관리 영역
-    if "client_list" in st.session_state and st.session_state.client_list:
-        client_select_m = st.selectbox("관리할 거래처 선택", options=st.session_state.client_list, key="rate_client_select")
-        
-        rate_key = f"rates_{client_select_m}"
-        if rate_key not in st.session_state:
-            st.session_state[rate_key] = [
-                {"국가": "미국", "운송형태": "항공(Air)", "품목": "일반화물", "기본중량(kg)": 1.0, "기본요금(원)": 30000, "추가단가(원/kg)": 25000}
-            ]
-        
-        st.markdown(f"#### 📦 [{client_select_m}] 국가별·운송형태별 단가 및 요율표")
-        st.info("💡 **행 추가**: 표 맨 아래 빈 칸을 클릭하여 새 요율을 입력하세요.\n💡 **행 삭제**: 삭제할 행 맨 앞의 **[삭제 선택]**에 체크 후 **[요율표 최종 저장하기]**를 누르세요.")
-        
-        df_rates = pd.DataFrame(st.session_state[rate_key])
-        if "삭제" not in df_rates.columns:
-            df_rates.insert(0, "삭제", False)
-            
-        edited_rates_df = st.data_editor(
-            df_rates,
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "삭제": st.column_config.CheckboxColumn("삭제 선택", default=False)
-            },
-            key=f"editor_rates_{client_select_m}"
-        )
-        
-        col_save_rate, col_dummy = st.columns([1, 4])
-        with col_save_rate:
-            if st.button("💾 요율표 최종 저장하기", type="primary", key=f"btn_save_rate_{client_select_m}"):
-                if "삭제" in edited_rates_df.columns:
-                    valid_df = edited_rates_df[edited_rates_df["삭제"] != True].drop(columns=["삭제"])
-                else:
-                    valid_df = edited_rates_df
-                
-                st.session_state[rate_key] = valid_df.to_dict("records")
-                st.success(f"[{client_select_m}] 단가표가 안전하게 저장되었습니다!")
-                st.rerun()
-    else:
-        st.warning("등록된 거래처가 없습니다. 위 입력창에서 신규 거래처를 먼저 등록해 주세요.")
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🏢"
+      " 거래처 등록 요금 상세 관리</h3>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>신규"
+      " 거래처를 등록하고, 국가·운송형태·품목별 약정 단가(요율표)를 간편하게"
+      " 관리할 수 있습니다.</p>",
+      unsafe_allow_html=True,
+  )
+
+  # 1. 신규 거래처 등록 섹션
+  with st.expander("➕ 신규 거래처 추가하기", expanded=False):
+    new_c_name = st.text_input(
+        "등록할 신규 거래처명", placeholder="예: (주)조은로직스"
+    )
+    new_c_bno = st.text_input(
+        "사업자등록번호", placeholder="예: 123-45-67890"
+    )
+    new_c_mgr = st.text_input("담당자 성명", placeholder="예: 홍길동 과장")
+    new_c_tel = st.text_input("전화번호", placeholder="예: 010-0000-0000")
+    new_c_addr = st.text_input("주소", placeholder="예: 경기도 김포시 ...")
+
+    if st.button("신규 거래처 등록하기", type="primary"):
+      if new_c_name.strip():
+        if new_c_name not in st.session_state.client_list:
+          st.session_state.client_list.append(new_c_name)
+          st.session_state.client_infos[new_c_name] = {
+              "사업자등록번호": new_c_bno,
+              "이메일": "",
+              "담당자": new_c_mgr,
+              "전화번호": new_c_tel,
+              "주소": new_c_addr,
+          }
+          if new_c_name not in st.session_state.client_rates:
+            st.session_state.client_rates[new_c_name] = {
+                "미국": {
+                    "항공(Air)": {
+                        "일반화물": {
+                            "기본중량": 1.0,
+                            "기본요금": 38000,
+                            "추가단가": 25000,
+                            "1CBM당단가": 3700000,
+                        }
+                    }
+                }
+            }
+          save_client_data(
+              st.session_state.client_list,
+              st.session_state.client_rates,
+              st.session_state.client_infos,
+          )
+          st.success(
+              f"🎉 신규 거래처 [{new_c_name}]가 성공적으로 등록되었습니다!"
+          )
+          st.rerun()
+        else:
+          st.warning("이미 존재하는 거래처명입니다.")
+      else:
+        st.warning("거래처명을 입력해주세요.")
+
+  st.markdown("---")
+
+  # 2. 기존 거래처 요율표 관리 섹션
+  if st.session_state.client_list:
+    selected_m_client = st.selectbox(
+        "관리할 거래처 선택", options=st.session_state.client_list
+    )
+
+    st.markdown(
+        f"#### 📦 [{selected_m_client}] 국가별·운송형태별 단가 및 요율표"
+    )
+    st.markdown(
+        "<p style='color: #64748b; font-size: 12.5px;'>국가, 운송형태, 품목"
+        " 항목을 클릭하여 드롭다운 메뉴에서 간편하게 선택하세요.</p>",
+        unsafe_allow_html=True,
+    )
+
+    # 해당 거래처의 요율 데이터를 데이터프레임으로 변환
+    rate_rows = []
+    c_rates = st.session_state.client_rates.get(selected_m_client, {})
+    for country, trans_dict in c_rates.items():
+      if isinstance(trans_dict, dict):
+        for transport, item_dict in trans_dict.items():
+          if isinstance(item_dict, dict):
+            for item_name, r_val in item_dict.items():
+              rate_rows.append({
+                  "삭제 선택": False,
+                  "국가": country,
+                  "운송형태": transport,
+                  "품목": item_name,
+                  "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
+                  "기본요금(원)": int(r_val.get("기본요금", 38000)),
+                  "추가단가(원)": int(r_val.get("추가단가", 25000)),
+                  "1CBM당단가(원)": int(r_val.get("1CBM당단가", 3700000)),
+              })
+
+    if not rate_rows:
+      rate_rows = [{
+          "삭제 선택": False,
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품목": "일반화물",
+          "기본중량(kg)": 1.0,
+          "기본요금(원)": 38000,
+          "추가단가(원)": 25000,
+          "1CBM당단가(원)": 3700000,
+      }]
+
+    df_rates_edit = pd.DataFrame(rate_rows)
+
+    # 요청하신 드롭다운 선택 옵션 정의
+    country_options = [
+        "미국",
+        "중국",
+        "호주",
+        "태국",
+        "인도",
+        "멕시코",
+        "홍콩",
+        "베트남",
+        "기타 국가",
+    ]
+    transport_options = ["항공(Air)", "해상(LCL)", "에어카고"]
+    item_options = ["일반화물", "보톡스 필러", "화장품", "특기품목"]
+
+    # 표 셀을 드롭다운 선택형(SelectboxColumn)으로 지정
+    edited_rate_df = st.data_editor(
+        df_rates_edit,
+        num_rows="dynamic",
+        use_container_width=True,
+        column_config={
+            "삭제 선택": st.column_config.CheckboxColumn(required=True),
+            "국가": st.column_config.SelectboxColumn(
+                "국가", options=country_options, required=True
+            ),
+            "운송형태": st.column_config.SelectboxColumn(
+                "운송형태", options=transport_options, required=True
+            ),
+            "품목": st.column_config.SelectboxColumn(
+                "품목", options=item_options, required=True
+            ),
+            "기본중량(kg)": st.column_config.NumberColumn(
+                min_value=0.0, step=0.5
+            ),
+            "기본요금(원)": st.column_config.NumberColumn(
+                min_value=0, step=1000, format="%d원"
+            ),
+            "추가단가(원)": st.column_config.NumberColumn(
+                min_value=0, step=1000, format="%d원"
+            ),
+            "1CBM당단가(원)": st.column_config.NumberColumn(
+                min_value=0, step=10000, format="%d원"
+            ),
+        },
+        key="rate_editor_grid",
+    )
+
+    if st.button("💾 요율표 최종 저장하기", type="primary", use_container_width=True):
+      new_rates_structure = {}
+      for _, row in edited_rate_df.iterrows():
+        if row.get("삭제 선택") == True:
+          continue
+        c = str(row.get("국가", "미국")).strip()
+        t = str(row.get("운송형태", "항공(Air)")).strip()
+        i = str(row.get("품목", "일반화물")).strip()
+
+        if c not in new_rates_structure:
+          new_rates_structure[c] = {}
+        if t not in new_rates_structure[c]:
+          new_rates_structure[c][t] = {}
+
+        new_rates_structure[c][t][i] = {
+            "기본중량": float(row.get("기본중량(kg)", 1.0)),
+            "기본요금": int(row.get("기본요금(원)", 38000)),
+            "추가단가": int(row.get("추가단가(원)", 25000)),
+            "1CBM당단가": int(row.get("1CBM당단가(원)", 3700000)),
+        }
+
+      st.session_state.client_rates[selected_m_client] = new_rates_structure
+      save_client_data(
+          st.session_state.client_list,
+          st.session_state.client_rates,
+          st.session_state.client_infos,
+      )
+      # 최종 저장 성공 메시지 출력
+      st.success(
+          f"🎉 [{selected_m_client}] 거래처의 요율표가 성공적으로"
+          " 저장되었습니다!"
+      )
+  else:
+    st.info("등록된 거래처가 없습니다. 먼저 신규 거래처를 등록해주세요.")
 
 
 
