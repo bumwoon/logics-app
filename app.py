@@ -837,7 +837,7 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 진짜 엑셀(.xlsx) 백업 및 자동 이어붙이기 업로드 기능 (openpyxl 사용)
+# 💾 진짜 엑셀(.xlsx) 백업 및 자동 이어붙이기 업로드 기능
 # ==========================================
 st.sidebar.subheader("💾 데이터 백업 및 이어붙이기 (엑셀)")
 
@@ -860,10 +860,12 @@ if existing_data_for_backup:
       mime=(
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       ),
-      help="현재 저장된 화물 데이터를 정식 엑셀 파일(.xlsx)로 다운로드합니다.",
+      use_container_width=True,
   )
 else:
-  st.sidebar.info("백업할 B/L 데이터 파일이 아직 없습니다.")
+  st.sidebar.info("다운로드할 기존 데이터가 없습니다.")
+
+st.sidebar.markdown("---")
 
 uploaded_excel_file = st.sidebar.file_uploader(
     "📤 백업 엑셀파일 자동 이어붙이기 (.xlsx)",
@@ -873,6 +875,7 @@ uploaded_excel_file = st.sidebar.file_uploader(
         " 이어붙여집니다."
     ),
 )
+
 if uploaded_excel_file is not None:
   try:
     file_extension = uploaded_excel_file.name.split(".")[-1].lower()
@@ -886,11 +889,14 @@ if uploaded_excel_file is not None:
       df_existing = pd.DataFrame(existing_data) if existing_data else pd.DataFrame()
 
       if not df_existing.empty:
-        combined_df = (
-            pd.concat([df_existing, df_uploaded])
-            .drop_duplicates(subset=["B/L 번호"], keep="first")
-            .reset_index(drop=True)
-        )
+        df_existing.columns = df_existing.columns.str.strip()
+        df_uploaded.columns = df_uploaded.columns.str.strip()
+
+        combined_df = pd.concat([df_existing, df_uploaded], ignore_index=True)
+        if "B/L 번호" in combined_df.columns:
+          combined_df = combined_df.drop_duplicates(
+              subset=["B/L 번호"], keep="last"
+          )
       else:
         combined_df = df_uploaded
 
@@ -899,10 +905,10 @@ if uploaded_excel_file is not None:
       st.sidebar.success(
           "🎉 엑셀 백업 데이터가 기존 데이터에 이어붙여졌습니다!"
       )
+      st.rerun()
   except Exception as e:
     st.sidebar.error(f"엑셀 파일 업로드 중 오류가 발생했습니다: {e}")
 
-st.sidebar.markdown("---")
 
 menu_options = [
     "📊 수출입 B/L 등록",
