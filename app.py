@@ -1749,7 +1749,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
       sea_check = "☑" if "해상" in transport_t else "☐"
       d2d_check = "☑" if "Door" in service_opt else "☐"
 
-      awb_html = f"""
+          awb_html = f'''
             <!DOCTYPE html>
             <html>
             <head>
@@ -1821,4 +1821,47 @@ elif selected_menu == "🚢 B/L 운송장 출력":
                             <td style="width: 55%; border: none;">
                                 <div style="display: flex; align-items: center;">
                                     {logo_embed_bl}
-                                    
+                                    <div>
+                                        <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                        <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD. | www.bumwoon.com</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="width: 45%; text-align: right; border: none;">
+                                <div style="font-size: 8.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">AIR WAYBILL / B/L NO.</div>
+                                {barcode_html}
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="top-table">
+                        <tr>
+                            <td style="width: 50%;">
+                                <div class="section-header">FROM (SHIPPER / 송하인)</div>
+                                <b>상호:</b> {shipper_n}<br>
+                                <b>사업자등록번호:</b> {shipper_bno}<br>
+                                <b>주소:</b> {shipper_addr}<br>
+                                <b>담당자 / 연락처:</b> {shipper_mgr} / {shipper_tel}<br>
+                                <div style="margin-top: 8px; font-size: 8pt; color: #64748b;">SENT BY: 사장실 / Date: {ship_date}</div>
+                            </td>
+                            <td style="width: 50%;">
+                                <div class="section-header">TO (CONSIGNEE / 수하인)</div>
+                                <b>수하인명:</b> <span style="font-size: 10.5pt; color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br>
+                                <b>도착 국가:</b> {dest_c}<br>
+                                <b>출발지:</b> {origin_p}<br>
+                                <div style="margin-top: 14px; font-size: 8pt; color: #64748b;">ATTENTION OF: 현지 담당자 앞 / TEL: -</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="mid-table">
+                        <tr>
+                            <td style="width: 33%;">
+                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">CARRIER / 운송수단</div>
+                                {air_check} AIR &nbsp;&nbsp;&nbsp; {sea_check} SEA (LCL)<br>
+                                <span style="font-size: 8pt; color: #64748b;">Service: {transport_t}</span>
+                            </td>
+                            <td style="width: 33%;">
+                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">SERVICE OPTION</div>
+                                {d2d_check} Door To Door<br>
+                                <span style="font-size: 8
