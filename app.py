@@ -2088,28 +2088,61 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     <head>
         <meta charset="utf-8">
         <style>
+            /* 화면 미리보기와 실제 인쇄/PDF를 분리 */
+            @media screen {{
+                body {{
+                    -webkit-print-color-adjust: exact;
+                    font-family: 'Pretendard', 'Malgun Gothic', sans-serif;
+                    color: #1e293b;
+                    font-size: 10pt;
+                    line-height: 1.5;
+                    margin: 0;
+                    padding: 10px;
+                    background-color: #ffffff;
+                }}
+                .invoice-container {{
+                    max-width: 800px;
+                    margin: 0 auto;
+                    border: 2px solid #0f172a;
+                    padding: 30px;
+                    border-radius: 8px;
+                    background-color: #ffffff;
+                    box-sizing: border-box;
+                }}
+            }}
             @media print {{
-                body {{ -webkit-print-color-adjust: exact; }}
-                .no-print {{ display: none !important; }}
-                @page {{ size: A4 portrait; margin: 15mm; }}
+                @page {{ size: A4 portrait; margin: 12mm; }}
+                html, body {{
+                    width: auto !important;
+                    height: auto !important;
+                    min-height: 0 !important;
+                    overflow: visible !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: #fff !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }}
+                .no-print, .print-btn {{ display: none !important; }}
+                .invoice-container {{
+                    width: 100% !important;
+                    max-width: none !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    border: 0 !important;
+                    border-radius: 0 !important;
+                    box-shadow: none !important;
+                    page-break-inside: auto;
+                }}
+                table {{ width: 100% !important; page-break-inside: auto; }}
+                thead {{ display: table-header-group; }}
+                tfoot {{ display: table-footer-group; }}
+                tr, img {{ page-break-inside: avoid; break-inside: avoid; }}
+                h1, h2, h3 {{ page-break-after: avoid; }}
             }}
-            body {{
-                font-family: 'Pretendard', sans-serif;
-                color: #1e293b;
-                font-size: 10pt;
-                line-height: 1.5;
-                margin: 0;
-                padding: 10px;
-                background-color: #ffffff;
-            }}
-            .invoice-container {{
-                max-width: 800px;
-                margin: 0 auto;
-                border: 2px solid #0f172a;
-                padding: 30px;
-                border-radius: 8px;
-                background-color: #ffffff;
-            }}
+            body {{ font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }}
             .print-btn {{
                 display: block;
                 width: 100%;
@@ -2200,7 +2233,9 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
   st.markdown("---")
   st.markdown("#### 👁‍🗨️ 정식 인보이스 미리보기 및 인쇄")
-  components.html(invoice_html_output, height=750, scrolling=False)
+  # 미리보기 iframe은 충분한 높이를 제공하고, 인쇄 시에는 위 @media print 규칙으로
+  # 인보이스 문서만 A4로 출력되도록 합니다.
+  components.html(invoice_html_output, height=1100, scrolling=True)
 
 
 # ==========================================
