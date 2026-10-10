@@ -1863,5 +1863,58 @@ awb_html = f'''
                             </td>
                             <td style="width: 33%;">
                                 <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">SERVICE OPTION</div>
-                                {d2d_check} Door To Door<br>
-                                <span style="font-size: 8
+                               
+                            </td>
+                            <td style="width: 34%;">
+                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">SCHEDULE / 선적일</div>
+                                선적일자: <b>{ship_date}</b><br>
+                                <span style="font-size: 8pt; color: #64748b;">Job No: {job_num_str}</span>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="mid-table">
+                        <tr>
+                            <td style="width: 60%;">
+                                <div class="section-header">DESCRIPTION OF CONTENTS / 화물 품목 및 규격</div>
+                                <div style="font-size: 10pt; font-weight: bold; color: #1e3a8a; margin-bottom: 4px;">{item_name}</div>
+                                <div style="font-size: 8.5pt; color: #475569;">
+                                    • 총 박스수: <b>{box_cnt}</b><br>
+                                    • 부피 규격: {vol_spec} (<b style="color: #2563eb;">{cbm_val}</b>)
+                                </div>
+                            </td>
+                            <td style="width: 40%;">
+                                <div class="section-header">WEIGHT / 중량 정보</div>
+                                • 매출 청구중량: <b style="color: #dc2626;">{sales_cw} KG</b><br>
+                                • 포장 수량: <b>{box_cnt}</b>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table style="width: 100%; border: 1px solid #64748b; background-color: #f8fafc; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                        <tr>
+                            <td style="border: none; font-size: 8.5pt; color: #475569;">
+                                <b>[화물 취급 안내 및 면책 조항]</b><br>
+                                1. 본 화물은 (주)범운해운항공의 엄격한 물류 표준에 따라 안전하게 접수 및 선적되었습니다.<br>
+                                2. 운송 중 발생하는 천재지변 및 불가항력적인 지연에 대해서는 국제 운송 약관이 적용됩니다.
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                        <tr>
+                            <td style="border: 1px solid #0f172a; padding: 12px; width: 50%; background-color: #f8fafc;">
+                                <div style="font-size: 8.5pt; color: #64748b; font-weight: bold;">ISSUED BY / 발행인</div>
+                                <div style="font-size: 10pt; font-weight: 900; color: #1e3a8a; margin-top: 4px;">주식회사 범운해운항공 대표이사 이상복</div>
+                            </td>
+                            <td style="border: 1px solid #0f172a; padding: 12px; width: 50%; text-align: right; background-color: #f8fafc;">
+                                <div style="font-size: 8.5pt; color: #64748b; font-weight: bold;">STAMP / 서명 또는 직인</div>
+                                <div style="font-size: 10pt; font-weight: 900; color: #dc2626; margin-top: 4px;">[직인생략 / 전자서명 완료]</div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </body>
+            </html>
+'''
+components.html(awb_html, height=750, scrolling=True)
