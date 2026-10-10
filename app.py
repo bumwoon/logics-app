@@ -386,16 +386,21 @@ def save_client_data(client_list, client_rates, client_infos):
   pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
 
 
-def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
+def calculate_auto_price(
+    client_name, cw, transport_mode="항공(Air)", item_name="일반화물"
+):
   rates_dict = st.session_state.get("client_rates", {}).get(client_name, {})
   if rates_dict:
     for country, trans_dict in rates_dict.items():
       if isinstance(trans_dict, dict):
-        item_dict = trans_dict.get(
-            transport_mode, trans_dict.get("항공(Air)", {})
-        )
-        if isinstance(item_dict, dict):
-          for item_name, r_val in item_dict.items():
+        t_dict = trans_dict.get(transport_mode)
+        if not t_dict and len(trans_dict) > 0:
+          t_dict = list(trans_dict.values())[0]
+        if isinstance(t_dict, dict):
+          r_val = t_dict.get(item_name)
+          if not r_val and len(t_dict) > 0:
+            r_val = list(t_dict.values())[0]
+          if isinstance(r_val, dict):
             base_w = float(r_val.get("기본중량", 1.0))
             base_p = int(r_val.get("기본요금", 38000))
             add_p = int(r_val.get("추가단가", 25000))
@@ -404,6 +409,7 @@ def calculate_auto_price(client_name, cw, transport_mode="항공(Air)"):
             else:
               return int(base_p + math.ceil(cw - base_w) * add_p)
   return int(38000 + max(0.0, cw - 1.0) * 25000)
+
 
 
 def generate_barcode_html(text):
@@ -1250,13 +1256,10 @@ if selected_menu == "📊 수출입 B/L 등록":
     reg_date = st.date_input("선적 날짜", value=date.today())
     dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
     origin_place = st.text_input("출발지", value="대한민국 (KOREA)")
-    item_desc = st.text_input(
-        "품목",
-        value=(
-            "보톡스, 필러 및 관련 의약품/미용용품 (Botox, Filler & Related"
-            " Pharmaceuticals/Cosmetics)"
-        ),
-    )
+       # 품목 선택 드롭다운 (클릭 선택)
+    item_options_list = ["일반화물", "보톡스 필러", "화장품", "특기품목"]
+    item_desc = st.selectbox("품목", options=item_options_list)
+
 
     shipper_options = [""] + st.session_state.client_list
     shipper_name = st.selectbox(
@@ -1273,7 +1276,9 @@ if selected_menu == "📊 수출입 B/L 등록":
         index=2 if len(shipper_options) > 2 else 0,
     )
 
-    transport_type = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"])
+    transport_type = st.selectbox(
+    "운송 형태", options=["항공(Air)", "해상(LCL)", "에어카고"]
+)
     service_option = st.selectbox("서비스 옵션", ["Door To Door"])
     tracking_status = st.selectbox(
         "현재 진행 상태 선택", options=TRACKING_STATUS_OPTIONS
@@ -1296,10 +1301,9 @@ if selected_menu == "📊 수출입 B/L 등록":
         step=1.0,
     )
 
-    auto_sales_price = calculate_auto_price(
-        shipper_name, sales_chargeable_weight, transport_type
-    )
-
+       auto_sales_price = calculate_auto_price(
+        shipper_name, sales_chargeable_weight, transport_type, item_desc
+    ) 
     total_sales = st.number_input(
         "총 매출액 (원) [자동 계산 및 수정 가능]",
         value=int(auto_sales_price),
@@ -1318,9 +1322,9 @@ if selected_menu == "📊 수출입 B/L 등록":
         step=1.0,
     )
 
-    auto_purchase_price = calculate_auto_price(
-        purchase_vendor, purchase_chargeable_weight, transport_type
-    )
+       auto_purchase_price = calculate_auto_price(
+        purchase_vendor, purchase_chargeable_weight, transport_type, item_desc
+    ) 
 
     total_purchase = st.number_input(
         "총 매입액 (원) [자동 계산 및 수정 가능]",
