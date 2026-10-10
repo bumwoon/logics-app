@@ -892,13 +892,26 @@ if uploaded_excel_file is not None:
         df_existing.columns = df_existing.columns.str.strip()
         df_uploaded.columns = df_uploaded.columns.str.strip()
 
-        combined_df = pd.concat([df_existing, df_uploaded], ignore_index=True)
-        if "B/L 번호" in combined_df.columns:
-          combined_df = combined_df.drop_duplicates(
-              subset=["B/L 번호"], keep="last"
-          )
-      else:
-        combined_df = df_uploaded
+              # 기존 데이터의 B/L 번호 목록 추출
+        existing_bls = (
+            df_existing["B/L 번호"].astype(str).tolist()
+            if "B/L 번호" in df_existing.columns
+            else []
+        )
+
+        # 업로드된 파일 중 기존에 없는 새로운 B/L 번호 행만 골라냄
+        if "B/L 번호" in df_uploaded.columns:
+          df_new_only = df_uploaded[
+              ~df_uploaded["B/L 번호"].astype(str).isin(existing_bls)
+          ]
+        else:
+          df_new_only = df_uploaded
+
+        # 기존 데이터에 새로운 데이터만 아래에 이어붙임 (중복은 추가 안 함)
+        combined_df = pd.concat(
+            [df_existing, df_new_only], ignore_index=True
+        )
+  
 
       st.session_state.bl_data_list = combined_df.to_dict("records")
       save_bl_data(st.session_state.bl_data_list)
