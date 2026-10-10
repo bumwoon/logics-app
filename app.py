@@ -1824,7 +1824,7 @@ awb_html = f'''
                             </td>
                             <td style="width: 45%; text-align: right; border: none;">
                                 <div style="font-size: 8.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">AIR WAYBILL / B/L NO.</div>
-                                {barcode_html}
+                                
                             </td>
                         </tr>
                     </table>
