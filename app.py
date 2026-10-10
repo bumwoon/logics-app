@@ -1257,8 +1257,8 @@ if selected_menu == "📊 수출입 B/L 등록":
     # 2단 컬럼 레이아웃 적용
 col1, col2 = st.columns(2)
 
-with col1:
-  st.markdown("#### 📋 기본 정보")
+    with col1:
+      st.markdown("#### 📋 기본 정보")
       dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
       origin_place = st.text_input("출발지", value="대한민국 (KOREA)")
       item_desc = st.selectbox(
