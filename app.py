@@ -910,6 +910,7 @@ if uploaded_excel_file is not None:
     st.sidebar.error(f"엑셀 파일 업로드 중 오류가 발생했습니다: {e}")
 
 
+
 menu_options = [
     "📊 수출입 B/L 등록",
     "📋 등록 B/L 수정 및 Profit 내역",
