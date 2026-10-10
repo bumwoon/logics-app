@@ -1343,42 +1343,46 @@ if selected_menu == "📊 수출입 B/L 등록":
 
     remarks = st.text_area("비고")
 
-    if st.button("💾 B/L 등록 저장"):
-      if job_no and shipper_name:
+      if st.button("💾 B/L 등록 저장", type="primary", use_container_width=True):
+      if job_no.strip() and shipper_name.strip():
+        preview_profit = int(total_sales) - int(total_purchase)
         st.session_state.bl_data_list.append({
-            "Job번호": job_no,
-            "날짜": str(bl_date),
-            "도착국가": dest_country,
+            "구분": io_type,
+            "날짜": str(reg_date),
+            "Job 번호": job_no,
+            "B/L 번호": bl_no,
+            "국가": dest_country,
             "출발지": origin_place,
-            "품목": item_desc,
-            "화주명": shipper_name,
+            "화주명(매출)": shipper_name,
             "해외수하인": consignee_name,
             "매입처": purchase_vendor,
             "운송형태": transport_type,
             "서비스옵션": service_option,
-            "진행상태": tracking_status,
-            "수금상태": payment_status_input,
-            "총박스수": piece_count,
+            "품목": item_desc,
+            "박스수": piece_count,
             "부피규격": volume_dim,
-            "매출실중량": gross_weight_sales,
-            "매출청구중량": sales_chargeable_weight,
-            "총매출액": total_sales,
-            "매입실중량": gross_weight_purchase,
-            "매입청구중량": purchase_chargeable_weight,
-            "총매입액": total_purchase,
+            "매출청구중량(kg)": sales_chargeable_weight,
+            "매입청구중량(kg)": purchase_chargeable_weight,
+            "CBM": f"{total_cbm:.3f} CBM",
+            "현재 상태": tracking_status,
+            "수금상태": payment_status_input,
+            "매출액(원)": int(total_sales),
+            "매입액(원)": int(total_purchase),
+            "예상Profit(원)": preview_profit,
             "비고": remarks,
             "최종작성자": current_user_name,
             "최종수정자": "-",
         })
         save_bl_data(st.session_state.bl_data_list)
         st.success(
-            f"🎉 [성공] B/L 및 Job 번호({job_no})가 [{current_user_name}]의"
+            f"🎉 [성공] B/L 및 Job 번호({job_no})가 [{current_user_name}]님의"
             " 이름으로 등록되었습니다!"
         )
       else:
         st.warning(
             "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
         )
+  
     
 
 # ==========================================
