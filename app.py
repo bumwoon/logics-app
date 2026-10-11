@@ -2890,11 +2890,12 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
           for transport, item_dict in trans_dict.items():
             if isinstance(item_dict, dict):
               for item_name, r_val in item_dict.items():
+                if not country or str(country) == "None" or not transport or str(transport) == "None" or not item_name or str(item_name) == "None":
+                  continue
                 client_rate_data.append({
-                    "삭제": False,
-                    "국가": country,
-                    "운송형태": transport,
-                    "품명": item_name,
+                    "국가": str(country).strip(),
+                    "운송형태": str(transport).strip(),
+                    "품명": str(item_name).strip(),
                     "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
                     "기본요금(원)": int(r_val.get("기본요금", 38000)),
                     "추가단가(원)": int(r_val.get("추가단가", 25000)),
@@ -2903,7 +2904,6 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
     if not client_rate_data:
       client_rate_data.append({
-          "삭제": False,
           "국가": "미국",
           "운송형태": "항공",
           "품명": "일반화물",
@@ -2933,131 +2933,87 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
     transport_options = ["항공", "해상", "에어카고"]
     item_options = ["일반화물", "보톡스필러", "화장품", "특수화물", "직접지정"]
 
-    # st.data_editor 설정
+    # st.data_editor 설정 (None 발생 원천 차단)
     edited_rates_df = st.data_editor(
         df_rates,
         num_rows="dynamic",
         use_container_width=True,
         column_config={
-            "삭제": st.column_config.CheckboxColumn("삭제", default=False),
             "국가": st.column_config.SelectboxColumn(
                 "국가",
                 options=country_options,
                 required=True,
+                default="미국"
             ),
             "운송형태": st.column_config.SelectboxColumn(
                 "운송형태",
                 options=transport_options,
                 required=True,
+                default="항공"
             ),
             "품명": st.column_config.SelectboxColumn(
                 "품명",
                 options=item_options,
                 required=True,
+                default="일반화물"
             ),
             "기본중량(kg)": st.column_config.NumberColumn(
-                "기본중량(kg)", format="%.1f"
+                "기본중량(kg)", format="%.1f", default=1.0
             ),
             "기본요금(원)": st.column_config.NumberColumn(
-                "기본요금(원)", format="%d 원"
+                "기본요금(원)", format="%d 원", default=38000
             ),
             "추가단가(원)": st.column_config.NumberColumn(
-                "추가단가(원)", format="%d 원"
+                "추가단가(원)", format="%d 원", default=25000
             ),
             "1CBM단가(원)": st.column_config.NumberColumn(
-                "1CBM단가(원)", format="%d 원"
+                "1CBM단가(원)", format="%d 원", default=3700000
             ),
         },
         key=f"rates_editor_{selected_manage_client}",
     )
 
-    # 🗑️ [별도 생성된 삭제 및 저장 버튼 영역]
-    btn_c1, btn_c2 = st.columns(2)
+    # 요율표 최종 저장 버튼
+    if st.button(
+        "💾 요율표 최종 저장하기",
+        type="primary",
+        use_container_width=True,
+        key=f"save_rates_btn_{selected_manage_client}",
+    ):
+      if edited_rates_df is not None and not edited_rates_df.empty:
+        new_rates_structure = {}
+        for _, row in edited_rates_df.iterrows():
+          c = row.get("국가")
+          t = row.get("운송형태")
+          i = row.get("품명")
 
-    with btn_c1:
-      if st.button(
-          "🗑️ 체크한 행 삭제하기",
-          key=f"del_checked_rows_{selected_manage_client}",
-          use_container_width=True,
-      ):
-        if edited_rates_df is not None and not edited_rates_df.empty:
-          # '삭제' 체크가 안 된 행만 골라냄
-          remaining_df = edited_rates_df[edited_rates_df["삭제"] != True]
-          new_rates_structure = {}
-          for _, row in remaining_df.iterrows():
-            c = row.get("국가")
-            t = row.get("운송형태")
-            i = row.get("품명")
+          if not c or str(c) == "None" or str(c).strip() == "" or not t or str(t) == "None" or str(t).strip() == "" or not i or str(i) == "None" or str(i).strip() == "":
+            continue
 
-            if not c or str(c) == "None" or not t or str(t) == "None" or not i or str(i) == "None":
-              continue
+          c_str = str(c).strip()
+          t_str = str(t).strip()
+          i_str = str(i).strip()
 
-            c_str, t_str, i_str = str(c).strip(), str(t).strip(), str(i).strip()
+          if c_str not in new_rates_structure:
+            new_rates_structure[c_str] = {}
+          if t_str not in new_rates_structure[c_str]:
+            new_rates_structure[c_str][t_str] = {}
 
-            if c_str not in new_rates_structure:
-              new_rates_structure[c_str] = {}
-            if t_str not in new_rates_structure[c_str]:
-              new_rates_structure[c_str][t_str] = {}
+          new_rates_structure[c_str][t_str][i_str] = {
+              "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
+              "기본요금": int(row.get("기본요금(원)", 38000) or 38000),
+              "추가단가": int(row.get("추가단가(원)", 25000) or 25000),
+              "1CBM단가": int(row.get("1CBM단가(원)", 3700000) or 3700000),
+          }
 
-            new_rates_structure[c_str][t_str][i_str] = {
-                "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
-                "기본요금": int(row.get("기본요금(원)", 38000) or 38000),
-                "추가단가": int(row.get("추가단가(원)", 25000) or 25000),
-                "1CBM단가": int(row.get("1CBM단가(원)", 3700000) or 3700000),
-            }
-
-          st.session_state.client_rates[selected_manage_client] = new_rates_structure
-          save_client_data(
-              st.session_state.client_list,
-              st.session_state.client_rates,
-              st.session_state.client_infos,
-          )
-          st.success("선택하신 행이 삭제되었습니다!")
-          st.rerun()
-
-    with btn_c2:
-      # 요율표 최종 저장 버튼
-      if st.button(
-          "💾 요율표 최종 저장하기",
-          type="primary",
-          use_container_width=True,
-          key=f"save_rates_btn_{selected_manage_client}",
-      ):
-        if edited_rates_df is not None and not edited_rates_df.empty:
-          new_rates_structure = {}
-          for _, row in edited_rates_df.iterrows():
-            if row.get("삭제") == True:
-              continue
-
-            c = row.get("국가")
-            t = row.get("운송형태")
-            i = row.get("품명")
-
-            if not c or str(c) == "None" or not t or str(t) == "None" or not i or str(i) == "None":
-              continue
-
-            c_str, t_str, i_str = str(c).strip(), str(t).strip(), str(i).strip()
-
-            if c_str not in new_rates_structure:
-              new_rates_structure[c_str] = {}
-            if t_str not in new_rates_structure[c_str]:
-              new_rates_structure[c_str][t_str] = {}
-
-            new_rates_structure[c_str][t_str][i_str] = {
-                "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
-                "기본요금": int(row.get("기본요금(원)", 38000) or 38000),
-                "추가단가": int(row.get("추가단가(원)", 25000) or 25000),
-                "1CBM단가": int(row.get("1CBM단가(원)", 3700000) or 3700000),
-            }
-
-          st.session_state.client_rates[selected_manage_client] = new_rates_structure
-          save_client_data(
-              st.session_state.client_list,
-              st.session_state.client_rates,
-              st.session_state.client_infos,
-          )
-          st.success(f"[{selected_manage_client}]의 요율표가 성공적으로 저장되었습니다!")
-          st.rerun()    
+        st.session_state.client_rates[selected_manage_client] = new_rates_structure
+        save_client_data(
+            st.session_state.client_list,
+            st.session_state.client_rates,
+            st.session_state.client_infos,
+        )
+        st.success(f"[{selected_manage_client}]의 요율표가 오류 없이 안전하게 저장되었습니다!")
+        st.rerun()   
 
         
 
