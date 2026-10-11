@@ -1657,67 +1657,120 @@ elif selected_menu == "🚢 B/L 운송장 출력":
       sea_check = "☑" if "해상" in transport_t else "☐"
       d2d_check = "☑" if "Door" in service_opt else "☐"
 
- awb_html = (
-    "<!DOCTYPE html><html><head><meta charset='utf-8'><style>"
-    "@media print {"
-    "  body { -webkit-print-color-adjust: exact; }"
-    "  .no-print { display: none !important; }"
-    "  @page { size: A4 portrait; margin: 10mm; }"
-    "}"
-    "body {"
-    "  font-family: 'Pretendard', sans-serif;"
-    "  color: #1e293b;"
-    "  font-size: 9.5pt;"
-    "  line-height: 1.3;"
-    "  margin: 0;"
-    "  padding: 10px;"
-    "  background-color: #ffffff;"
-    "}"
-    ".awb-container {"
-    "  max-width: 760px;"
-    "  margin: 0 auto;"
-    "  border: 2px solid #0f172a;"
-    "  padding: 20px;"
-    "}"
-    "table {"
-    "  width: 100%;"
-    "  border-collapse: collapse;"
-    "  margin-top: 10px;"
-    "}"
-    "th, td {"
-    "  border: 1px solid #64748b;"
-    "  padding: 6px 8px;"
-    "  font-size: 9pt;"
-    "}"
-    "th {"
-    "  background-color: #f1f5f9;"
-    "  text-align: center;"
-    "}"
-    "</style></head><body>"
-    "<div class='awb-container'>"
-    "<h2 style='text-align:center; margin-bottom:15px; color:#0f172a;'>수출입 B/L 및 물류 정산서</h2>"
-    "<table>"
-    f"<tr><td><b>화주사:</b> {shipper_name}</td><td><b>B/L 번호:</b> {bl_no}</td></tr>"
-    f"<tr><td><b>출발지:</b> {pol}</td><td><b>도착지:</b> {pod}</td></tr>"
-    f"<tr><td><b>운송 방식:</b> {transport_t}</td><td><b>서비스:</b> {service_opt}</td></tr>"
-    "</table>"
-    "<table>"
-    "<tr><th>품명</th><th>수량</th><th>단가</th><th>금액</th></tr>"
-    f"<tr><td>{item_desc}</td><td>{box_cnt}</td><td>{unit_price}</td><td>{total_amount}</td></tr>"
-    "</table>"
-    "<table style='width: 100%; margin-top: 10px; border-collapse: collapse;'>"
-    "<tr>"
-    "<td style='border: 1px solid #64748b; padding: 8px; width: 50%; font-size: 8pt;'>"
-    f"ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>"
-    "</td>"
-    "<td style='border: 1px solid #64748b; padding: 8px; width: 50%; text-align: right; font-size: 8pt;'>"
-    "COMPANY STAMP<br><b>[직인생략]</b>"
-    "</td>"
-    "</tr>"
-    "</table>"
-    "</div>"
-    "</body></html>"
-)     
+     awb_html = (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'><style>"
+        "@media print {"
+        "  body { -webkit-print-color-adjust: exact; }"
+        "  .no-print { display: none !important; }"
+        "  @page { size: A4 portrait; margin: 10mm; }"
+        "}"
+        "body {"
+        "  font-family: 'Pretendard', sans-serif;"
+        "  color: #1e293b;"
+        "  font-size: 9.5pt;"
+        "  line-height: 1.3;"
+        "  margin: 0;"
+        "  padding: 10px;"
+        "  background-color: #ffffff;"
+        "}"
+        ".awb-container {"
+        "  max-width: 760px;"
+        "  margin: 0 auto;"
+        "  border: 2px solid #0f172a;"
+        "  padding: 20px;"
+        "}"
+        "table {"
+        "  width: 100%;"
+        "  border-collapse: collapse;"
+        "  margin-top: 10px;"
+        "}"
+        "th, td {"
+        "  border: 1px solid #64748b;"
+        "  padding: 6px 8px;"
+        "  font-size: 9pt;"
+        "}"
+        "th {"
+        "  background-color: #f1f5f9;"
+        "  text-align: center;"
+        "}"
+        "</style></head><body>"
+        "<div class='awb-container'>"
+        "<h2 style='text-align:center; margin-bottom:15px; color:#0f172a;'>수출입 B/L 및 물류 정산서</h2>"
+        "<table>"
+        f"<tr><td><b>화주사:</b> {shipper_name}</td><td><b>B/L 번호:</b> {bl_no}</td></tr>"
+        f"<tr><td><b>출발지:</b> {pol}</td><td><b>도착지:</b> {pod}</td></tr>"
+        f"<tr><td><b>운송 방식:</b> {transport_t}</td><td><b>서비스:</b> {service_opt}</td></tr>"
+        "</table>"
+        "<table>"
+        "<tr><th>품명</th><th>수량</th><th>단가</th><th>금액</th></tr>"
+        f"<tr><td>{item_desc}</td><td>{box_cnt}</td><td>{unit_price}</td><td>{total_amount}</td></tr>"
+        "</table>"
+        "<table style='width: 100%; margin-top: 10px; border-collapse: collapse;'>"
+        "<tr>"
+        "<td style='border: 1px solid #64748b; padding: 8px; width: 50%; font-size: 8pt;'>"
+        f"ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>"
+        "</td>"
+        "<td style='border: 1px solid #64748b; padding: 8px; width: 50%; text-align: right; font-size: 8pt;'>"
+        "COMPANY STAMP<br><b>[직인생략]</b>"
+        "</td>"
+        "</tr>"
+        "</table>"
+        "</div>"
+        "</body></html>"
+    )
+
+    components.html(awb_html, height=750, scrolling=False)
+
+# ----------------------------------------------------
+# [4] 거래처 인보이스 발행
+# ----------------------------------------------------
+elif selected_menu == "거래처 인보이스 발행":
+    st.markdown(
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>"
+        "거래처 정식 인보이스 (INVOICE) 발행</h3>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>세금계산서 "
+        "발행 여부를 선택하시면 하단에 알맞은 입금 계좌정보(우리은행 또는 "
+        "카카오뱅크)가 자동으로 연동되어 출력됩니다.</p>",
+        unsafe_allow_html=True,
+    )
+
+    inv_col1, inv_col2 = st.columns(2)
+    with inv_col1:
+        inv_client_options = (
+            st.session_state.client_list
+            if st.session_state.client_list
+            else ["아코글로벌"]
+        )
+        selected_inv_client = st.selectbox(
+            "청구 대상 거래처 선택", options=inv_client_options, key="inv_client_select"
+        )
+        inv_date = st.date_input(
+            "인보이스 발행일자 (Date)", value=date.today(), key="inv_date_input"
+        )
+        inv_no = st.text_input(
+            "인보이스 번호",
+            value=f"INV-{date.today().strftime('%Y%m%d')}-01",
+            placeholder="예: INV_20261005-01",
+        )
+
+    with inv_col2:
+        inv_due_date = st.date_input(
+            "지불 기한일 (Due Date)", value=date.today(), key="inv_due_date_input"
+        )
+        tax_invoice_status = st.selectbox(
+            "세금계산서 발행 여부 선택",
+            options=[
+                "법인 세금계산서 발행 (우리은행 계좌 연동)",
+                "계산서 미발행 / Invoice 전용 (카카오뱅크 계좌 연동)",
+            ],
+            index=0,
+        )
+        inv_remark_memo = st.text_input(
+            "비고 메모", value="등록된 B/L 화물 운송비 청구 건"
+        )
 
 # ==========================================
 # [4] 거래처 인보이스 발행
