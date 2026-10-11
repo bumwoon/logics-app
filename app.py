@@ -990,10 +990,10 @@ if selected_side_client and selected_side_client != "없음":
       f"""
     <div style='background-color: #1e293b; padding: 10px; border-radius: 6px; color: #fff; font-size: 11.5px; line-height: 1.5;'>
         <b> [{selected_side_client}] 자금 현황</b><br>
-        • 총 매출(청구): <b>{client_total_sales:,} 원</b><br>
-        • 미수금 잔액: <span style='color: #f87171;'><b>{client_unpaid:,} 원</b></span><br>
+          - 총 매출(청구): <b>{client_total_sales:,} 원</b><br>
+        - 미수금 잔액: <span style='color: #f87171;'><b>{client_unpaid:,} 원</b></span><br>
         <hr style='border: 0.5px solid #475569; margin: 6px 0;'>
-        • 총 매입(비용): <b>{client_total_purchase:,} 원</b>
+        - 총 매입(비용): <b>{client_total_purchase:,} 원</b>      
     </div>
     """,
       unsafe_allow_html=True,
