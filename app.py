@@ -2889,23 +2889,20 @@ c_rates_dict = st.session_state.client_rates.get(
 )
 
 if c_rates_dict:
-      for country, trans_dict in c_rates_dict.items():
+    for country, trans_dict in c_rates_dict.items():
         if isinstance(trans_dict, dict):
-          for transport, item_dict in trans_dict.items():
-            if isinstance(item_dict, dict):
-              for item_name, r_val in item_dict.items():
-                client_rate_data.append({
-                    "선택": False,
-                    "국가": country,
-                    "운송형태": transport,
-                    "품명": item_name,
-                    "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
-                    "기본요금(원)": int(r_val.get("기본요금", 38000)),
-                    "추가단가(원)": int(r_val.get("추가단가", 25000)),
-                    "1CBM당단가(원)": int(r_val.get("1CBM당단가", 3700000)),
-                })
+            for transport, item_dict in trans_dict.items():
+                if isinstance(item_dict, dict):
+                    for item_name, r_val in item_dict.items():
+                        client_rate_data.append({
+                            "선택": False,
+                            "국가": country,
+                            "운송형태": transport,
+                            "항목": item_name,
+                            "요율/단가": r_val
+                        })
 
-    if client_rate_data:
+if client_rate_data:
       df_rates = pd.DataFrame(client_rate_data)
       edited_rates_df = st.data_editor(
           df_rates,
