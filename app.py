@@ -2877,11 +2877,8 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
             st.session_state.client_rates,
             st.session_state.client_infos,
         )
-        st.success(
-            f"[{selected_manage_client}]의 기본 정보가 성공적으로"
-            " 수정되었습니다!"
-        )
-        st.rerun()
+           st.success(f"[{selected_manage_client}]의 기본 정보가 성공적으로 수정되었습니다!")
+        st.rerun()     
 
     st.markdown("---")
     st.markdown(
