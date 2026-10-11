@@ -2879,14 +2879,14 @@ if st.session_state.get("client_save_success"):
     saved_client = st.session_state.pop("client_save_success")
     st.success(f"[{saved_client}]의 기본 정보가 성공적으로 수정되었습니다!")
 
-st.markdown("---")
-target_client = selected_manage_client if 'selected_manage_client' in locals() else st.session_state.get("selected_manage_client", "")
-st.markdown(f"#### 📊 [{target_client}] 국가별·운송형태별 단가 및 요율표")
-# 기존 요율표 편집 데이터프레임 구성 로직 연동
-client_rate_data = []
-c_rates_dict = st.session_state.client_rates.get(
-    target_client, {}
-)
+if 'selected_manage_client' in locals() and selected_manage_client:
+    st.markdown("---")
+    st.markdown(f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표")
+    # 기존 요율표 편집 데이터프레임 구성 로직 연동
+    client_rate_data = []
+    c_rates_dict = st.session_state.client_rates.get(
+        selected_manage_client, {}
+    )
 if c_rates_dict:
     for country, trans_dict in c_rates_dict.items():
         if isinstance(trans_dict, dict):
