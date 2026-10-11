@@ -2820,7 +2820,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
     st.markdown("---")
     
-    # 대표님께서 요청하신 거래처 삭제 기능
+    # 거래처 삭제
     st.markdown("#### 🗑 거래처 삭제")
     if st.button("🚨 선택한 거래처 삭제하기", type="secondary", key="btn_delete_client"):
       if len(st.session_state.client_list) > 1:
@@ -2843,7 +2843,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
     st.markdown("---")
 
-    # 복원된 요율(단가) 관리 영역
+    # 요율표 영역 (드롭다운 선택 옵션 완벽 복구)
     st.markdown(f"#### 📊 [{selected_client_mgr}] 국가별·운송형태별 단가 및 요율표")
 
     rates_dict = st.session_state.client_rates.get(selected_client_mgr, {})
@@ -2854,19 +2854,27 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
           if isinstance(item_dict, dict):
             for item_name, r_val in item_dict.items():
               rate_rows.append({
-                  "국가": country,
-                  "운송형태": transport,
-                  "품명": item_name,
+                  "국가": country if country else "미국",
+                  "운송형태": transport if transport and transport != "None" else "항공(Air)",
+                  "품명": item_name if item_name and item_name != "None" else "일반화물",
                   "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
                   "기본요금(원)": int(r_val.get("기본요금", 38000)),
                   "추가단가(원/kg)": int(r_val.get("추가단가", 25000)),
                   "1CBM당단가(원)": int(r_val.get("1CBM당단가", 3700000)),
               })
 
-    df_rates = pd.DataFrame(rate_rows) if rate_rows else pd.DataFrame(columns=[
-        "국가", "운송형태", "품명", "기본중량(kg)", "기본요금(원)", "추가단가(원/kg)", "1CBM당단가(원)"
-    ])
+    if not rate_rows:
+      rate_rows = [{
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품명": "일반화물",
+          "기본중량(kg)": 1.0,
+          "기본요금(원)": 38000,
+          "추가단가(원/kg)": 25000,
+          "1CBM당단가(원)": 3700000,
+      }]
 
+    df_rates = pd.DataFrame(rate_rows)
     if "선택" not in df_rates.columns:
       df_rates.insert(0, "선택", False)
 
@@ -2874,7 +2882,18 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
         df_rates,
         hide_index=True,
         use_container_width=True,
-        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+        column_config={
+            "선택": st.column_config.CheckboxColumn(required=True),
+            "국가": st.column_config.SelectboxColumn(
+                "국가", options=COUNTRY_LIST, required=True
+            ),
+            "운송형태": st.column_config.SelectboxColumn(
+                "운송형태", options=["항공(Air)", "해상(LCL)", "에어카고"], required=True
+            ),
+            "품명": st.column_config.SelectboxColumn(
+                "품명", options=["일반화물", "보톡스 필러", "화장품", "특기품목"], required=True
+            ),
+        },
         num_rows="dynamic",
         key=f"rate_editor_{selected_client_mgr}",
     )
