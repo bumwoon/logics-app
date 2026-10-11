@@ -2757,272 +2757,90 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>신규"
-      " 거래처를 등록하고, 기존 거래처의 사업자 정보 및 국가·운송형태별 약정"
-      " 단가(요율표)를 관리할 수 있습니다.</p>",
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>거래처를"
+      " 등록하고, 기존 거래처의 사업자 정보 및 국가·운송형태별 단가(요율표)를"
+      " 관리할 수 있습니다.</p>",
       unsafe_allow_html=True,
   )
 
-  # 신규 거래처 추가 섹션
-  with st.expander("➕ 신규 거래처 추가하기", expanded=False):
-    new_client_name = st.text_input(
-        "신규 거래처명", placeholder="예: (주)한국물류"
+  if st.session_state.client_list:
+    selected_client_mgr = st.selectbox(
+        "관리할 거래처 선택", options=st.session_state.client_list
     )
-    n_bno = st.text_input("사업자등록번호", placeholder="000-00-00000")
-    n_addr = st.text_input("주소", placeholder="경기도 김포시 ...")
-    n_mgr = st.text_input("담당자 성명", placeholder="홍길동 부장")
-    n_tel = st.text_input("전화번호", placeholder="010-0000-0000")
-    n_email = st.text_input("이메일", placeholder="example@email.com")
+    c_info = st.session_state.client_infos.get(selected_client_mgr, {})
 
-    if st.button("신규 거래처 등록하기", type="primary"):
-      if new_client_name.strip():
-        if new_client_name not in st.session_state.client_list:
-          st.session_state.client_list.append(new_client_name)
-          st.session_state.client_infos[new_client_name] = {
-              "사업자등록번호": n_bno,
-              "주소": n_addr,
-              "담당자": n_mgr,
-              "전화번호": n_tel,
-              "이메일": n_email,
-          }
-          st.session_state.client_rates[new_client_name] = {
-              "미국": {
-                  "항공(Air)": {
-                      "일반화물": {
-                          "기본중량": 1.0,
-                          "기본요금": 38000,
-                          "추가단가": 25000,
-                          "1CBM당단가": 3700000,
-                      }
-                  }
-              }
-          }
-          save_client_data(
-              st.session_state.client_list,
-              st.session_state.client_rates,
-              st.session_state.client_infos,
-          )
-          st.success(
-              f"🎉 신규 거래처 '{new_client_name}'가 성공적으로 등록되었습니다!"
-          )
-          st.rerun()
-        else:
-          st.warning("이미 존재하는 거래처명입니다.")
-      else:
-        st.warning("거래처명을 입력해주세요.")
+    with st.form("client_info_form"):
+      st.markdown("#### 🏢 거래처 기본 정보 수정")
+      ci_bno = st.text_input(
+          "사업자등록번호", value=c_info.get("사업자등록번호", "")
+      )
+      ci_email = st.text_input("세금계산서 이메일", value=c_info.get("이메일", ""))
+      ci_mgr = st.text_input("담당자 성명", value=c_info.get("담당자", ""))
+      ci_tel = st.text_input("전화번호", value=c_info.get("전화번호", ""))
+      ci_addr = st.text_input("사업장 주소", value=c_info.get("주소", ""))
 
-  st.markdown("---")
-
-  # 관리할 거래처 선택
-  selected_manage_client = st.selectbox(
-      "관리할 거래처 선택", options=st.session_state.client_list
-  )
-
-  if selected_manage_client:
-    st.markdown(
-        f"#### 📝 [{selected_manage_client}] 사업자 기본 정보 수정"
-    )
-
-    current_info = st.session_state.client_infos.get(
-        selected_manage_client,
-        {
-            "사업자등록번호": "",
-            "주소": "",
-            "담당자": "",
-            "전화번호": "",
-            "이메일": "",
-        },
-    )
-
-    with st.form(f"client_info_edit_form_{selected_manage_client}"):
-      ec_col1, ec_col2 = st.columns(2)
-      with ec_col1:
-        edit_bno = st.text_input(
-            "사업자등록번호",
-            value=str(current_info.get("사업자등록번호", "")),
-        )
-        edit_addr = st.text_input(
-            "회사 주소", value=str(current_info.get("주소", ""))
-        )
-        edit_mgr = st.text_input(
-            "담당자 성명", value=str(current_info.get("담당자", ""))
-        )
-      with ec_col2:
-        edit_tel = st.text_input(
-            "전화번호", value=str(current_info.get("전화번호", ""))
-        )
-        edit_email = st.text_input(
-            "이메일 주소", value=str(current_info.get("이메일", ""))
-        )
-
-        if st.form_submit_button(
-            "💾 거래처 기본 정보 수정 저장",
-            type="primary",
-            use_container_width=True,
-        ):
-            st.session_state.client_infos[selected_manage_client] = {
-                "사업자등록번호": edit_bno,
-                "주소": edit_addr,
-                "담당자": edit_mgr,
-                "전화번호": edit_tel,
-                "이메일": edit_email,
-            }
-            save_client_data(
-                st.session_state.client_list,
-                st.session_state.client_rates,
-                st.session_state.client_infos,
-            )
-            st.success(f"[{selected_manage_client}]의 기본 정보가 수정되었습니다!")
-    st.markdown("---")
-    st.markdown(
-        f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표"
-    )
-
-    # 기존 요율표 편집 데이터프레임 구성 로직 연동
-    client_rate_data = []
-    c_rates_dict = st.session_state.client_rates.get(
-        selected_manage_client, {}
-    )
-
-    if c_rates_dict:
-      for country, trans_dict in c_rates_dict.items():
-        if isinstance(trans_dict, dict):
-          for transport, item_dict in trans_dict.items():
-            if isinstance(item_dict, dict):
-              for item_name, r_val in item_dict.items():
-                if not country or str(country) == "None" or not transport or str(transport) == "None" or not item_name or str(item_name) == "None":
-                  continue
-                client_rate_data.append({
-                    "선택": False,
-                    "국가": str(country).strip(),
-                    "운송형태": str(transport).strip(),
-                    "품명": str(item_name).strip(),
-                    "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
-                    "기본요금(원)": int(r_val.get("기본요금", 38000)),
-                    "추가단가(원)": int(r_val.get("추가단가", 25000)),
-                    "1CBM단가(원)": int(r_val.get("1CBM단가", 3700000)),
-                })
-
-    if not client_rate_data:
-      client_rate_data.append({
-          "선택": False,
-          "국가": "미국",
-          "운송형태": "항공",
-          "품명": "일반화물",
-          "기본중량(kg)": 1.0,
-          "기본요금(원)": 38000,
-          "추가단가(원)": 25000,
-          "1CBM단가(원)": 3700000,
-      })
-
-    import pandas as pd
-
-    df_rates = pd.DataFrame(client_rate_data)
-
-    # 국가, 운송형태, 품명 드롭다운 옵션 정의
-    country_options = [
-        "미국",
-        "중국",
-        "일본",
-        "홍콩",
-        "베트남",
-        "태국",
-        "인도네시아",
-        "호주",
-        "인도",
-        "기타",
-    ]
-    transport_options = ["항공", "해상", "에어카고"]
-    item_options = ["일반화물", "보톡스필러", "화장품", "특수화물", "직접지정"]
-
-    # st.data_editor 설정 (선택 체크박스 포함)
-    edited_rates_df = st.data_editor(
-        df_rates,
-        num_rows="dynamic",
-        use_container_width=True,
-        column_config={
-            "선택": st.column_config.CheckboxColumn("선택", default=False),
-            "국가": st.column_config.SelectboxColumn(
-                "국가",
-                options=country_options,
-                required=True,
-                default="미국"
-            ),
-            "운송형태": st.column_config.SelectboxColumn(
-                "운송형태",
-                options=transport_options,
-                required=True,
-                default="항공"
-            ),
-            "품명": st.column_config.SelectboxColumn(
-                "품명",
-                options=item_options,
-                required=True,
-                default="일반화물"
-            ),
-            "기본중량(kg)": st.column_config.NumberColumn(
-                "기본중량(kg)", format="%.1f", default=1.0
-            ),
-            "기본요금(원)": st.column_config.NumberColumn(
-                "기본요금(원)", format="%d 원", default=38000
-            ),
-            "추가단가(원)": st.column_config.NumberColumn(
-                "추가단가(원)", format="%d 원", default=25000
-            ),
-            "1CBM단가(원)": st.column_config.NumberColumn(
-                "1CBM단가(원)", format="%d 원", default=3700000
-            ),
-        },
-        key=f"rates_editor_{selected_manage_client}",
-    )
-
-    st.markdown("<p style='font-size: 11pt; color: #64748b;'>💡 <b>사용 방법:</b> 삭제하시려는 행의 <b>[선택]</b>에 체크하신 후 아래 <b>[요율표 최종 수정 저장]</b>을 누르시면 체크된 항목이 즉시 삭제되고 수정된 내용이 반영됩니다!</p>", unsafe_allow_html=True)
-
-    # 요율표 최종 수정 저장 버튼 (체크된 항목 및 빈 행 자동 제외)
-    if st.button(
-        "💾 요율표 최종 수정 저장",
-        type="primary",
-        use_container_width=True,
-        key=f"save_rates_btn_{selected_manage_client}",
-    ):
-      if edited_rates_df is not None and not edited_rates_df.empty:
-        new_rates_structure = {}
-        for _, row in edited_rates_df.iterrows():
-          # '선택' 체크가 True인 행은 저장 대상에서 제외 (삭제 반영)
-          if row.get("선택") == True:
-            continue
-
-          c = row.get("국가")
-          t = row.get("운송형태")
-          i = row.get("품명")
-
-          if not c or str(c) == "None" or str(c).strip() == "" or not t or str(t) == "None" or str(t).strip() == "" or not i or str(i) == "None" or str(i).strip() == "":
-            continue
-
-          c_str = str(c).strip()
-          t_str = str(t).strip()
-          i_str = str(i).strip()
-
-          if c_str not in new_rates_structure:
-            new_rates_structure[c_str] = {}
-          if t_str not in new_rates_structure[c_str]:
-            new_rates_structure[c_str][t_str] = {}
-
-          new_rates_structure[c_str][t_str][i_str] = {
-              "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
-              "기본요금": int(row.get("기본요금(원)", 38000) or 38000),
-              "추가단가": int(row.get("추가단가(원)", 25000) or 25000),
-              "1CBM단가": int(row.get("1CBM단가(원)", 3700000) or 3700000),
-          }
-
-        st.session_state.client_rates[selected_manage_client] = new_rates_structure
+      if st.form_submit_button("💾 거래처 정보 저장", type="primary"):
+        st.session_state.client_infos[selected_client_mgr] = {
+            "사업자등록번호": ci_bno,
+            "이메일": ci_email,
+            "담당자": ci_mgr,
+            "전화번호": ci_tel,
+            "주소": ci_addr,
+        }
         save_client_data(
             st.session_state.client_list,
             st.session_state.client_rates,
             st.session_state.client_infos,
         )
-        st.success(f"[{selected_manage_client}]의 요율표가 최종 수정 저장되었습니다!")
-        st.rerun()   
+        st.success(
+            f"[{selected_client_mgr}] 거래처 정보가 성공적으로"
+            " 업데이트되었습니다!"
+        )
+
+    st.markdown("---")
+    st.markdown("#### 🗑 거래처 삭제")
+    if st.button("🚨 선택한 거래처 삭제하기", type="secondary"):
+      if len(st.session_state.client_list) > 1:
+        target_c = selected_client_mgr
+        st.session_state.client_list.remove(target_c)
+        if target_c in st.session_state.client_infos:
+          del st.session_state.client_infos[target_c]
+        if target_c in st.session_state.client_rates:
+          del st.session_state.client_rates[target_c]
+
+        save_client_data(
+            st.session_state.client_list,
+            st.session_state.client_rates,
+            st.session_state.client_infos,
+        )
+        st.success(f"거래처 '{target_c}'가 성공적으로 삭제되었습니다.")
+        st.rerun()
+      else:
+        st.warning("최소 1개의 거래처는 유지되어야 합니다.")
+
+  st.markdown("---")
+  with st.expander("➕ 신규 거래처 추가하기", expanded=False):
+    new_client_name_input = st.text_input("신규 거래처명 입력")
+    if st.button("거래처 추가"):
+      if (
+          new_client_name_input.strip()
+          and new_client_name_input not in st.session_state.client_list
+      ):
+        st.session_state.client_list.append(new_client_name_input.strip())
+        st.session_state.client_infos[new_client_name_input.strip()] = {
+            "사업자등록번호": "",
+            "이메일": "",
+            "담당자": "",
+            "전화번호": "",
+            "주소": "",
+        }
+        save_client_data(
+            st.session_state.client_list,
+            st.session_state.client_rates,
+            st.session_state.client_infos,
+        )
+        st.success(f"신규 거래처 '{new_client_name_input}'가 추가되었습니다!")
+        st.rerun()
         
 
 
