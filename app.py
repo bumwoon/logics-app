@@ -2891,7 +2891,7 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
             if isinstance(item_dict, dict):
               for item_name, r_val in item_dict.items():
                 client_rate_data.append({
-                    "선택": False,
+                    "삭제": False,
                     "국가": country,
                     "운송형태": transport,
                     "품명": item_name,
@@ -2900,6 +2900,19 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
                     "추가단가(원)": int(r_val.get("추가단가", 25000)),
                     "1CBM단가(원)": int(r_val.get("1CBM단가", 3700000)),
                 })
+
+    # 빈 행이 아예 없거나 기본 행이 없을 때 초기 1줄 제공
+    if not client_rate_data:
+      client_rate_data.append({
+          "삭제": False,
+          "국가": "미국",
+          "운송형태": "항공",
+          "품명": "일반화물",
+          "기본중량(kg)": 1.0,
+          "기본요금(원)": 38000,
+          "추가단가(원)": 25000,
+          "1CBM단가(원)": 3700000,
+      })
 
     import pandas as pd
 
@@ -2921,13 +2934,13 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
     transport_options = ["항공", "해상", "에어카고"]
     item_options = ["일반화물", "보톡스필러", "화장품", "특수화물", "직접지정"]
 
-    # st.data_editor 설정 (드롭다운 및 컬럼 제어 적용)
+    # st.data_editor 설정 (삭제 컬럼 추가)
     edited_rates_df = st.data_editor(
         df_rates,
         num_rows="dynamic",
         use_container_width=True,
         column_config={
-            "선택": st.column_config.CheckboxColumn("선택", default=False),
+            "삭제": st.column_config.CheckboxColumn("삭제", default=False),
             "국가": st.column_config.SelectboxColumn(
                 "국가",
                 options=country_options,
@@ -2959,9 +2972,9 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
         key=f"rates_editor_{selected_manage_client}",
     )
 
-    # 요율표 최종 저장 버튼 (저장할 때 None 행 및 체크된 행 자동 제외)
+    # 요율표 최종 저장 버튼 (체크된 '삭제' 항목 및 비어있는 None 행 완벽 제외)
     if st.button(
-        "💾 요율표 최종 저장하기 (체크된 항목 및 빈 행 삭제 반영)",
+        "💾 요율표 최종 저장하기",
         type="primary",
         use_container_width=True,
         key=f"save_rates_btn_{selected_manage_client}",
@@ -2969,8 +2982,8 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
       if edited_rates_df is not None and not edited_rates_df.empty:
         new_rates_structure = {}
         for _, row in edited_rates_df.iterrows():
-          # '선택' 체크박스가 True인 경우 삭제 대상이므로 건너뜀
-          if row.get("선택") == True:
+          # '삭제' 체크박스가 True인 경우 반영 안 함
+          if row.get("삭제") == True:
             continue
 
           c = row.get("국가")
@@ -3003,8 +3016,8 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
             st.session_state.client_rates,
             st.session_state.client_infos,
         )
-        st.success(f"[{selected_manage_client}]의 요율표가 불필요한 행이 정리된 채 성공적으로 저장되었습니다!")
-        st.rerun()    
+        st.success(f"[{selected_manage_client}]의 요율표가 성공적으로 저장되었습니다!")
+        st.rerun()   
 
         
 
