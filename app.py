@@ -1943,8 +1943,8 @@ elif selected_menu == "🚢 B/L 운송장 출력":
             </body>
             </html>
             """
-      components.html(awb_html, height=750, scrolling=False)
-
+      
+components.html(awb_html, height=750, scrolling=False, key=f"awb_view_{selected_print_bl}")
 
 # ==========================================
 # [4] 거래처 인보이스 발행
