@@ -2878,127 +2878,121 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
         f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표"
     )
 
-        # 기존 요율표 편집 데이터프레임 구성 로직 연동
-        client_rate_data = []
-        c_rates_dict = st.session_state.client_rates.get(
-            selected_manage_client, {}
-        )
+# 기존 요율표 편집 데이터프레임 구성 로직 연동
+client_rate_data = []
+c_rates_dict = st.session_state.client_rates.get(selected_manage_client, {})
 
-        if c_rates_dict:
-            for country, trans_dict in c_rates_dict.items():
-                if isinstance(trans_dict, dict):
-                    for transport, item_dict in trans_dict.items():
-                        if isinstance(item_dict, dict):
-                            for item_name, r_val in item_dict.items():
-                                client_rate_data.append({
-                                    "선택": False,
-                                    "국가": country,
-                                    "운송형태": transport,
-                                    "품명": item_name,
-                                    "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
-                                    "기본요금(원)": int(r_val.get("기본요금", 38000)),
-                                    "추가단가(원)": int(r_val.get("추가단가", 25000)),
-                                    "1CBM단가(원)": int(r_val.get("1CBM단가", 3700000)),
-                                })
+if c_rates_dict:
+  for country, trans_dict in c_rates_dict.items():
+    if isinstance(trans_dict, dict):
+      for transport, item_dict in trans_dict.items():
+        if isinstance(item_dict, dict):
+          for item_name, r_val in item_dict.items():
+            client_rate_data.append({
+                "선택": False,
+                "국가": country,
+                "운송형태": transport,
+                "품명": item_name,
+                "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
+                "기본요금(원)": int(r_val.get("기본요금", 38000)),
+                "추가단가(원)": int(r_val.get("추가단가", 25000)),
+                "1CBM단가(원)": int(r_val.get("1CBM단가", 3700000)),
+            })
 
-        import pandas as pd
+import pandas as pd
 
-        df_rates = pd.DataFrame(client_rate_data)
+df_rates = pd.DataFrame(client_rate_data)
 
-        # 국가, 운송형태, 품명 드롭다운 옵션 정의
-        country_options = [
-            "미국",
-            "중국",
-            "일본",
-            "홍콩",
-            "베트남",
-            "태국",
-            "인도네시아",
-            "호주",
-            "인도",
-            "기타",
-        ]
-        transport_options = ["항공", "해상", "에어카고"]
-        item_options = ["일반화물", "보톡스필러", "화장품", "특수화물", "직접지정"]
+# 국가, 운송형태, 품명 드롭다운 옵션 정의
+country_options = [
+    "미국",
+    "중국",
+    "일본",
+    "홍콩",
+    "베트남",
+    "태국",
+    "인도네시아",
+    "호주",
+    "인도",
+    "기타",
+]
+transport_options = ["항공", "해상", "에어카고"]
+item_options = ["일반화물", "보톡스필러", "화장품", "특수화물", "직접지정"]
 
-        # st.data_editor 설정 (드롭다운 및 컬럼 제어 적용)
-        edited_rates_df = st.data_editor(
-            df_rates,
-            num_rows="dynamic",
-            use_container_width=True,
-            column_config={
-                "선택": st.column_config.CheckboxColumn(
-                    "선택", default=False
-                ),
-                "국가": st.column_config.SelectboxColumn(
-                    "국가",
-                    options=country_options,
-                    required=True,
-                ),
-                "운송형태": st.column_config.SelectboxColumn(
-                    "운송형태",
-                    options=transport_options,
-                    required=True,
-                ),
-                "품명": st.column_config.SelectboxColumn(
-                    "품명",
-                    options=item_options,
-                    required=True,
-                ),
-                "기본중량(kg)": st.column_config.NumberColumn(
-                    "기본중량(kg)", format="%.1f"
-                ),
-                "기본요금(원)": st.column_config.NumberColumn(
-                    "기본요금(원)", format="%d 원"
-                ),
-                "추가단가(원)": st.column_config.NumberColumn(
-                    "추가단가(원)", format="%d 원"
-                ),
-                "1CBM단가(원)": st.column_config.NumberColumn(
-                    "1CBM단가(원)", format="%d 원"
-                ),
-            },
-            key=f"rates_editor_{selected_manage_client}",
-        )
+# st.data_editor 설정 (드롭다운 및 컬럼 제어 적용)
+edited_rates_df = st.data_editor(
+    df_rates,
+    num_rows="dynamic",
+    use_container_width=True,
+    column_config={
+        "선택": st.column_config.CheckboxColumn("선택", default=False),
+        "국가": st.column_config.SelectboxColumn(
+            "국가",
+            options=country_options,
+            required=True,
+        ),
+        "운송형태": st.column_config.SelectboxColumn(
+            "운송형태",
+            options=transport_options,
+            required=True,
+        ),
+        "품명": st.column_config.SelectboxColumn(
+            "품명",
+            options=item_options,
+            required=True,
+        ),
+        "기본중량(kg)": st.column_config.NumberColumn(
+            "기본중량(kg)", format="%.1f"
+        ),
+        "기본요금(원)": st.column_config.NumberColumn(
+            "기본요금(원)", format="%d 원"
+        ),
+        "추가단가(원)": st.column_config.NumberColumn(
+            "추가단가(원)", format="%d 원"
+        ),
+        "1CBM단가(원)": st.column_config.NumberColumn(
+            "1CBM단가(원)", format="%d 원"
+        ),
+    },
+    key=f"rates_editor_{selected_manage_client}",
+)
 
-        # 수정된 요율표 데이터를 다시 구조화하여 저장하는 로직
-        if edited_rates_df is not None and not edited_rates_df.empty:
-            new_rates_structure = {}
-            for _, row in edited_rates_df.iterrows():
-                c = str(row.get("국가", "미국")).strip()
-                t = str(row.get("운송형태", "항공")).strip()
-                i = str(row.get("품명", "일반화물")).strip()
+# 수정된 요율표 데이터를 다시 구조화하여 저장하는 로직
+if edited_rates_df is not None and not edited_rates_df.empty:
+  new_rates_structure = {}
+  for _, row in edited_rates_df.iterrows():
+    c = str(row.get("국가", "미국")).strip()
+    t = str(row.get("운송형태", "항공")).strip()
+    i = str(row.get("품명", "일반화물")).strip()
 
-                if c not in new_rates_structure:
-                    new_rates_structure[c] = {}
-                if t not in new_rates_structure[c]:
-                    new_rates_structure[c][t] = {}
+    if c not in new_rates_structure:
+      new_rates_structure[c] = {}
+    if t not in new_rates_structure[c]:
+      new_rates_structure[c][t] = {}
 
-                new_rates_structure[c][t][i] = {
-                    "기본중량": float(row.get("기본중량(kg)", 1.0)),
-                    "기본요금": int(row.get("기본요금(원)", 38000)),
-                    "추가단가": int(row.get("추가단가(원)", 25000)),
-                    "1CBM단가": int(row.get("1CBM단가(원)", 3700000)),
-                }
+    new_rates_structure[c][t][i] = {
+        "기본중량": float(row.get("기본중량(kg)", 1.0)),
+        "기본요금": int(row.get("기본요금(원)", 38000)),
+        "추가단가": int(row.get("추가단가(원)", 25000)),
+        "1CBM단가": int(row.get("1CBM단가(원)", 3700000)),
+    }
 
-            st.session_state.client_rates[selected_manage_client] = (
-                new_rates_structure
-            )
+  st.session_state.client_rates[selected_manage_client] = new_rates_structure
 
-        # 요율표 최종 저장 버튼
-        if st.button(
-            "💾 요율표 최종 저장하기",
-            type="primary",
-            use_container_width=True,
-            key=f"save_rates_btn_{selected_manage_client}",
-        ):
-            save_client_data(
-                st.session_state.client_list,
-                st.session_state.client_rates,
-                st.session_state.client_infos,
-            )
-            st.success(f"[{selected_manage_client}]의 요율표가 성공적으로 저장되었습니다!")
-            st.rerun()       
+# 요율표 최종 저장 버튼
+if st.button(
+    "💾 요율표 최종 저장하기",
+    type="primary",
+    use_container_width=True,
+    key=f"save_rates_btn_{selected_manage_client}",
+):
+  save_client_data(
+      st.session_state.client_list,
+      st.session_state.client_rates,
+      st.session_state.client_infos,
+  )
+  st.success(f"[{selected_manage_client}]의 요율표가 성공적으로 저장되었습니다!")
+  st.rerun()       
         
 
 
