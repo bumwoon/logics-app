@@ -1882,34 +1882,44 @@ elif selected_menu == "🚢 B/L 운송장 출력":
                     <table class="mid-table">
                         <tr>
                             <td style="width: 33%;">
-                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">CARRIER</div>
-                                {air_check} AIR &nbsp; {sea_check} SEA<br><span style="font-size: 8pt; color: #475569;">{transport_t}</span>
+                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">CARRIER / 운송수단</div>
+                                {air_check} AIR &nbsp;&nbsp;&nbsp; {sea_check} SEA (LCL)<br>
+                                <span style="font-size: 8pt; color: #64748b;">Service: {transport_t}</span>
                             </td>
                             <td style="width: 33%;">
                                 <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">SERVICE OPTION</div>
-                                {d2d_check} Door To Door
+                                {d2d_check} Door To Door<br>
+                                <span style="font-size: 8pt; color: #64748b;">Status: {current_status_str}</span>
                             </td>
                             <td style="width: 34%;">
-                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">SCHEDULE & JOB</div>
-                                선적일: <b>{ship_date}</b><br>Job: <b>{job_num_str}</b>
+                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">DATE / SCHEDULE</div>
+                                선적일자: <b>{ship_date}</b><br>
+                                <span style="font-size: 8pt; color: #64748b;">Job No: {job_num_str}</span>
                             </td>
                         </tr>
                     </table>
 
-                    <table class="mid-table">
+                    <table class="top-table">
                         <tr>
                             <td style="width: 60%;">
-                                <div class="section-header">DESCRIPTION OF CONTENTS (화물 상세 내역)</div>
-                                <div style="font-size: 11pt; font-weight: bold; color: #1e3a8a; margin-bottom: 4px;">{item_name}</div>
+                                <div class="section-header">DESCRIPTION OF CONTENTS (품명 및 화물 내용)</div>
+                                <div style="font-size: 11pt; font-weight: bold; color: #1e3a8a; padding: 6px 0;">{item_name}</div>
                                 <div style="font-size: 8.5pt; color: #475569;">
-                                    • 박스 수량: <b>{box_cnt}</b><br>
-                                    • 부피 규격: {vol_spec} ({cbm_val})
+                                    • 총 박스 수: <b>{box_cnt}</b><br>
+                                    • 부피 규격: {vol_spec}<br>
+                                    • CBM 합계: {cbm_val}
                                 </div>
                             </td>
                             <td style="width: 40%;">
-                                <div class="section-header">WEIGHT (중량)</div>
-                                청구 중량: <b style="color: #dc2626; font-size: 10.5pt;">{sales_cw} KG</b><br>
-                                박스 수: <b>{box_cnt}</b>
+                                <div class="section-header">WEIGHT & MEASUREMENT</div>
+                                <table style="width: 100%; border-collapse: collapse; margin-top: 4px;">
+                                    <tr>
+                                        <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">청구중량: <b style="color: #dc2626;">{sales_cw} KG</b></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">박스수: <b>{box_cnt}</b></td>
+                                    </tr>
+                                </table>
                             </td>
                         </tr>
                     </table>
@@ -1919,7 +1929,17 @@ elif selected_menu == "🚢 B/L 운송장 출력":
                             <td style="border: 1px solid #64748b; padding: 8px; width: 50%; font-size: 8pt;">
                                 ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>
                             </td>
-                            <td style="border: 1px solid #64748b; padding: 8px; width
+                            <td style="border: 1px solid #64748b; padding: 8px; width: 50%; text-align: right; font-size: 8pt;">
+                                COMPANY STAMP<br><b>[직인생략]</b>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </body>
+            </html>
+            """
+      components.html(awb_html, height=750, scrolling=False)
+
 
 # ==========================================
 # [4] 거래처 인보이스 발행
@@ -2857,13 +2877,10 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 if st.session_state.get("client_save_success"):
     saved_client = st.session_state.pop("client_save_success")
-    st.success(
-        f"[{saved_client}]의 기본 정보가 성공적으로 수정되었습니다!"
-    )   
-    st.markdown("---")
-    st.markdown(
-        f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표"
-    )
+    st.success(f"[{saved_client}]의 기본 정보가 성공적으로 수정되었습니다!")
+
+ st.markdown("---")
+st.markdown(f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표")
 
     # 기존 요율표 편집 데이터프레임 구성 로직 연동
     client_rate_data = []
