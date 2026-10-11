@@ -1949,7 +1949,7 @@ components.html(awb_html, height=750, scrolling=False, key=f"awb_view_{selected_
 # ==========================================
 # [4] 거래처 인보이스 발행
 # ==========================================
-elif selected_menu == "거래처 인보이스 발행":
+elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📑"
       " 거래처 정식 인보이스 (INVOICE) 발행</h3>",
@@ -2877,8 +2877,11 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
             st.session_state.client_rates,
             st.session_state.client_infos,
         )
-           st.success(f"[{selected_manage_client}]의 기본 정보가 성공적으로 수정되었습니다!")
-        st.rerun()     
+        st.success(
+            f"[{selected_manage_client}]의 기본 정보가 성공적으로"
+            " 수정되었습니다!"
+        )
+        st.rerun()
 
     st.markdown("---")
     st.markdown(
