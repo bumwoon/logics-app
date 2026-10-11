@@ -650,145 +650,46 @@ else:
                     <head>
                         <meta charset="utf-8">
                         <style>
-                            @media print {{
-                                body {{ -webkit-print-color-adjust: exact; }}
-                                .no-print {{ display: none !important; }}
-                                @page {{ size: A4 portrait; margin: 8mm; }}
-                            }}
-                            body {{
-                                font-family: 'Pretendard', sans-serif;
-                                color: #1e293b;
-                                font-size: 9pt;
-                                line-height: 1.3;
-                                margin: 0;
-                                padding: 5px;
-                                background-color: #ffffff;
-                            }}
-                            .awb-box {{
-                                border: 2px solid #0f172a;
-                                padding: 15px;
-                                border-radius: 6px;
-                                background-color: #ffffff;
-                                margin-top: 10px;
-                            }}
-                            .t-tbl {{ width: 100%; border-collapse: collapse; margin-bottom: 6px; }}
-                            .t-tbl td {{ border: 1px solid #64748b; padding: 6px 8px; vertical-align: top; }}
-                            .s-hdr {{ background-color: #0f172a; color: white; font-weight: bold; font-size: 8.5pt; padding: 2px 5px; margin-bottom: 3px; }}
-                            .p-btn {{
-                                display: block;
-                                width: 100%;
-                                background-color: #dc2626;
-                                color: white;
-                                text-align: center;
-                                padding: 12px;
-                                font-size: 11pt;
-                                font-weight: bold;
-                                border: none;
-                                border-radius: 6px;
-                                cursor: pointer;
-                                margin-bottom: 15px;
-                            }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="awb-box">
-                            <button class="p-btn no-print" onclick="window.print()">🖨 휴대폰에서 B/L 운송장 인쇄 / PDF 저장하기</button>
+      @media print {{
+        body {{ -webkit-print-color-adjust: exact; }}
+        .no-print {{ display: none !important; }}
+        @page {{ size: A4 portrait; margin: 5mm; }}
+    }}
+    body {{
+        font-family: 'Pretendard', sans-serif;
+        color: #1e293b;
+        font-size: 9pt;
+        line-height: 1.2;
+        margin: 0;
+        padding: 5px;
+        background-color: #ffffff;
+    }}
+    .awb-box {{
+        border: 2px solid #0f172a;
+        padding: 10px;
+        border-radius: 6px;
+        background-color: #ffffff;
+        margin-top: 5px;
+    }}
+    .t-tbl {{ width: 100%; border-collapse: collapse; margin-bottom: 4px; }}
+    .t-tbl td {{ border: 1px solid #64748b; padding: 5px 8px; vertical-align: top; }}
+    .s-hdr {{ background-color: #0f172a; color: white; font-weight: bold; font-size: 8.5pt; padding: 2px 5px; margin-bottom: 3px; }}
+    .p-btn {{
+        display: block;
+        width: 100%;
+        background-color: #dc2626;
+        color: white;
+        text-align: center;
+        padding: 10px;
+        font-size: 11pt;
+        font-weight: bold;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-bottom: 10px;
+    }}
+    
 
-                            <table style="width: 100%; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 10px;">
-                                <tr>
-                                    <td style="width: 55%; border: none;">
-                                        <div style="display: flex; align-items: center;">
-                                            {logo_embed_m}
-                                            <div>
-                                                <div style="font-size: 12pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                                <div style="font-size: 7pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td style="width: 45%; text-align: right; border: none;">
-                                        <div style="font-size: 7.5pt; color: #64748b; font-weight: bold;">AIR WAYBILL / B/L NO.</div>
-                                        {barcode_html_m}
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <table style="width: 100%; background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
-                                <tr>
-                                    <td style="border: none; padding: 0;">
-                                        • <b>현재 화물 진행 상태:</b> <span style="color: #2563eb; font-weight: bold; font-size: 10.5pt;">{current_status_str}</span><br>
-                                        • <b>화주명:</b> {shipper_n} | <b>수하인:</b> {consignee_n}
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <table class="t-tbl">
-                                <tr>
-                                    <td style="width: 50%;">
-                                        <div class="s-hdr">FROM (SHIPPER / 송하인)</div>
-                                        <b>상호:</b> {shipper_n}<br>
-                                        <b>주소:</b> {shipper_addr}<br>
-                                        <b>연락처:</b> {shipper_tel}
-                                    </td>
-                                    <td style="width: 50%;">
-                                        <div class="s-hdr">TO (CONSIGNEE / 수하인)</div>
-                                        <b>수하인:</b> <span style="color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br>
-                                        <b>도착 국가:</b> {dest_c}<br>
-                                        <b>출발지:</b> {origin_p}
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <table class="t-tbl">
-                                <tr>
-                                    <td style="width: 33%;">
-                                        <div style="font-weight: bold; font-size: 8pt; color: #0f172a;">CARRIER</div>
-                                        {air_c} AIR &nbsp; {sea_c} SEA<br><span style="font-size: 7.5pt; color: #64748b;">{transport_t}</span>
-                                    </td>
-                                    <td style="width: 33%;">
-                                        <div style="font-weight: bold; font-size: 8pt; color: #0f172a;">SERVICE</div>
-                                        {d2d_c} Door To Door
-                                    </td>
-                                    <td style="width: 34%;">
-                                        <div style="font-weight: bold; font-size: 8pt; color: #0f172a;">SCHEDULE</div>
-                                        선적일: <b>{ship_date}</b>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <table class="t-tbl">
-                                <tr>
-                                    <td style="width: 60%;">
-                                        <div class="s-hdr">DESCRIPTION OF CONTENTS</div>
-                                        <div style="font-size: 10pt; font-weight: bold; color: #1e3a8a;">{item_name}</div>
-                                        <div style="font-size: 8pt; color: #475569;">
-                                            • 박스수: <b>{box_cnt}</b><br>
-                                            • 규격: {vol_spec} ({cbm_val})
-                                        </div>
-                                    </td>
-                                    <td style="width: 40%;">
-                                        <div class="s-hdr">WEIGHT</div>
-                                        청구중량: <b style="color: #dc2626;">{sales_cw} KG</b><br>
-                                        박스수: <b>{box_cnt}</b>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <table style="width: 100%; margin-top: 8px; border-collapse: collapse;">
-                                <tr>
-                                    <td style="border: 1px solid #64748b; padding: 6px; width: 50%; font-size: 7.5pt;">
-                                        ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>
-                                    </td>
-                                    <td style="border: 1px solid #64748b; padding: 6px; width: 50%; text-align: right; font-size: 7.5pt;">
-                                        STAMP<br><b>[직인생략]</b>
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                    </body>
-                    </html>
-                    """
-          components.html(mobile_awb_html, height=650, scrolling=False)
-  st.stop()
 
 
 # ==========================================
