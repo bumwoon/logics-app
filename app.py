@@ -1004,30 +1004,27 @@ st.sidebar.markdown("---")
 font_size_val = "12px" if mobile_view_mode else "13.5px"
 container_padding = "0.5rem" if mobile_view_mode else "1.5rem"
 st.markdown(
-    """
+    f"""
     <style>
-    html, body, [class*="css"] {
+    html, body, [class*="css"] {{
         font-size: {font_size_val} !important;
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
         color: #1e293b;
-    }
-    .stApp {
+    }}
+    .stApp {{
         background-color: #f8fafc;
-    }
-    input, select, textarea {
+    }}
+    input, select, textarea {{
         font-size: {font_size_val} !important;
         border-radius: 6px !important;
-    }
-    .block-container {
+    }}
+    .block-container {{
         padding-top: {container_padding};
         padding-bottom: 3rem;
         max-width: 1400px;
-    }
+    }}
     </style>
-    """.format(
-        font_size_val=font_size_val,
-        container_padding=container_padding,
-    ),
+    """,
     unsafe_allow_html=True,
 )
 COUNTRY_LIST = [
