@@ -1030,38 +1030,39 @@ INCOME_CATEGORIES = [
     "미수금 회수",
     "기타 영업수입",
 ]
-
 logo_html_str = ""
 if encoded_sidebar_logo:
-  logo_html_str = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 48px; width: auto; margin-right: 15px; border-radius: 6px;'>"
+    logo_html_str = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 48px; width: auto; margin-right: 15px; border-radius: 8px;'>"
 
 header_html = f"""
-<div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); padding: 20px 24px; border-radius: 12px; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);'>
+<div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); padding: 20px 24px; border-radius: 12px; color: white; margin-bottom: 25px;'>
     <div style='display: flex; align-items: center;'>
         {logo_html_str}
         <div>
-            <h1 style='color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;'>🚢 (주)범운해운항공 종합 관리 프로그램</h1>
-            <p style='margin: 4px 0 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행 시스템</p>
+            <h1 style='color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;'>(주)범운해운항공 종합 관리 프로그램</h1>
+            <p style='margin: 4px 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 효율 관리 및 스마트 인보이스 발행 시스템</p>
         </div>
     </div>
 </div>
 """
+
 st.markdown(header_html, unsafe_allow_html=True)
 
-# ==========================================
+# --------------------------------------------------
 # [1] 수출입 B/L 등록 (작성자 자동 기록)
-# ==========================================
-if selected_menu == "📊 수출입 B/L 등록":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋"
-      " 수출입 B/L 및 Profit 등록 관리</h3>",
-      unsafe_allow_html=True,
-  )
+# --------------------------------------------------
 
-  st.markdown(
-      "##### 📦 박스 규격 및 카톤수 입력 (아래 입력창에 가로, 세로, 높이,"
-      " 카톤수를 적어주시면 즉시 부피중량과 CBM이 계산됩니다)"
-  )
+if selected_menu == "수출입 B/L 등록":
+    st.markdown(
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>"
+        "수출입 B/L 및 Profit 등록 관리</h3>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        "##### 박스 규격 및 카톤수 입력 (아래 입력창에 가로, 세로, 높이, "
+        "카톤수를 적어주시면 즉시 부피중량과 CBM이 계산됩니다)"
+    )
 
   if "box_input_df" not in st.session_state:
     st.session_state.box_input_df = pd.DataFrame([
