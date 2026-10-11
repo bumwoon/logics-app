@@ -1892,16 +1892,16 @@ with inv_col2:
           f" style='font-size:8pt; color:#475569;'>• 부피사이즈: {b_vol}</span>"
       )
 
-      inv_rows_html += f"""
-            <tr>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;">{b_date}</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; font-size: 9pt; color: #1e3a8a;">{b_bl}</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;">{b_box}</td>
-                <td style="border: 1px solid #64748b; padding: 8px; font-size: 9pt;">{item_full_desc}</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; color: #dc2626; font-size: 9.5pt;">{b_cw} KG</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold; font-size: 9.5pt;">{b_amount:,.0f} 원</td>
-            </tr>
-            """
+    inv_rows_html += (
+        "<tr>"
+        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;'>{b_date}</td>"
+        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; color: #0f172a; font-size: 9pt;'>{b_no}</td>"
+        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;'>{b_box}</td>"
+        + f"<td style='border: 1px solid #64748b; padding: 8px; font-size: 9pt;'>{item_full_desc}</td>"
+        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; color: #dc2626; font-size: 9pt;'>{b_status}</td>"
+        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold; font-size: 9.5pt;'>{b_amount:,.0f}</td>"
+        + "</tr>"
+    )    
   else:
     inv_rows_html = """
         <tr>
