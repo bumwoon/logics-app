@@ -2877,13 +2877,10 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 if st.session_state.get("client_save_success"):
     saved_client = st.session_state.pop("client_save_success")
-    st.success(
-        f"[{saved_client}]의 기본 정보가 성공적으로 수정되었습니다!"
-    )   
-    st.markdown("---")
-    st.markdown(
-        f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표"
-    )
+    st.success(f"[{saved_client}]의 기본 정보가 성공적으로 수정되었습니다!")
+
+ st.markdown("---")
+st.markdown(f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표")
 
     # 기존 요율표 편집 데이터프레임 구성 로직 연동
     client_rate_data = []
