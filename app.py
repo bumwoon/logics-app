@@ -2855,30 +2855,24 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
             "이메일 주소", value=str(current_info.get("이메일", ""))
         )
 
-         if st.form_submit_button(
+        if st.form_submit_button(
             "💾 거래처 기본 정보 수정 저장",
             type="primary",
             use_container_width=True,
         ):
-          st.session_state.client_infos[selected_manage_client] = {
-              "사업자등록번호": edit_bno,
-              "주소": edit_addr,
-              "담당자": edit_mgr,
-              "전화번호": edit_tel,
-              "이메일": edit_email,
-          }
-          save_client_data(
-              st.session_state.client_list,
-              st.session_state.client_rates,
-              st.session_state.client_infos,
-          )
-          st.success(f"[{selected_manage_client}]의 기본 정보가 수정되었습니다!")     
-
-if st.session_state.get("client_save_success"):
-    saved_client = st.session_state.pop("client_save_success")
-    st.success(
-        f"[{saved_client}]의 기본 정보가 성공적으로 수정되었습니다!"
-    )   
+            st.session_state.client_infos[selected_manage_client] = {
+                "사업자등록번호": edit_bno,
+                "주소": edit_addr,
+                "담당자": edit_mgr,
+                "전화번호": edit_tel,
+                "이메일": edit_email,
+            }
+            save_client_data(
+                st.session_state.client_list,
+                st.session_state.client_rates,
+                st.session_state.client_infos,
+            )
+            st.success(f"[{selected_manage_client}]의 기본 정보가 수정되었습니다!")
     st.markdown("---")
     st.markdown(
         f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표"
