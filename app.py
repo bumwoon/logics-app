@@ -650,46 +650,145 @@ else:
                     <head>
                         <meta charset="utf-8">
                         <style>
-      @media print {{
-        body {{ -webkit-print-color-adjust: exact; }}
-        .no-print {{ display: none !important; }}
-        @page {{ size: A4 portrait; margin: 5mm; }}
-    }}
-    body {{
-        font-family: 'Pretendard', sans-serif;
-        color: #1e293b;
-        font-size: 9pt;
-        line-height: 1.2;
-        margin: 0;
-        padding: 5px;
-        background-color: #ffffff;
-    }}
-    .awb-box {{
-        border: 2px solid #0f172a;
-        padding: 10px;
-        border-radius: 6px;
-        background-color: #ffffff;
-        margin-top: 5px;
-    }}
-    .t-tbl {{ width: 100%; border-collapse: collapse; margin-bottom: 4px; }}
-    .t-tbl td {{ border: 1px solid #64748b; padding: 5px 8px; vertical-align: top; }}
-    .s-hdr {{ background-color: #0f172a; color: white; font-weight: bold; font-size: 8.5pt; padding: 2px 5px; margin-bottom: 3px; }}
-    .p-btn {{
-        display: block;
-        width: 100%;
-        background-color: #dc2626;
-        color: white;
-        text-align: center;
-        padding: 10px;
-        font-size: 11pt;
-        font-weight: bold;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        margin-bottom: 10px;
-    }}
-    
+                            @media print {{
+                                body {{ -webkit-print-color-adjust: exact; }}
+                                .no-print {{ display: none !important; }}
+                                @page {{ size: A4 portrait; margin: 8mm; }}
+                            }}
+                            body {{
+                                font-family: 'Pretendard', sans-serif;
+                                color: #1e293b;
+                                font-size: 9pt;
+                                line-height: 1.3;
+                                margin: 0;
+                                padding: 5px;
+                                background-color: #ffffff;
+                            }}
+                            .awb-box {{
+                                border: 2px solid #0f172a;
+                                padding: 15px;
+                                border-radius: 6px;
+                                background-color: #ffffff;
+                                margin-top: 10px;
+                            }}
+                            .t-tbl {{ width: 100%; border-collapse: collapse; margin-bottom: 6px; }}
+                            .t-tbl td {{ border: 1px solid #64748b; padding: 6px 8px; vertical-align: top; }}
+                            .s-hdr {{ background-color: #0f172a; color: white; font-weight: bold; font-size: 8.5pt; padding: 2px 5px; margin-bottom: 3px; }}
+                            .p-btn {{
+                                display: block;
+                                width: 100%;
+                                background-color: #dc2626;
+                                color: white;
+                                text-align: center;
+                                padding: 12px;
+                                font-size: 11pt;
+                                font-weight: bold;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                margin-bottom: 15px;
+                            }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="awb-box">
+                            <button class="p-btn no-print" onclick="window.print()">🖨 휴대폰에서 B/L 운송장 인쇄 / PDF 저장하기</button>
 
+                            <table style="width: 100%; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 10px;">
+                                <tr>
+                                    <td style="width: 55%; border: none;">
+                                        <div style="display: flex; align-items: center;">
+                                            {logo_embed_m}
+                                            <div>
+                                                <div style="font-size: 12pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                                <div style="font-size: 7pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="width: 45%; text-align: right; border: none;">
+                                        <div style="font-size: 7.5pt; color: #64748b; font-weight: bold;">AIR WAYBILL / B/L NO.</div>
+                                        {barcode_html_m}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table style="width: 100%; background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+                                <tr>
+                                    <td style="border: none; padding: 0;">
+                                        • <b>현재 화물 진행 상태:</b> <span style="color: #2563eb; font-weight: bold; font-size: 10.5pt;">{current_status_str}</span><br>
+                                        • <b>화주명:</b> {shipper_n} | <b>수하인:</b> {consignee_n}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table class="t-tbl">
+                                <tr>
+                                    <td style="width: 50%;">
+                                        <div class="s-hdr">FROM (SHIPPER / 송하인)</div>
+                                        <b>상호:</b> {shipper_n}<br>
+                                        <b>주소:</b> {shipper_addr}<br>
+                                        <b>연락처:</b> {shipper_tel}
+                                    </td>
+                                    <td style="width: 50%;">
+                                        <div class="s-hdr">TO (CONSIGNEE / 수하인)</div>
+                                        <b>수하인:</b> <span style="color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br>
+                                        <b>도착 국가:</b> {dest_c}<br>
+                                        <b>출발지:</b> {origin_p}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table class="t-tbl">
+                                <tr>
+                                    <td style="width: 33%;">
+                                        <div style="font-weight: bold; font-size: 8pt; color: #0f172a;">CARRIER</div>
+                                        {air_c} AIR &nbsp; {sea_c} SEA<br><span style="font-size: 7.5pt; color: #64748b;">{transport_t}</span>
+                                    </td>
+                                    <td style="width: 33%;">
+                                        <div style="font-weight: bold; font-size: 8pt; color: #0f172a;">SERVICE</div>
+                                        {d2d_c} Door To Door
+                                    </td>
+                                    <td style="width: 34%;">
+                                        <div style="font-weight: bold; font-size: 8pt; color: #0f172a;">SCHEDULE</div>
+                                        선적일: <b>{ship_date}</b>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table class="t-tbl">
+                                <tr>
+                                    <td style="width: 60%;">
+                                        <div class="s-hdr">DESCRIPTION OF CONTENTS</div>
+                                        <div style="font-size: 10pt; font-weight: bold; color: #1e3a8a;">{item_name}</div>
+                                        <div style="font-size: 8pt; color: #475569;">
+                                            • 박스수: <b>{box_cnt}</b><br>
+                                            • 규격: {vol_spec} ({cbm_val})
+                                        </div>
+                                    </td>
+                                    <td style="width: 40%;">
+                                        <div class="s-hdr">WEIGHT</div>
+                                        청구중량: <b style="color: #dc2626;">{sales_cw} KG</b><br>
+                                        박스수: <b>{box_cnt}</b>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table style="width: 100%; margin-top: 8px; border-collapse: collapse;">
+                                <tr>
+                                    <td style="border: 1px solid #64748b; padding: 6px; width: 50%; font-size: 7.5pt;">
+                                        ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>
+                                    </td>
+                                    <td style="border: 1px solid #64748b; padding: 6px; width: 50%; text-align: right; font-size: 7.5pt;">
+                                        STAMP<br><b>[직인생략]</b>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </body>
+                    </html>
+                    """
+          components.html(mobile_awb_html, height=650, scrolling=False)
+  st.stop()
 
 
 # ==========================================
@@ -989,11 +1088,11 @@ if selected_side_client and selected_side_client != "없음":
   st.sidebar.markdown(
       f"""
     <div style='background-color: #1e293b; padding: 10px; border-radius: 6px; color: #fff; font-size: 11.5px; line-height: 1.5;'>
-        <b> [{selected_side_client}] 자금 현황</b><br>
-          - 총 매출(청구): <b>{client_total_sales:,} 원</b><br>
-        - 미수금 잔액: <span style='color: #f87171;'><b>{client_unpaid:,} 원</b></span><br>
+        <b>📌 [{selected_side_client}] 자금 현황</b><br>
+        • 총 매출(청구): <b>{client_total_sales:,} 원</b><br>
+        • 미수금 잔액: <span style='color: #f87171;'><b>{client_unpaid:,} 원</b></span><br>
         <hr style='border: 0.5px solid #475569; margin: 6px 0;'>
-        - 총 매입(비용): <b>{client_total_purchase:,} 원</b>      
+        • 총 매입(비용): <b>{client_total_purchase:,} 원</b>
     </div>
     """,
       unsafe_allow_html=True,
@@ -1003,7 +1102,31 @@ st.sidebar.markdown("---")
 
 font_size_val = "12px" if mobile_view_mode else "13.5px"
 container_padding = "0.5rem" if mobile_view_mode else "1.5rem"
-# st.markdown("<style>...</style>", unsafe_allow_html=True)
+st.markdown(
+    f"""
+<style>
+    html, body, [class*="css"] {{
+        font-size: {font_size_val} !important;
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        color: #1e293b;
+    }}
+    .stApp {{
+        background-color: #f8fafc;
+    }}
+    input, select, textarea {{
+        font-size: {font_size_val} !important;
+        border-radius: 6px !important;
+    }}
+    .block-container {{
+        padding-top: {container_padding};
+        padding-bottom: 3rem;
+        max-width: 1400px;
+    }}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 COUNTRY_LIST = [
     "미국",
     "중국",
@@ -1030,39 +1153,38 @@ INCOME_CATEGORIES = [
     "미수금 회수",
     "기타 영업수입",
 ]
+
 logo_html_str = ""
 if encoded_sidebar_logo:
-    logo_html_str = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 48px; width: auto; margin-right: 15px; border-radius: 8px;'>"
+  logo_html_str = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='height: 48px; width: auto; margin-right: 15px; border-radius: 6px;'>"
 
 header_html = f"""
-<div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); padding: 20px 24px; border-radius: 12px; color: white; margin-bottom: 25px;'>
+<div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); padding: 20px 24px; border-radius: 12px; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);'>
     <div style='display: flex; align-items: center;'>
         {logo_html_str}
         <div>
-            <h1 style='color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;'>(주)범운해운항공 종합 관리 프로그램</h1>
-            <p style='margin: 4px 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 효율 관리 및 스마트 인보이스 발행 시스템</p>
+            <h1 style='color: #ffffff; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.5px;'>🚢 (주)범운해운항공 종합 관리 프로그램</h1>
+            <p style='margin: 4px 0 0 0; color: #93c5fd; font-size: 12px;'>Job별 Profit 정산, 거래처별 요율 관리 및 스마트 인보이스 발행 시스템</p>
         </div>
     </div>
 </div>
 """
-
 st.markdown(header_html, unsafe_allow_html=True)
 
-# --------------------------------------------------
+# ==========================================
 # [1] 수출입 B/L 등록 (작성자 자동 기록)
-# --------------------------------------------------
+# ==========================================
+if selected_menu == "📊 수출입 B/L 등록":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋"
+      " 수출입 B/L 및 Profit 등록 관리</h3>",
+      unsafe_allow_html=True,
+  )
 
-if selected_menu == "수출입 B/L 등록":
-    st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>"
-        "수출입 B/L 및 Profit 등록 관리</h3>",
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        "##### 박스 규격 및 카톤수 입력 (아래 입력창에 가로, 세로, 높이, "
-        "카톤수를 적어주시면 즉시 부피중량과 CBM이 계산됩니다)"
-    )
+  st.markdown(
+      "##### 📦 박스 규격 및 카톤수 입력 (아래 입력창에 가로, 세로, 높이,"
+      " 카톤수를 적어주시면 즉시 부피중량과 CBM이 계산됩니다)"
+  )
 
   if "box_input_df" not in st.session_state:
     st.session_state.box_input_df = pd.DataFrame([
@@ -1657,145 +1779,198 @@ elif selected_menu == "🚢 B/L 운송장 출력":
       sea_check = "☑" if "해상" in transport_t else "☐"
       d2d_check = "☑" if "Door" in service_opt else "☐"
 
-     awb_html = (
-        "<!DOCTYPE html><html><head><meta charset='utf-8'><style>"
-        "@media print {"
-        "  body { -webkit-print-color-adjust: exact; }"
-        "  .no-print { display: none !important; }"
-        "  @page { size: A4 portrait; margin: 10mm; }"
-        "}"
-        "body {"
-        "  font-family: 'Pretendard', sans-serif;"
-        "  color: #1e293b;"
-        "  font-size: 9.5pt;"
-        "  line-height: 1.3;"
-        "  margin: 0;"
-        "  padding: 10px;"
-        "  background-color: #ffffff;"
-        "}"
-        ".awb-container {"
-        "  max-width: 760px;"
-        "  margin: 0 auto;"
-        "  border: 2px solid #0f172a;"
-        "  padding: 20px;"
-        "}"
-        "table {"
-        "  width: 100%;"
-        "  border-collapse: collapse;"
-        "  margin-top: 10px;"
-        "}"
-        "th, td {"
-        "  border: 1px solid #64748b;"
-        "  padding: 6px 8px;"
-        "  font-size: 9pt;"
-        "}"
-        "th {"
-        "  background-color: #f1f5f9;"
-        "  text-align: center;"
-        "}"
-        "</style></head><body>"
-        "<div class='awb-container'>"
-        "<h2 style='text-align:center; margin-bottom:15px; color:#0f172a;'>수출입 B/L 및 물류 정산서</h2>"
-        "<table>"
-        f"<tr><td><b>화주사:</b> {shipper_name}</td><td><b>B/L 번호:</b> {bl_no}</td></tr>"
-        f"<tr><td><b>출발지:</b> {pol}</td><td><b>도착지:</b> {pod}</td></tr>"
-        f"<tr><td><b>운송 방식:</b> {transport_t}</td><td><b>서비스:</b> {service_opt}</td></tr>"
-        "</table>"
-        "<table>"
-        "<tr><th>품명</th><th>수량</th><th>단가</th><th>금액</th></tr>"
-        f"<tr><td>{item_desc}</td><td>{box_cnt}</td><td>{unit_price}</td><td>{total_amount}</td></tr>"
-        "</table>"
-        "<table style='width: 100%; margin-top: 10px; border-collapse: collapse;'>"
-        "<tr>"
-        "<td style='border: 1px solid #64748b; padding: 8px; width: 50%; font-size: 8pt;'>"
-        f"ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>"
-        "</td>"
-        "<td style='border: 1px solid #64748b; padding: 8px; width: 50%; text-align: right; font-size: 8pt;'>"
-        "COMPANY STAMP<br><b>[직인생략]</b>"
-        "</td>"
-        "</tr>"
-        "</table>"
-        "</div>"
-        "</body></html>"
-    )
+      awb_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    @media print {{
+                        body {{ -webkit-print-color-adjust: exact; }}
+                        .no-print {{ display: none !important; }}
+                        @page {{ size: A4 portrait; margin: 10mm; }}
+                    }}
+                    body {{
+                        font-family: 'Pretendard', sans-serif;
+                        color: #1e293b;
+                        font-size: 9.5pt;
+                        line-height: 1.3;
+                        margin: 0;
+                        padding: 10px;
+                        background-color: #ffffff;
+                    }}
+                    .awb-container {{
+                        max-width: 760px;
+                        margin: 0 auto;
+                        border: 2px solid #0f172a;
+                        padding: 20px;
+                        border-radius: 6px;
+                        background-color: #ffffff;
+                    }}
+                    .top-table, .mid-table, .bottom-table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 8px;
+                    }}
+                    .top-table td, .mid-table td, .bottom-table td {{
+                        border: 1px solid #64748b;
+                        padding: 8px 10px;
+                        vertical-align: top;
+                    }}
+                    .section-header {{
+                        background-color: #0f172a;
+                        color: white;
+                        font-weight: bold;
+                        font-size: 9pt;
+                        padding: 3px 6px;
+                        margin-bottom: 4px;
+                    }}
+                    .print-btn {{
+                        display: block;
+                        width: 100%;
+                        background-color: #2563eb;
+                        color: white;
+                        text-align: center;
+                        padding: 10px;
+                        font-size: 11pt;
+                        font-weight: bold;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        margin-bottom: 15px;
+                    }}
+                    .print-btn:hover {{ background-color: #1d4ed8; }}
+                </style>
+            </head>
+            <body>
+                <div class="awb-container">
+                    <button class="print-btn no-print" onclick="window.print()">🖨 B/L 운송장 인쇄 및 PDF 저장 (Print / Save as PDF)</button>
 
-    components.html(awb_html, height=750, scrolling=False)
+                    <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
+                        <tr>
+                            <td style="width: 55%; border: none;">
+                                <div style="display: flex; align-items: center;">
+                                    {logo_embed_bl}
+                                    <div>
+                                        <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                        <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD. | www.bumwoon.com</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="width: 45%; text-align: right; border: none;">
+                                <div style="font-size: 8.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">AIR WAYBILL / B/L NO.</div>
+                                {barcode_html}
+                            </td>
+                        </tr>
+                    </table>
 
-# ----------------------------------------------------
-# [4] 거래처 인보이스 발행
-# ----------------------------------------------------
-elif selected_menu == "거래처 인보이스 발행":
-    st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>"
-        "거래처 정식 인보이스 (INVOICE) 발행</h3>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>세금계산서 "
-        "발행 여부를 선택하시면 하단에 알맞은 입금 계좌정보(우리은행 또는 "
-        "카카오뱅크)가 자동으로 연동되어 출력됩니다.</p>",
-        unsafe_allow_html=True,
-    )
+                    <table class="top-table">
+                        <tr>
+                            <td style="width: 50%;">
+                                <div class="section-header">FROM (SHIPPER / 송하인)</div>
+                                <b>상호:</b> {shipper_n}<br>
+                                <b>사업자등록번호:</b> {shipper_bno}<br>
+                                <b>주소:</b> {shipper_addr}<br>
+                                <b>담당자 / 연락처:</b> {shipper_mgr} / {shipper_tel}<br>
+                                <div style="margin-top: 8px; font-size: 8pt; color: #64748b;">SENT BY: 사장실 / Date: {ship_date}</div>
+                            </td>
+                            <td style="width: 50%;">
+                                <div class="section-header">TO (CONSIGNEE / 수하인)</div>
+                                <b>수하인명:</b> <span style="font-size: 10.5pt; color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br>
+                                <b>도착 국가:</b> {dest_c}<br>
+                                <b>출발지:</b> {origin_p}<br>
+                                <div style="margin-top: 14px; font-size: 8pt; color: #64748b;">ATTENTION OF: 현지 담당자 앞 / TEL: -</div>
+                            </td>
+                        </tr>
+                    </table>
 
-    inv_col1, inv_col2 = st.columns(2)
-    with inv_col1:
-        inv_client_options = (
-            st.session_state.client_list
-            if st.session_state.client_list
-            else ["아코글로벌"]
-        )
-        selected_inv_client = st.selectbox(
-            "청구 대상 거래처 선택", options=inv_client_options, key="inv_client_select"
-        )
-        inv_date = st.date_input(
-            "인보이스 발행일자 (Date)", value=date.today(), key="inv_date_input"
-        )
-        inv_no = st.text_input(
-            "인보이스 번호",
-            value=f"INV-{date.today().strftime('%Y%m%d')}-01",
-            placeholder="예: INV_20261005-01",
-        )
+                    <table class="mid-table">
+                        <tr>
+                            <td style="width: 33%;">
+                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">CARRIER / 운송수단</div>
+                                {air_check} AIR &nbsp;&nbsp;&nbsp; {sea_check} SEA (LCL)<br>
+                                <span style="font-size: 8pt; color: #64748b;">Service: {transport_t}</span>
+                            </td>
+                            <td style="width: 33%;">
+                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">SERVICE OPTION</div>
+                                {d2d_check} Door To Door<br>
+                                <span style="font-size: 8pt; color: #64748b;">Status: {current_status_str}</span>
+                            </td>
+                            <td style="width: 34%;">
+                                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-bottom: 4px;">DATE / SCHEDULE</div>
+                                선적일자: <b>{ship_date}</b><br>
+                                <span style="font-size: 8pt; color: #64748b;">Job No: {job_num_str}</span>
+                            </td>
+                        </tr>
+                    </table>
 
-    with inv_col2:
-        inv_due_date = st.date_input(
-            "지불 기한일 (Due Date)", value=date.today(), key="inv_due_date_input"
-        )
-        tax_invoice_status = st.selectbox(
-            "세금계산서 발행 여부 선택",
-            options=[
-                "법인 세금계산서 발행 (우리은행 계좌 연동)",
-                "계산서 미발행 / Invoice 전용 (카카오뱅크 계좌 연동)",
-            ],
-            index=0,
-        )
-        inv_remark_memo = st.text_input(
-            "비고 메모", value="등록된 B/L 화물 운송비 청구 건"
-        )
+                    <table class="top-table">
+                        <tr>
+                            <td style="width: 60%;">
+                                <div class="section-header">DESCRIPTION OF CONTENTS (품명 및 화물 내용)</div>
+                                <div style="font-size: 11pt; font-weight: bold; color: #1e3a8a; padding: 6px 0;">{item_name}</div>
+                                <div style="font-size: 8.5pt; color: #475569;">
+                                    • 총 박스 수: <b>{box_cnt}</b><br>
+                                    • 부피 규격: {vol_spec}<br>
+                                    • CBM 합계: {cbm_val}
+                                </div>
+                            </td>
+                            <td style="width: 40%;">
+                                <div class="section-header">WEIGHT & MEASUREMENT</div>
+                                <table style="width: 100%; border-collapse: collapse; margin-top: 4px;">
+                                    <tr>
+                                        <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">청구중량: <b style="color: #dc2626;">{sales_cw} KG</b></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #64748b; padding: 4px; font-size: 8pt;">박스수: <b>{box_cnt}</b></td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                        <tr>
+                            <td style="border: 1px solid #64748b; padding: 8px; width: 50%; font-size: 8pt;">
+                                ISSUED BY<br><b>(주)범운해운항공 대표이사 이상복</b>
+                            </td>
+                            <td style="border: 1px solid #64748b; padding: 8px; width: 50%; text-align: right; font-size: 8pt;">
+                                COMPANY STAMP<br><b>[직인생략]</b>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </body>
+            </html>
+            """
+      components.html(awb_html, height=750, scrolling=False)
+
 
 # ==========================================
 # [4] 거래처 인보이스 발행
 # ==========================================
-elif selected_menu == "거래처 인보이스 발행":
-    st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>"
-        "거래처 정식 인보이스 (INVOICE) 발행</h3>",
-        unsafe_allow_html=True,
-    )
+elif selected_menu == "📑 거래처 인보이스 발행":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📑"
+      " 거래처 정식 인보이스 (INVOICE) 발행</h3>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
       "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>세금계산서"
       " 발행 여부를 선택하시면 하단에 알맞은 입금 계좌정보(우리은행 또는"
       " 카카오뱅크)가 자동으로 연동되어 출력됩니다.</p>",
       unsafe_allow_html=True,
   )
 
- inv_col1, inv_col2 = st.columns(2)
-with inv_col1:
+  inv_col1, inv_col2 = st.columns(2)
+  with inv_col1:
     inv_client_options = (
         st.session_state.client_list
         if st.session_state.client_list
         else ["아코글로벌"]
     )
     selected_inv_client = st.selectbox(
-        "청구 대상 거래처 선택", options=inv_client_options, key="inv_client_select"
+        "청구 대상 거래처 선택", options=inv_client_options, key="inv_client_sel"
     )
     inv_date = st.date_input(
         "인보이스 발행일자 (Date)", value=date.today(), key="inv_date_input"
@@ -1803,10 +1978,10 @@ with inv_col1:
     inv_no = st.text_input(
         "인보이스 번호",
         value=f"INV-{date.today().strftime('%Y%m%d')}-01",
-        placeholder="예: INV_20261005-01",
+        placeholder="예: INV-20261005-01",
     )
 
-with inv_col2:
+  with inv_col2:
     inv_due_date = st.date_input(
         "지불 기한일 (Due Date)", value=date.today(), key="inv_due_input"
     )
@@ -1892,16 +2067,16 @@ with inv_col2:
           f" style='font-size:8pt; color:#475569;'>• 부피사이즈: {b_vol}</span>"
       )
 
-    inv_rows_html += (
-        "<tr>"
-        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;'>{b_date}</td>"
-        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; color: #0f172a; font-size: 9pt;'>{b_no}</td>"
-        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;'>{b_box}</td>"
-        + f"<td style='border: 1px solid #64748b; padding: 8px; font-size: 9pt;'>{item_full_desc}</td>"
-        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; color: #dc2626; font-size: 9pt;'>{b_status}</td>"
-        + f"<td style='border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold; font-size: 9.5pt;'>{b_amount:,.0f}</td>"
-        + "</tr>"
-    )    
+      inv_rows_html += f"""
+            <tr>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;">{b_date}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; font-size: 9pt; color: #1e3a8a;">{b_bl}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;">{b_box}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; font-size: 9pt;">{item_full_desc}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; color: #dc2626; font-size: 9.5pt;">{b_cw} KG</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold; font-size: 9.5pt;">{b_amount:,.0f} 원</td>
+            </tr>
+            """
   else:
     inv_rows_html = """
         <tr>
