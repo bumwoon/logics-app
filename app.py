@@ -2885,21 +2885,21 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
         )
 
         if c_rates_dict:
-          for country, trans_dict in c_rates_dict.items():
-            if isinstance(trans_dict, dict):
-              for transport, item_dict in trans_dict.items():
-                if isinstance(item_dict, dict):
-                  for item_name, r_val in item_dict.items():
-                    client_rate_data.append({
-                        "선택": False,
-                        "국가": country,
-                        "운송형태": transport,
-                        "품명": item_name,
-                        "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
-                        "기본요금(원)": int(r_val.get("기본요금", 38000)),
-                        "추가단가(원)": int(r_val.get("추가단가", 25000)),
-                        "1CBM단가(원)": int(r_val.get("1CBM단가", 3700000)),
-                    })
+            for country, trans_dict in c_rates_dict.items():
+                if isinstance(trans_dict, dict):
+                    for transport, item_dict in trans_dict.items():
+                        if isinstance(item_dict, dict):
+                            for item_name, r_val in item_dict.items():
+                                client_rate_data.append({
+                                    "선택": False,
+                                    "국가": country,
+                                    "운송형태": transport,
+                                    "품명": item_name,
+                                    "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
+                                    "기본요금(원)": int(r_val.get("기본요금", 38000)),
+                                    "추가단가(원)": int(r_val.get("추가단가", 25000)),
+                                    "1CBM단가(원)": int(r_val.get("1CBM단가", 3700000)),
+                                })
 
         import pandas as pd
 
@@ -2963,27 +2963,27 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
         # 수정된 요율표 데이터를 다시 구조화하여 저장하는 로직
         if edited_rates_df is not None and not edited_rates_df.empty:
-          new_rates_structure = {}
-          for _, row in edited_rates_df.iterrows():
-            c = str(row.get("국가", "미국")).strip()
-            t = str(row.get("운송형태", "항공")).strip()
-            i = str(row.get("품명", "일반화물")).strip()
+            new_rates_structure = {}
+            for _, row in edited_rates_df.iterrows():
+                c = str(row.get("국가", "미국")).strip()
+                t = str(row.get("운송형태", "항공")).strip()
+                i = str(row.get("품명", "일반화물")).strip()
 
-            if c not in new_rates_structure:
-              new_rates_structure[c] = {}
-            if t not in new_rates_structure[c]:
-              new_rates_structure[c][t] = {}
+                if c not in new_rates_structure:
+                    new_rates_structure[c] = {}
+                if t not in new_rates_structure[c]:
+                    new_rates_structure[c][t] = {}
 
-            new_rates_structure[c][t][i] = {
-                "기본중량": float(row.get("기본중량(kg)", 1.0)),
-                "기본요금": int(row.get("기본요금(원)", 38000)),
-                "추가단가": int(row.get("추가단가(원)", 25000)),
-                "1CBM단가": int(row.get("1CBM단가(원)", 3700000)),
-            }
+                new_rates_structure[c][t][i] = {
+                    "기본중량": float(row.get("기본중량(kg)", 1.0)),
+                    "기본요금": int(row.get("기본요금(원)", 38000)),
+                    "추가단가": int(row.get("추가단가(원)", 25000)),
+                    "1CBM단가": int(row.get("1CBM단가(원)", 3700000)),
+                }
 
-          st.session_state.client_rates[selected_manage_client] = (
-              new_rates_structure
-          )
+            st.session_state.client_rates[selected_manage_client] = (
+                new_rates_structure
+            )
 
         # 요율표 최종 저장 버튼
         if st.button(
@@ -2992,14 +2992,14 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
             use_container_width=True,
             key=f"save_rates_btn_{selected_manage_client}",
         ):
-          save_client_data(
-              st.session_state.client_list,
-              st.session_state.client_rates,
-              st.session_state.client_infos,
-          )
-          st.success(f"[{selected_manage_client}]의 요율표가 성공적으로 저장되었습니다!")
-          st.rerun()   
-
+            save_client_data(
+                st.session_state.client_list,
+                st.session_state.client_rates,
+                st.session_state.client_infos,
+            )
+            st.success(f"[{selected_manage_client}]의 요율표가 성공적으로 저장되었습니다!")
+            st.rerun()       
+        
 
 
 # ==========================================
