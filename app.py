@@ -2877,31 +2877,38 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 if st.session_state.get("client_save_success"):
     saved_client = st.session_state.pop("client_save_success")
-    st.success(f"[{saved_client}]의 기본 정보가 성공적으로 수정되었습니다!")
-
-if 'selected_manage_client' in locals() and selected_manage_client:
+    st.success(
+        f"[{saved_client}]의 기본 정보가 성공적으로 수정되었습니다!"
+    )   
     st.markdown("---")
-    st.markdown(f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표")
+    st.markdown(
+        f"#### 📊 [{selected_manage_client}] 국가별·운송형태별 단가 및 요율표"
+    )
+
     # 기존 요율표 편집 데이터프레임 구성 로직 연동
     client_rate_data = []
     c_rates_dict = st.session_state.client_rates.get(
         selected_manage_client, {}
     )
-if c_rates_dict:
-    for country, trans_dict in c_rates_dict.items():
-        if isinstance(trans_dict, dict):
-            for transport, item_dict in trans_dict.items():
-                if isinstance(item_dict, dict):
-                    for item_name, r_val in item_dict.items():
-                        client_rate_data.append({
-                            "선택": False,
-                            "국가": country,
-                            "운송형태": transport,
-                            "항목": item_name,
-                            "요율/단가": r_val
-                        })
 
-if client_rate_data:
+    if c_rates_dict:
+      for country, trans_dict in c_rates_dict.items():
+        if isinstance(trans_dict, dict):
+          for transport, item_dict in trans_dict.items():
+            if isinstance(item_dict, dict):
+              for item_name, r_val in item_dict.items():
+                client_rate_data.append({
+                    "선택": False,
+                    "국가": country,
+                    "운송형태": transport,
+                    "품명": item_name,
+                    "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
+                    "기본요금(원)": int(r_val.get("기본요금", 38000)),
+                    "추가단가(원)": int(r_val.get("추가단가", 25000)),
+                    "1CBM당단가(원)": int(r_val.get("1CBM당단가", 3700000)),
+                })
+
+    if client_rate_data:
       df_rates = pd.DataFrame(client_rate_data)
       edited_rates_df = st.data_editor(
           df_rates,
