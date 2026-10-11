@@ -2885,9 +2885,8 @@ st.markdown(f"#### 📊 [{target_client}] 국가별·운송형태별 단가 및 
 # 기존 요율표 편집 데이터프레임 구성 로직 연동
 client_rate_data = []
 c_rates_dict = st.session_state.client_rates.get(
-    selected_manage_client, {}
+    target_client, {}
 )
-
 if c_rates_dict:
     for country, trans_dict in c_rates_dict.items():
         if isinstance(trans_dict, dict):
