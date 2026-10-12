@@ -2120,7 +2120,11 @@ elif selected_menu == "📋 화물 견적서 발행":
   )
 
   # 거래처 선택
-  client_names = list(st.session_state.client_infos.keys())
+  client_names = (
+      list(st.session_state.client_infos.keys())
+      if "client_infos" in st.session_state
+      else []
+  )
   if not client_names:
     client_names = ["거래처 미등록"]
 
@@ -2134,7 +2138,11 @@ elif selected_menu == "📋 화물 견적서 발행":
   with q_col3:
     quote_date = st.date_input("견적일자", value=date.today())
 
-  c_info = st.session_state.client_infos.get(selected_q_client, {})
+  c_info = (
+      st.session_state.client_infos.get(selected_q_client, {})
+      if "client_infos" in st.session_state
+      else {}
+  )
 
   st.markdown("---")
   st.markdown("#### 📋 [ 아래 ] 견적 상세 품목 및 조건 입력")
@@ -2152,7 +2160,7 @@ elif selected_menu == "📋 화물 견적서 발행":
       "비고": "통관료 포함 / 세금 별도",
   }])
 
-  # num_rows="dynamic" 옵션 적용으로 행 추가/삭제 삭제 가능
+  # num_rows="dynamic" 옵션 적용으로 행 추가/삭제 가능
   edited_quote_df = st.data_editor(
       default_quote_data,
       num_rows="dynamic",
@@ -2195,7 +2203,7 @@ elif selected_menu == "📋 화물 견적서 발행":
                 <td style="width: 50%; vertical-align: top;">
                     <b>문서번호:</b> {quote_no}<br>
                     <b>수 신:</b> <span style="font-size: 11pt; font-weight: bold; color: #1e3a8a;">{selected_q_client}</span> 귀하<br>
-                    <b>담당자/연락처:</b> {c_info.get('담당자', '-') } / {c_info.get('전화번호', '-')}<br>
+                    <b>담당자/연락처:</b> {c_info.get('담당자', '-')}<br>
                     <b>주 소:</b> {c_info.get('주소', '-')}
                 </td>
                 <td style="width: 50%; vertical-align: top; text-align: right;">
@@ -2225,45 +2233,7 @@ elif selected_menu == "📋 화물 견적서 발행":
     schedule = r.get("발송 스케줄", "")
     rate = r.get("kg당 운임", "")
     v_weight = r.get("부피중량 적용", "")
-    remark = r.get("비고", "")
-
-    # None 값 또는 빈 행 방지 처리
-    if (
-        country is None
-        and schedule is None
-        and rate is None
-        and v_weight is None
-    ):
-      continue
-
-    quote_html += f"""
-            <tr>
-                <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center;">{country if country else '-'}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 8px;">{schedule if schedule else '-'}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-weight: bold; color: #dc2626;">{rate if rate else '-'}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center;">{v_weight if v_weight else '-'}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 8px;">{remark if remark else '-'}</td>
-            </tr>
-        """
-
-  quote_html += f"""
-        </table>
-
-        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px; font-size: 9.5pt; line-height: 1.6; margin-bottom: 20px;">
-            <b>[유의 및 참고사항]</b><br>
-            • 상기 견적은 화물 규격 및 현지 사정에 따라 변동될 수 있습니다.<br>
-            • 위험물, 배터리, 액체류 등 특수 화물은 사전 협의가 필요합니다.<br>
-            • 입금 계좌: 우리은행 1005-704-932716 (주)범운해운항공
-        </div>
-
-        <div style="text-align: center; margin-top: 30px; font-weight: bold; font-size: 11pt;">
-            주식회사 범운해운항공 대표이사 이상복 [직인생략]
-        </div>
-    </div>
-    """
-
-  components.html(quote_html, height=1000, scrolling=True)
-
+    remark = r.get("비
 # ==========================================
 # [6] 거래처 미팅 노트
 # ==========================================
