@@ -2007,95 +2007,106 @@ elif selected_menu == "📑 거래처 인보이스 발행":
         unsafe_allow_html=True,
     )
 
-    if st.button("🖨 인보이스(청구서) 인쇄하기", type="primary"):
-      c_inf = st.session_state.client_infos.get(selected_inv_client, {})
-      c_addr = c_inf.get("주소", "-")
-      c_bno = c_inf.get("사업자등록번호", "-")
-      c_mgr = c_inf.get("담당자", "-")
-      c_tel = c_inf.get("전화번호", "-")
+    c_inf = st.session_state.client_infos.get(selected_inv_client, {})
+    c_addr = c_inf.get("주소", "-")
+    c_bno = c_inf.get("사업자등록번호", "-")
+    c_mgr = c_inf.get("담당자", "-")
+    c_tel = c_inf.get("전화번호", "-")
 
-      invoice_html_output = f"""
-            <div style="font-family: 'Pretendard', sans-serif; padding: 25px; border: 2px solid #1e3a8a; border-radius: 8px; background: #fff; max-width: 760px; margin: 0 auto;">
-                <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 5px;">INVOICE (거래명세서 / 청구서)</h2>
-                <p style="text-align: center; color: #475569; font-size: 10pt; margin-top: 0;">(주)범운해운항공 | BUMWOON OCEAN & AIR CO., LTD.</p>
-                <hr style="border: 1.5px solid #1e3a8a; margin: 15px 0;">
-                
-                <table style="width: 100%; margin-bottom: 15px; font-size: 9.5pt;">
-                    <tr>
-                        <td style="width: 100%; vertical-align: top; border: 1px solid #cbd5e1; padding: 12px; background-color: #eff6ff;">
-                            <b>[공급받는 자 (화주)]</b><br>
-                            상호: <span style="font-size: 11pt; color: #1e3a8a; font-weight: bold;">{selected_inv_client}</span><br>
-                            사업자등록번호: {c_bno}<br>
-                            담당자/연락처: {c_mgr} / {c_tel}<br>
-                            주소: {c_addr}
-                        </td>
-                    </tr>
-                </table>
-                
-                <p><b>발행일자:</b> {date.today()}</p>
-                
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
-                    <tr style="background-color: #0f172a; color: white;">
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 25%;">B/L No</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 35%;">품목 및 부피사이즈</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 20%;">해외수하인</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 10%;">청구중량</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 10%;">청구금액(원)</th>
-                    </tr>
-            """
-      for _, r in client_bls.iterrows():
-        item_name = r.get("품목", "")
-
-        # 부피사이즈 자동 연동 (CSV 내 키값 자동 탐색)
-        size_info = (
-            r.get("부피사이즈")
-            or r.get("부피사이즈(Description)")
-            or r.get("부피규격")
-            or r.get("규격")
-            or ""
-        )
-        size_display = (
-            f"<br><span style='font-size: 8pt; color: #475569;'>• 부피사이즈:"
-            f" {size_info}</span>"
-            if size_info
-            else ""
-        )
-
-        # 해외수하인 연동
-        consignee = (
-            r.get("해외수하인") or r.get("해외수화인") or r.get("수하인") or "-"
-        )
-
-        invoice_html_output += f"""
-                <tr>
-                    <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{r.get('B/L 번호', '')}</td>
-                    <td style="border: 1px solid #64748b; padding: 8px;"><b>{item_name}</b>{size_display}</td>
-                    <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{consignee}</td>
-                    <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{r.get('매출청구중량(kg)', '')} kg</td>
-                    <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold;">{int(r.get('매출액(원)', 0)):,} 원</td>
-                </tr>
-            """
-      invoice_html_output += f"""
-                </table>
-                <div style="margin-top: 20px; text-align: right; font-size: 10.5pt;">
-                    <p>공급가액 합계: <b>{total_invoice_amount:,} 원</b></p>
-                    <p>부가가치세 (VAT): <b>{vat_amount:,} 원</b></p>
-                    <p style="font-size: 12pt; color: #dc2626; font-weight: bold;">총 청구금액: {grand_total:,} 원</p>
-                </div>
-                
-                <div style="margin-top: 25px; padding: 12px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 9.5pt; line-height: 1.6;">
-                    <b>[입금 계좌 및 발행 안내사항]</b><br>
-                    • <b>입금 계좌:</b> {selected_bank}<br>
-                    • <b>발행 구문:</b> {tax_status}<br>
-                    • 본 청구서는 거래명세서 겸용이며, 영세율 적용 건 또는 세금계산서 미발행 건 등에 대한 확인용으로 활용됩니다.
-                </div>
-
-                <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
-                    주식회사 범운해운항공 대표이사 이상복 [직인생략]
-                </div>
+    invoice_html_output = f"""
+        <style>
+            @media print {{
+                .no-print {{ display: none !important; }}
+                body {{ margin: 0; padding: 0; }}
+            }}
+        </style>
+        <div style="font-family: 'Pretendard', sans-serif; padding: 25px; border: 2px solid #1e3a8a; border-radius: 8px; background: #fff; max-width: 760px; margin: 0 auto;">
+            <div class="no-print" style="text-align: right; margin-bottom: 15px;">
+                <button onclick="window.print()" style="background-color: #dc2626; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 6px; cursor: pointer;">
+                    🖨 PDF 저장 / 인쇄하기
+                </button>
             </div>
-            """
-      components.html(invoice_html_output, height=1500, scrolling=True)
+            
+            <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 5px;">INVOICE (거래명세서 / 청구서)</h2>
+            <p style="text-align: center; color: #475569; font-size: 10pt; margin-top: 0;">(주)범운해운항공 | BUMWOON OCEAN & AIR CO., LTD.</p>
+            <hr style="border: 1.5px solid #1e3a8a; margin: 15px 0;">
+            
+            <table style="width: 100%; margin-bottom: 15px; font-size: 9.5pt;">
+                <tr>
+                    <td style="width: 100%; vertical-align: top; border: 1px solid #cbd5e1; padding: 12px; background-color: #eff6ff;">
+                        <b>[공급받는 자 (화주)]</b><br>
+                        상호: <span style="font-size: 11pt; color: #1e3a8a; font-weight: bold;">{selected_inv_client}</span><br>
+                        사업자등록번호: {c_bno}<br>
+                        담당자/연락처: {c_mgr} / {c_tel}<br>
+                        주소: {c_addr}
+                    </td>
+                </tr>
+            </table>
+            
+            <p><b>발행일자:</b> {date.today()}</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
+                <tr style="background-color: #0f172a; color: white;">
+                    <th style="border: 1px solid #64748b; padding: 8px; width: 25%;">B/L No</th>
+                    <th style="border: 1px solid #64748b; padding: 8px; width: 35%;">품목 및 부피사이즈</th>
+                    <th style="border: 1px solid #64748b; padding: 8px; width: 20%;">해외수하인</th>
+                    <th style="border: 1px solid #64748b; padding: 8px; width: 10%;">청구중량</th>
+                    <th style="border: 1px solid #64748b; padding: 8px; width: 10%;">청구금액(원)</th>
+                </tr>
+        """
+    for _, r in client_bls.iterrows():
+      item_name = r.get("품목", "")
+
+      # 부피사이즈 키값 자동 연동
+      size_info = (
+          r.get("부피사이즈")
+          or r.get("부피사이즈(Description)")
+          or r.get("부피규격")
+          or r.get("규격")
+          or ""
+      )
+      size_display = (
+          f"<br><span style='font-size: 8pt; color: #475569;'>• 부피사이즈:"
+          f" {size_info}</span>"
+          if size_info
+          else ""
+      )
+
+      # 해외수하인 연동
+      consignee = (
+          r.get("해외수하인") or r.get("해외수화인") or r.get("수하인") or "-"
+      )
+
+      invoice_html_output += f"""
+            <tr>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{r.get('B/L 번호', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 8px;"><b>{item_name}</b>{size_display}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{consignee}</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{r.get('매출청구중량(kg)', '')} kg</td>
+                <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold;">{int(r.get('매출액(원)', 0)):,} 원</td>
+            </tr>
+        """
+    invoice_html_output += f"""
+            </table>
+            <div style="margin-top: 20px; text-align: right; font-size: 10.5pt;">
+                <p>공급가액 합계: <b>{total_invoice_amount:,} 원</b></p>
+                <p>부가가치세 (VAT): <b>{vat_amount:,} 원</b></p>
+                <p style="font-size: 12pt; color: #dc2626; font-weight: bold;">총 청구금액: {grand_total:,} 원</p>
+            </div>
+            
+            <div style="margin-top: 25px; padding: 12px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 9.5pt; line-height: 1.6;">
+                <b>[입금 계좌 및 발행 안내사항]</b><br>
+                • <b>입금 계좌:</b> {selected_bank}<br>
+                • <b>발행 구문:</b> {tax_status}<br>
+                • 본 청구서는 거래명세서 겸용이며, 영세율 적용 건 또는 세금계산서 미발행 건 등에 대한 확인용으로 활용됩니다.
+            </div>
+
+            <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
+                주식회사 범운해운항공 대표이사 이상복 [직인생략]
+            </div>
+        </div>
+        """
+    components.html(invoice_html_output, height=1500, scrolling=True)
   else:
     st.info("발행할 인보이스 데이터(B/L)가 없습니다.")
 # ==========================================
