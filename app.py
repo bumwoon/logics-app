@@ -1952,7 +1952,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   )
   st.markdown(
       "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>발행"
-      " 여부를 선택하시면 하단에 알맞은 입금 계좌 정보가 자동으로 연동되어"
+      " 여부 및 입금 계좌를 선택하시면 하단 인보이스에 정식 연동되어"
       " 출력됩니다.</p>",
       unsafe_allow_html=True,
   )
@@ -1961,10 +1961,30 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     df_inv = pd.DataFrame(st.session_state.bl_data_list)
     clients_in_data = df_inv["화주명(매출)"].unique().tolist()
 
-    inv_col1, inv_col2 = st.columns(2)
+    inv_col1, inv_col2, inv_col3 = st.columns([2, 1.5, 1.5])
     with inv_col1:
       selected_inv_client = st.selectbox(
           "인보이스를 발행할 거래처 선택", options=clients_in_data
+      )
+
+    with inv_col2:
+      selected_bank = st.selectbox(
+          "🏦 입금 계좌 선택",
+          options=[
+              "카카오뱅크 3333-XX-XXXXXXX (주)범운해운항공",
+              "우리은행 1005-XXX-XXXXXX (주)범운해운항공",
+              "기업은행 010-XXXX-XXXX (주)범운해운항공",
+          ],
+      )
+
+    with inv_col3:
+      tax_status = st.selectbox(
+          "📄 영세율 / 세금계산서 구부",
+          options=[
+              "영세율 적용 (세금계산서 미발행/청구확인용)",
+              "부가가치세 10% 별도 부과",
+              "면세 / 계산서 미발행 건",
+          ],
       )
 
     client_bls = df_inv[df_inv["화주명(매출)"] == selected_inv_client]
@@ -1973,14 +1993,15 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     st.dataframe(client_bls, use_container_width=True)
 
     total_invoice_amount = client_bls["매출액(원)"].sum()
-    vat_amount = int(total_invoice_amount * 0.1)
+    vat_amount = int(total_invoice_amount * 0.1) if "10%" in tax_status else 0
     grand_total = total_invoice_amount + vat_amount
 
     st.markdown(
         f"""
         <div style='background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 8px; margin-bottom: 15px;'>
             <b>• 공급가액 합계:</b> {total_invoice_amount:,} 원<br>
-            <b>• 부가가치세 (VAT 10%):</b> {vat_amount:,} 원<br>
+            <b>• 부가가치세 (VAT):</b> {vat_amount:,} 원 ({tax_status})<br>
+            <b>• 지정 입금 계좌:</b> <span style='color: #1e3a8a; font-weight: bold;'>{selected_bank}</span><br>
             <hr style='border: 0.5px solid #bfdbfe; margin: 8px 0;'>
             <b>• 총 청구금액 (Grand Total): <span style='color: #dc2626; font-size: 16px;'>{grand_total:,} 원</span></b>
         </div>
@@ -2026,7 +2047,15 @@ elif selected_menu == "📑 거래처 인보이스 발행":
             """
       for _, r in client_bls.iterrows():
         item_name = r.get("품목", "")
-        size_info = r.get("부피사이즈", "")
+
+        # 부피사이즈 관련 키값 자동 탐색
+        size_info = (
+            r.get("부피사이즈")
+            or r.get("부피사이즈(Description)")
+            or r.get("부피규격")
+            or r.get("규격")
+            or ""
+        )
         size_display = (
             f"<br><span style='font-size: 8pt; color: #475569;'>• 부피사이즈:"
             f" {size_info}</span>"
@@ -2034,9 +2063,10 @@ elif selected_menu == "📑 거래처 인보이스 발행":
             else ""
         )
 
-        consignee = r.get("해외수하인", "")
-        if not consignee:
-          consignee = r.get("수하인", "-")
+        # 해외수하인 연동
+        consignee = (
+            r.get("해외수하인") or r.get("해외수화인") or r.get("수하인") or "-"
+        )
 
         invoice_html_output += f"""
                 <tr>
@@ -2051,14 +2081,15 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 </table>
                 <div style="margin-top: 20px; text-align: right; font-size: 10.5pt;">
                     <p>공급가액 합계: <b>{total_invoice_amount:,} 원</b></p>
-                    <p>부가가치세 (VAT 10%): <b>{vat_amount:,} 원</b></p>
+                    <p>부가가치세 (VAT): <b>{vat_amount:,} 원</b></p>
                     <p style="font-size: 12pt; color: #dc2626; font-weight: bold;">총 청구금액: {grand_total:,} 원</p>
                 </div>
                 
                 <div style="margin-top: 25px; padding: 12px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 9.5pt; line-height: 1.6;">
-                    <b>[입금 계좌 및 안내사항]</b><br>
-                    • 입금 계좌: 카카오뱅크 3333-XX-XXXXXXX (예금주: (주)범운해운항공)<br>
-                    • 본 청구서는 거래명세서 겸용이며, 영세율 적용 건 및 세금계산서 미발행 건 등에 대한 확인용으로 활용됩니다.
+                    <b>[입금 계좌 및 발행 안내사항]</b><br>
+                    • <b>입금 계좌:</b> {selected_bank}<br>
+                    • <b>발행 구문:</b> {tax_status}<br>
+                    • 본 청구서는 거래명세서 겸용이며, 영세율 적용 건 또는 세금계산서 미발행 건 등에 대한 확인용으로 활용됩니다.
                 </div>
 
                 <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
@@ -2066,7 +2097,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 </div>
             </div>
             """
-      components.html(invoice_html_output, height=1200, scrolling=True)
+      components.html(invoice_html_output, height=1500, scrolling=True)
   else:
     st.info("발행할 인보이스 데이터(B/L)가 없습니다.")
 # ==========================================
