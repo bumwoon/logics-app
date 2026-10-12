@@ -1961,7 +1961,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     df_inv = pd.DataFrame(st.session_state.bl_data_list)
     clients_in_data = df_inv["화주명(매출)"].unique().tolist()
 
-    inv_col1, inv_col2, inv_col3 = st.columns([2, 1.5, 1.5])
+    inv_col1, inv_col2, inv_col3 = st.columns([2, 2, 2])
     with inv_col1:
       selected_inv_client = st.selectbox(
           "인보이스를 발행할 거래처 선택", options=clients_in_data
@@ -1971,19 +1971,17 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       selected_bank = st.selectbox(
           "🏦 입금 계좌 선택",
           options=[
-              "카카오뱅크 3333-XX-XXXXXXX (주)범운해운항공",
-              "우리은행 1005-XXX-XXXXXX (주)범운해운항공",
-              "기업은행 010-XXXX-XXXX (주)범운해운항공",
+              "우리은행 1005-704-932716 (주)범운해운항공",
+              "카카오뱅크 3333-12-9553477 (주)범운해운항공 이상복",
           ],
       )
 
     with inv_col3:
       tax_status = st.selectbox(
-          "📄 영세율 / 세금계산서 구부",
+          "📄 영세율 / 세금계산서 구분",
           options=[
               "영세율 적용 (세금계산서 미발행/청구확인용)",
-              "부가가치세 10% 별도 부과",
-              "면세 / 계산서 미발행 건",
+              "계산서 미발행 건",
           ],
       )
 
@@ -2048,7 +2046,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       for _, r in client_bls.iterrows():
         item_name = r.get("품목", "")
 
-        # 부피사이즈 관련 키값 자동 탐색
+        # 부피사이즈 자동 연동 (CSV 내 키값 자동 탐색)
         size_info = (
             r.get("부피사이즈")
             or r.get("부피사이즈(Description)")
