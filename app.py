@@ -2017,23 +2017,34 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 
                 <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
                     <tr style="background-color: #0f172a; color: white;">
-                        <th style="border: 1px solid #64748b; padding: 6px;">Job No</th>
-                        <th style="border: 1px solid #64748b; padding: 6px;">B/L No</th>
-                        <th style="border: 1px solid #64748b; padding: 6px;">품목</th>
-                        <th style="border: 1px solid #64748b; padding: 6px;">해외수화인</th>
-                        <th style="border: 1px solid #64748b; padding: 6px;">청구중량</th>
-                        <th style="border: 1px solid #64748b; padding: 6px;">청구금액(원)</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 25%;">B/L No</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 35%;">품목 및 부피사이즈</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 20%;">해외수하인</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 10%;">청구중량</th>
+                        <th style="border: 1px solid #64748b; padding: 8px; width: 10%;">청구금액(원)</th>
                     </tr>
             """
       for _, r in client_bls.iterrows():
+        item_name = r.get("품목", "")
+        size_info = r.get("부피사이즈", "")
+        size_display = (
+            f"<br><span style='font-size: 8pt; color: #475569;'>• 부피사이즈:"
+            f" {size_info}</span>"
+            if size_info
+            else ""
+        )
+
+        consignee = r.get("해외수하인", "")
+        if not consignee:
+          consignee = r.get("수하인", "-")
+
         invoice_html_output += f"""
                 <tr>
-                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('Job 번호', '')}</td>
-                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('B/L 번호', '')}</td>
-                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('품목', '')}</td>
-                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('해외수화인', '')}</td>
-                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('매출청구중량(kg)', '')} kg</td>
-                    <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-weight: bold;">{int(r.get('매출액(원)', 0)):,} 원</td>
+                    <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{r.get('B/L 번호', '')}</td>
+                    <td style="border: 1px solid #64748b; padding: 8px;"><b>{item_name}</b>{size_display}</td>
+                    <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{consignee}</td>
+                    <td style="border: 1px solid #64748b; padding: 8px; text-align: center;">{r.get('매출청구중량(kg)', '')} kg</td>
+                    <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold;">{int(r.get('매출액(원)', 0)):,} 원</td>
                 </tr>
             """
       invoice_html_output += f"""
@@ -2044,10 +2055,10 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                     <p style="font-size: 12pt; color: #dc2626; font-weight: bold;">총 청구금액: {grand_total:,} 원</p>
                 </div>
                 
-                <div style="margin-top: 25px; padding: 12px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 9.5pt;">
-                    <b>[입금 계좌 안내]</b><br>
-                    • 카카오뱅크: 3333-XX-XXXXXXX (예금주: (주)범운해운항공)<br>
-                    • 안내사항: 본 청구서는 거래명세서 겸용이며, 영세율 적용 건 또는 세금계산서 미발행 건 등에 대한 확인용으로 활용됩니다.
+                <div style="margin-top: 25px; padding: 12px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 9.5pt; line-height: 1.6;">
+                    <b>[입금 계좌 및 안내사항]</b><br>
+                    • 입금 계좌: 카카오뱅크 3333-XX-XXXXXXX (예금주: (주)범운해운항공)<br>
+                    • 본 청구서는 거래명세서 겸용이며, 영세율 적용 건 및 세금계산서 미발행 건 등에 대한 확인용으로 활용됩니다.
                 </div>
 
                 <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
@@ -2058,7 +2069,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       components.html(invoice_html_output, height=1200, scrolling=True)
   else:
     st.info("발행할 인보이스 데이터(B/L)가 없습니다.")
-
 # ==========================================
 # [5] 화물 견적서 발행
 # ==========================================
