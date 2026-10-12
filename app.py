@@ -1960,7 +1960,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   if st.session_state.bl_data_list:
     df_inv = pd.DataFrame(st.session_state.bl_data_list)
     clients_in_data = df_inv["화주명(매출)"].unique().tolist()
-    
+
     inv_col1, inv_col2 = st.columns(2)
     with inv_col1:
       selected_inv_client = st.selectbox(
@@ -2003,13 +2003,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 
                 <table style="width: 100%; margin-bottom: 15px; font-size: 9.5pt;">
                     <tr>
-                        <td style="width: 50%; vertical-align: top; border: 1px solid #cbd5e1; padding: 10px; background-color: #f8fafc;">
-                            <b>[공급자]</b><br>
-                            상호: (주)범운해운항공<br>
-                            대표이사: 이상복<br>
-                            주소: 경기도 김포시 풍무동 326-5번지 2층
-                        </td>
-                        <td style="width: 50%; vertical-align: top; border: 1px solid #cbd5e1; padding: 10px; background-color: #eff6ff;">
+                        <td style="width: 100%; vertical-align: top; border: 1px solid #cbd5e1; padding: 12px; background-color: #eff6ff;">
                             <b>[공급받는 자 (화주)]</b><br>
                             상호: <span style="font-size: 11pt; color: #1e3a8a; font-weight: bold;">{selected_inv_client}</span><br>
                             사업자등록번호: {c_bno}<br>
@@ -2026,6 +2020,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                         <th style="border: 1px solid #64748b; padding: 6px;">Job No</th>
                         <th style="border: 1px solid #64748b; padding: 6px;">B/L No</th>
                         <th style="border: 1px solid #64748b; padding: 6px;">품목</th>
+                        <th style="border: 1px solid #64748b; padding: 6px;">해외수화인</th>
                         <th style="border: 1px solid #64748b; padding: 6px;">청구중량</th>
                         <th style="border: 1px solid #64748b; padding: 6px;">청구금액(원)</th>
                     </tr>
@@ -2036,6 +2031,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                     <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('Job 번호', '')}</td>
                     <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('B/L 번호', '')}</td>
                     <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('품목', '')}</td>
+                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('해외수화인', '')}</td>
                     <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('매출청구중량(kg)', '')} kg</td>
                     <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-weight: bold;">{int(r.get('매출액(원)', 0)):,} 원</td>
                 </tr>
@@ -2047,15 +2043,21 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                     <p>부가가치세 (VAT 10%): <b>{vat_amount:,} 원</b></p>
                     <p style="font-size: 12pt; color: #dc2626; font-weight: bold;">총 청구금액: {grand_total:,} 원</p>
                 </div>
+                
+                <div style="margin-top: 25px; padding: 12px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 9.5pt;">
+                    <b>[입금 계좌 안내]</b><br>
+                    • 카카오뱅크: 3333-XX-XXXXXXX (예금주: (주)범운해운항공)<br>
+                    • 안내사항: 본 청구서는 거래명세서 겸용이며, 영세율 적용 건 또는 세금계산서 미발행 건 등에 대한 확인용으로 활용됩니다.
+                </div>
+
                 <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
                     주식회사 범운해운항공 대표이사 이상복 [직인생략]
                 </div>
             </div>
             """
-      components.html(invoice_html_output, height=1100, scrolling=True)
+      components.html(invoice_html_output, height=1200, scrolling=True)
   else:
     st.info("발행할 인보이스 데이터(B/L)가 없습니다.")
-
 
 # ==========================================
 # [5] 화물 견적서 발행
