@@ -1951,312 +1951,110 @@ elif selected_menu == "📑 거래처 인보이스 발행":
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 20px;'>세금계산서"
-      " 발행 여부를 선택하시면 하단에 알맞은 입금 계좌정보(우리은행 또는"
-      " 카카오뱅크)가 자동으로 연동되어 출력됩니다.</p>",
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>발행"
+      " 여부를 선택하시면 하단에 알맞은 입금 계좌 정보가 자동으로 연동되어"
+      " 출력됩니다.</p>",
       unsafe_allow_html=True,
   )
 
-  inv_col1, inv_col2 = st.columns(2)
-  with inv_col1:
-    inv_client_options = (
-        st.session_state.client_list
-        if st.session_state.client_list
-        else ["아코글로벌"]
-    )
-    selected_inv_client = st.selectbox(
-        "청구 대상 거래처 선택", options=inv_client_options, key="inv_client_sel"
-    )
-    inv_date = st.date_input(
-        "인보이스 발행일자 (Date)", value=date.today(), key="inv_date_input"
-    )
-    inv_no = st.text_input(
-        "인보이스 번호",
-        value=f"INV-{date.today().strftime('%Y%m%d')}-01",
-        placeholder="예: INV-20261005-01",
-    )
-
-  with inv_col2:
-    inv_due_date = st.date_input(
-        "지불 기한일 (Due Date)", value=date.today(), key="inv_due_input"
-    )
-    tax_invoice_status = st.selectbox(
-        "세금계산서 발행 여부 선택",
-        options=[
-            "법인 세금계산서 발행 (우리은행 계좌 연동)",
-            "계산서 미발행 / Invoice 전용 (카카오뱅크 계좌 연동)",
-        ],
-        index=0,
-    )
-    inv_remark_memo = st.text_input(
-        "비고 메모", value="등록된 B/L 화물 운송비 청구 건"
-    )
-
-  st.markdown("---")
-  st.markdown(
-      f"#### 📋 [{selected_inv_client}] 등록된 B/L 내역 중 청구할 건 선택"
-  )
-
-  client_bls = [
-      item
-      for item in st.session_state.bl_data_list
-      if str(item.get("화주명(매출)")) == selected_inv_client
-  ]
-
-  selected_invoice_rows = pd.DataFrame()
-  if client_bls:
-    df_client_bl = pd.DataFrame(client_bls)
-    if "선택" not in df_client_bl.columns:
-      df_client_bl.insert(0, "선택", True)
-
-    edited_inv_bl_table = st.data_editor(
-        df_client_bl[
-            [
-                "선택",
-                "날짜",
-                "Job 번호",
-                "B/L 번호",
-                "국가",
-                "품목",
-                "박스수",
-                "부피규격",
-                "매출청구중량(kg)",
-                "매출액(원)",
-            ]
-        ],
-        hide_index=True,
-        use_container_width=True,
-        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-        key="invoice_bl_picker",
-    )
-
-    selected_invoice_rows = edited_inv_bl_table[
-        edited_inv_bl_table["선택"] == True
-    ]
-  else:
-    st.warning(
-        f"⚠ [{selected_inv_client}] 명의로 등록된 B/L 내역이 없습니다."
-        " 먼저 [수출입 B/L 등록] 메뉴에서 B/L을 등록해주세요."
-    )
-
-  inv_rows_html = ""
-  total_inv_amount = 0
-
-  if (
-      isinstance(selected_invoice_rows, pd.DataFrame)
-      and not selected_invoice_rows.empty
-  ):
-    for _, row in selected_invoice_rows.iterrows():
-      b_date = str(row.get("날짜", ""))
-      b_bl = str(row.get("B/L 번호", ""))
-      b_box = str(row.get("박스수", "1 박스"))
-      b_country = str(row.get("국가", ""))
-      b_item = str(row.get("품목", ""))
-      b_vol = str(row.get("부피규격", "-"))
-      b_cw = row.get("매출청구중량(kg)", 1.0)
-      b_amount = int(row.get("매출액(원)", 0))
-      total_inv_amount += b_amount
-
-      item_full_desc = (
-          f"<b>[{b_country}] {b_item}</b><br><span"
-          f" style='font-size:8pt; color:#475569;'>• 부피사이즈: {b_vol}</span>"
+  if st.session_state.bl_data_list:
+    df_inv = pd.DataFrame(st.session_state.bl_data_list)
+    clients_in_data = df_inv["화주명(매출)"].unique().tolist()
+    
+    inv_col1, inv_col2 = st.columns(2)
+    with inv_col1:
+      selected_inv_client = st.selectbox(
+          "인보이스를 발행할 거래처 선택", options=clients_in_data
       )
 
-      inv_rows_html += f"""
-            <tr>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;">{b_date}</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; font-size: 9pt; color: #1e3a8a;">{b_bl}</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-size: 9pt;">{b_box}</td>
-                <td style="border: 1px solid #64748b; padding: 8px; font-size: 9pt;">{item_full_desc}</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: center; font-weight: bold; color: #dc2626; font-size: 9.5pt;">{b_cw} KG</td>
-                <td style="border: 1px solid #64748b; padding: 8px; text-align: right; font-weight: bold; font-size: 9.5pt;">{b_amount:,.0f} 원</td>
-            </tr>
-            """
-  else:
-    inv_rows_html = """
-        <tr>
-            <td colspan="6" style="border: 1px solid #64748b; padding: 12px; text-align: center; color: #94a3b8;">선택된 B/L 내역이 없습니다. 위에서 청구할 B/L을 체크해주세요.</td>
-        </tr>
-        """
+    client_bls = df_inv[df_inv["화주명(매출)"] == selected_inv_client]
 
-  client_info_inv = st.session_state.client_infos.get(selected_inv_client, {})
-  client_addr_inv = client_info_inv.get(
-      "주소", "경기도 김포시 풍무동 326-5번지 2층"
-  )
-  client_bno_inv = client_info_inv.get("사업자등록번호", "-")
+    st.markdown(f"#### 📌 [{selected_inv_client}] 청구 대상 B/L 목록")
+    st.dataframe(client_bls, use_container_width=True)
 
-  if "미발행" in tax_invoice_status or "카카오뱅크" in tax_invoice_status:
-    bank_info_html = """
-        • <b>입금 계좌 안내 (카카오뱅크 / 개인사업자통장):</b> <span style="color: #1e3a8a; font-weight: bold;">3333-12-9553477 (예금주: 이상복/범운해운항공)</span><br>
-        • <b>세무 처리:</b> 계산서 미발행 (Invoice 청구 전용 건)
-        """
-  else:
-    bank_info_html = """
-        • <b>입금 계좌 안내 (우리은행 / 법인통장):</b> <span style="color: #1e3a8a; font-weight: bold;">1005-704-932716 (예금주: 주식회사 범운해운항공)</span><br>
-        • <b>세무 처리:</b> 법인 세금계산서 발행 건
-        """
+    total_invoice_amount = client_bls["매출액(원)"].sum()
+    vat_amount = int(total_invoice_amount * 0.1)
+    grand_total = total_invoice_amount + vat_amount
 
-  logo_embed_inv = (
-      f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
-      " style='height: 38px; vertical-align: middle; margin-right: 8px;'>"
-      if encoded_sidebar_logo
-      else ""
-  )
-
-  invoice_html_output = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <style>
-            /* 화면 미리보기와 실제 인쇄/PDF를 분리 */
-            @media screen {{
-                body {{
-                    -webkit-print-color-adjust: exact;
-                    font-family: 'Pretendard', 'Malgun Gothic', sans-serif;
-                    color: #1e293b;
-                    font-size: 10pt;
-                    line-height: 1.5;
-                    margin: 0;
-                    padding: 10px;
-                    background-color: #ffffff;
-                }}
-                .invoice-container {{
-                    max-width: 800px;
-                    margin: 0 auto;
-                    border: 2px solid #0f172a;
-                    padding: 30px;
-                    border-radius: 8px;
-                    background-color: #ffffff;
-                    box-sizing: border-box;
-                }}
-            }}
-            @media print {{
-                @page {{ size: A4 portrait; margin: 12mm; }}
-                html, body {{
-                    width: auto !important;
-                    height: auto !important;
-                    min-height: 0 !important;
-                    overflow: visible !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    background: #fff !important;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                }}
-                .no-print, .print-btn {{ display: none !important; }}
-                .invoice-container {{
-                    width: 100% !important;
-                    max-width: none !important;
-                    height: auto !important;
-                    overflow: visible !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    border: 0 !important;
-                    border-radius: 0 !important;
-                    box-shadow: none !important;
-                    page-break-inside: auto;
-                }}
-                table {{ width: 100% !important; page-break-inside: auto; }}
-                thead {{ display: table-header-group; }}
-                tfoot {{ display: table-footer-group; }}
-                tr, img {{ page-break-inside: avoid; break-inside: avoid; }}
-                h1, h2, h3 {{ page-break-after: avoid; }}
-            }}
-            body {{ font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }}
-            .print-btn {{
-                display: block;
-                width: 100%;
-                background-color: #2563eb;
-                color: white;
-                text-align: center;
-                padding: 12px;
-                font-size: 11.5pt;
-                font-weight: bold;
-                border: none;
-                border-radius: 6px;
-                cursor: pointer;
-                margin-bottom: 25px;
-            }}
-            .print-btn:hover {{ background-color: #1d4ed8; }}
-        </style>
-    </head>
-    <body>
-        <div class="invoice-container">
-            <button class="print-btn no-print" onclick="window.print()">🖨 인보이스 인쇄 / PDF 저장하기 (Print / Save as PDF)</button>
-
-            <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px;">
-                <tr>
-                    <td style="width: 60%; border: none;">
-                        <div style="display: flex; align-items: center;">
-                            {logo_embed_inv}
-                            <div>
-                                <div style="font-size: 15pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                <div style="font-size: 8pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td style="width: 40%; text-align: right; border: none;">
-                        <div style="font-size: 20pt; font-weight: 900; color: #0f172a; letter-spacing: 4px;">INVOICE</div>
-                        <div style="font-size: 9pt; color: #475569; margin-top: 4px;">No. {inv_no}</div>
-                    </td>
-                </tr>
-            </table>
-
-            <table style="width: 100%; font-size: 10pt; margin-bottom: 20px; border-collapse: collapse;">
-                <tr>
-                    <td style="width: 100%; vertical-align: top; border: 1px solid #cbd5e1; padding: 14px; background-color: #f8fafc; border-radius: 6px;">
-                        <b>[BILL TO / 청구받는 곳]</b><br>
-                        <b>거래처명:</b> {selected_inv_client} &nbsp;&nbsp;|&nbsp;&nbsp; <b>사업자등록번호:</b> {client_bno_inv}<br>
-                        <b>주소:</b> {client_addr_inv}<br>
-                        <b>발행일자 (Date):</b> {str(inv_date)} &nbsp;&nbsp;|&nbsp;&nbsp; <b>지불기한 (Due Date):</b> {str(inv_due_date)}
-                    </td>
-                </tr>
-            </table>
-
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                <thead>
-                    <tr style="background-color: #0f172a; color: white; text-align: center; font-size: 9pt;">
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 14%;">날짜 (Date)</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 18%;">B/L 번호</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 11%;">카톤수</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 32%;">품명 및 부피사이즈 (Description)</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 12%;">중량 (KG)</th>
-                        <th style="border: 1px solid #64748b; padding: 8px; width: 13%;">금액</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {inv_rows_html}
-                </tbody>
-            </table>
-
-            <table style="width: 100%; margin-bottom: 20px;">
-                <tr>
-                    <td style="text-align: right; font-size: 13pt; font-weight: bold; color: #1e3a8a; padding: 10px; background-color: #eff6ff; border-radius: 6px; border: 1px solid #bfdbfe;">
-                        총 청구 합계 금액 (TOTAL AMOUNT DUE): <span style="color: #dc2626; font-size: 15pt;">{total_inv_amount:,.0f} 원</span>
-                    </td>
-                </tr>
-            </table>
-
-            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px 15px; border-radius: 6px; margin-bottom: 25px; font-size: 9pt;">
-                <b>[비고 및 결제 계좌 안내]</b><br>
-                {bank_info_html}<br>
-                • 메모: {inv_remark_memo}
-            </div>
-
-            <div style="text-align: center; font-size: 12pt; font-weight: 900; color: #0f172a; margin-top: 30px;">
-                주식회사 범운해운항공 대표이사 이상복 [직인생략]
-            </div>
+    st.markdown(
+        f"""
+        <div style='background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 8px; margin-bottom: 15px;'>
+            <b>• 공급가액 합계:</b> {total_invoice_amount:,} 원<br>
+            <b>• 부가가치세 (VAT 10%):</b> {vat_amount:,} 원<br>
+            <hr style='border: 0.5px solid #bfdbfe; margin: 8px 0;'>
+            <b>• 총 청구금액 (Grand Total): <span style='color: #dc2626; font-size: 16px;'>{grand_total:,} 원</span></b>
         </div>
-    </body>
-    </html>
-    """
+        """,
+        unsafe_allow_html=True,
+    )
 
-  st.markdown("---")
-  st.markdown("#### 👁‍🗨️ 정식 인보이스 미리보기 및 인쇄")
-  # 미리보기 iframe은 충분한 높이를 제공하고, 인쇄 시에는 위 @media print 규칙으로
-  # 인보이스 문서만 A4로 출력되도록 합니다.
-  components.html(invoice_html_output, height=1100, scrolling=True)
+    if st.button("🖨 인보이스(청구서) 인쇄하기", type="primary"):
+      c_inf = st.session_state.client_infos.get(selected_inv_client, {})
+      c_addr = c_inf.get("주소", "-")
+      c_bno = c_inf.get("사업자등록번호", "-")
+      c_mgr = c_inf.get("담당자", "-")
+      c_tel = c_inf.get("전화번호", "-")
+
+      invoice_html_output = f"""
+            <div style="font-family: 'Pretendard', sans-serif; padding: 25px; border: 2px solid #1e3a8a; border-radius: 8px; background: #fff; max-width: 760px; margin: 0 auto;">
+                <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 5px;">INVOICE (거래명세서 / 청구서)</h2>
+                <p style="text-align: center; color: #475569; font-size: 10pt; margin-top: 0;">(주)범운해운항공 | BUMWOON OCEAN & AIR CO., LTD.</p>
+                <hr style="border: 1.5px solid #1e3a8a; margin: 15px 0;">
+                
+                <table style="width: 100%; margin-bottom: 15px; font-size: 9.5pt;">
+                    <tr>
+                        <td style="width: 50%; vertical-align: top; border: 1px solid #cbd5e1; padding: 10px; background-color: #f8fafc;">
+                            <b>[공급자]</b><br>
+                            상호: (주)범운해운항공<br>
+                            대표이사: 이상복<br>
+                            주소: 경기도 김포시 풍무동 326-5번지 2층
+                        </td>
+                        <td style="width: 50%; vertical-align: top; border: 1px solid #cbd5e1; padding: 10px; background-color: #eff6ff;">
+                            <b>[공급받는 자 (화주)]</b><br>
+                            상호: <span style="font-size: 11pt; color: #1e3a8a; font-weight: bold;">{selected_inv_client}</span><br>
+                            사업자등록번호: {c_bno}<br>
+                            담당자/연락처: {c_mgr} / {c_tel}<br>
+                            주소: {c_addr}
+                        </td>
+                    </tr>
+                </table>
+                
+                <p><b>발행일자:</b> {date.today()}</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
+                    <tr style="background-color: #0f172a; color: white;">
+                        <th style="border: 1px solid #64748b; padding: 6px;">Job No</th>
+                        <th style="border: 1px solid #64748b; padding: 6px;">B/L No</th>
+                        <th style="border: 1px solid #64748b; padding: 6px;">품목</th>
+                        <th style="border: 1px solid #64748b; padding: 6px;">청구중량</th>
+                        <th style="border: 1px solid #64748b; padding: 6px;">청구금액(원)</th>
+                    </tr>
+            """
+      for _, r in client_bls.iterrows():
+        invoice_html_output += f"""
+                <tr>
+                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('Job 번호', '')}</td>
+                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('B/L 번호', '')}</td>
+                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('품목', '')}</td>
+                    <td style="border: 1px solid #64748b; padding: 6px; text-align: center;">{r.get('매출청구중량(kg)', '')} kg</td>
+                    <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-weight: bold;">{int(r.get('매출액(원)', 0)):,} 원</td>
+                </tr>
+            """
+      invoice_html_output += f"""
+                </table>
+                <div style="margin-top: 20px; text-align: right; font-size: 10.5pt;">
+                    <p>공급가액 합계: <b>{total_invoice_amount:,} 원</b></p>
+                    <p>부가가치세 (VAT 10%): <b>{vat_amount:,} 원</b></p>
+                    <p style="font-size: 12pt; color: #dc2626; font-weight: bold;">총 청구금액: {grand_total:,} 원</p>
+                </div>
+                <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
+                    주식회사 범운해운항공 대표이사 이상복 [직인생략]
+                </div>
+            </div>
+            """
+      components.html(invoice_html_output, height=1100, scrolling=True)
+  else:
+    st.info("발행할 인보이스 데이터(B/L)가 없습니다.")
 
 
 # ==========================================
