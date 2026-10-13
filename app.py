@@ -2002,7 +2002,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
           for col in [
               "구분",
               "날짜",
-              "Job 번호",
               "B/L 번호",
               "국가",
               "출발지",
@@ -2010,6 +2009,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
               "해외수하인",
               "품목",
               "박스수",
+              "부피규격",
               "매출청구중량(kg)",
               "매출액(원)",
           ]
@@ -2099,24 +2099,24 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
                         <table class="t-tbl">
                             <tr>
-                                <th style="width: 12%;">Job 번호</th>
-                                <th style="width: 18%;">B/L 번호</th>
+                                <th style="width: 20%;">B/L 번호</th>
                                 <th style="width: 12%;">국가</th>
                                 <th style="width: 18%;">수하인</th>
-                                <th style="width: 18%;">품목 / 박스</th>
-                                <th style="width: 10%;">청구중량</th>
-                                <th style="width: 14%;">금액 (원)</th>
+                                <th style="width: 16%;">품목 / 박스</th>
+                                <th style="width: 16%;">부피규격 (Size)</th>
+                                <th style="width: 8%;">청구중량</th>
+                                <th style="width: 10%;">금액 (원)</th>
                             </tr>
             """
 
         for r in client_bl_list:
           invoice_html += f"""
                     <tr>
-                        <td>{r.get("Job 번호", "-")}</td>
                         <td style="font-weight: bold;">{r.get("B/L 번호", "-")}</td>
                         <td>{r.get("국가", "-")}</td>
                         <td>{r.get("해외수하인", "-")}</td>
                         <td>{r.get("품목", "-")} ({r.get("박스수", "1 박스")})</td>
+                        <td style="font-size: 8.5pt;">{r.get("부피규격", "-")}</td>
                         <td>{r.get("매출청구중량(kg)", 1.0)} kg</td>
                         <td style="text-align: right; font-weight: bold;">{int(r.get("매출액(원)", 0)):,} 원</td>
                     </tr>
