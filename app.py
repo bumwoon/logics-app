@@ -1970,7 +1970,10 @@ elif selected_menu == "📑 거래처 인보이스 발행":
     with col_inv3:
       tax_mode = st.selectbox(
           "영세율 / 세금계산서 설정",
-          options=["영세율 적용 (세금계산서 미발행/청구확인용)", "과세 적용 (VAT 10%)"],
+          options=[
+              "영세율 적용 (세금계산서 미발행/청구확인용)",
+              "과세 적용 (VAT 10%)",
+          ],
       )
 
     target_date_str = str(selected_invoice_date)
@@ -2030,7 +2033,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
           "입금 계좌 선택",
           options=[
               "우리은행 1005-704-932716 (주)범운해운항공",
-              "국민은행 285401-04-123456 (주)범운해운항공",
+              "카카오뱅크 (개인/범운 계좌)",
           ],
       )
 
@@ -2120,7 +2123,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                         <td style="font-weight: bold;">{r.get("B/L 번호", "-")}</td>
                         <td>{r.get("국가", "-")}</td>
                         <td>{r.get("해외수하인", "-")}</td>
-                        <td>{r.get("품목", "-")} ({r.get("박ส수", "1 박스")})</td>
+                        <td>{r.get("품목", "-")} ({r.get("박스수", "1 박스")})</td>
                         <td>{r.get("매출청구중량(kg)", 1.0)} kg</td>
                         <td style="text-align: right; font-weight: bold;">{int(r.get("매출액(원)", 0)):,} 원</td>
                     </tr>
