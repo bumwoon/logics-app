@@ -2423,7 +2423,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
 elif selected_menu == "📱 금일발송 매니페스트":
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📦"
-      " 날짜별 발송 화물 매니페스트 (Profit 정산 포함)</h3>",
+      " 날짜별 발송 화물 매니페스트</h3>",
       unsafe_allow_html=True,
   )
 
@@ -2440,40 +2440,37 @@ elif selected_menu == "📱 금일발송 매니페스트":
 
   if date_shipments:
     st.markdown(
-        f"#### 📌 [{target_date_str}] 발송 화물 목록 (총 {len(date_shipments)}건)"
+        f"#### 📌 [{target_date_str}] 발송 화물 목록 (총"
+        f" {len(date_shipments)}건)"
     )
+
+    # 데이터프레임 미리보기 (Job 번호 제거하고 킬로 무게 확인용 컬럼 배치)
     df_mani = pd.DataFrame(date_shipments)
-    st.dataframe(df_mani, use_container_width=True)
+    show_cols = [
+        col
+        for col in [
+            "B/L 번호",
+            "국가",
+            "화주명(매출)",
+            "해외수하인",
+            "품목",
+            "박스수",
+            "매출청구중량(kg)",
+        ]
+        if col in df_mani.columns
+    ]
+    if show_cols:
+      st.dataframe(df_mani[show_cols], use_container_width=True)
+    else:
+      st.dataframe(df_mani, use_container_width=True)
 
     if st.button("🖨 매니페스트 정식 인쇄 / PDF 저장하기", type="primary"):
       manifest_html = f"""
-            <style>
-                @media print {{
-                    .no-print {{ display: none !important; }}
-                    body {{ margin: 0; padding: 0; }}
-                }}
-            </style>
             <div style="font-family: 'Pretendard', sans-serif; padding: 25px; border: 2px solid #1e3a8a; border-radius: 8px; background: #fff; max-width: 850px; margin: 0 auto;">
-                <div class="no-print" style="text-align: right; margin-bottom: 15px;">
-                    <button onclick="window.print()" style="background-color: #1e3a8a; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 6px; cursor: pointer;">
-                        🖨 매니페스트 정식 인쇄 / PDF 저장하기 (Print / Save as PDF)
-                    </button>
-                </div>
+                <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 5px;">화물 발송 매니페스트</h2>
+                <p style="text-align: center; color: #475569; font-size: 10pt;">주식회사 범운해운항공 | 조회가 기준일자: {target_date_str}</p>
+                <hr style="border: 1.5px solid #1e3a8a; margin: 15px 0;">
                 
-                <table style="width: 100%; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 20px;">
-                    <tr>
-                        <td style="vertical-align: middle;">
-                            <h2 style="color: #1e3a8a; margin: 0; font-size: 20pt;">주식회사 범운해운항공</h2>
-                            <p style="color: #64748b; margin: 3px 0 0 0; font-size: 9pt;">BUMWOON OCEAN & AIR CO., LTD.</p>
-                        </td>
-                        <td style="text-align: right; vertical-align: bottom;">
-                            <h1 style="color: #0f172a; margin: 0; font-size: 24pt; letter-spacing: 3px;">화물 발송 매니페스트</h1>
-                        </td>
-                    </tr>
-                </table>
-
-                <p style="font-size: 10pt;"><b>조회 기준일자:</b> {target_date_str}</p>
-
                 <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
                     <tr style="background-color: #0f172a; color: white; text-align: center;">
                         <th style="border: 1px solid #475569; padding: 8px; width: 18%;">B/L 번호</th>
@@ -2499,13 +2496,13 @@ elif selected_menu == "📱 금일발송 매니페스트":
         )
         item = r.get("품목", "")
         box_cnt = r.get("박스수", "-")
-
         weight_val = (
             r.get("매출청구중량(kg)")
             or r.get("중량(kg)")
             or r.get("중량")
             or 0
         )
+
         try:
           total_weight_sum += float(str(weight_val).replace("kg", "").strip())
         except:
@@ -2538,7 +2535,6 @@ elif selected_menu == "📱 금일발송 매니페스트":
       st.components.v1.html(manifest_html, height=1000, scrolling=True)
   else:
     st.info("선택하신 날짜에 해당하는 발송 데이터가 없습니다.")
-
 # ==========================================
 # [8] 거래처 등록 및 요금 상세 관리 메뉴
 # ==========================================
