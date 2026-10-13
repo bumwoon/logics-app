@@ -2072,7 +2072,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                         }}
                         body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9.5pt; margin: 0; padding: 15px; background: #fff; }}
                         .inv-box {{ max-width: 800px; margin: 0 auto; border: 2px solid #0f172a; padding: 25px; border-radius: 8px; }}
-                        .t-tbl {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+                        .t-tbl {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
                         .t-tbl th, .t-tbl td {{ border: 1px solid #64748b; padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 9pt; }}
                         .t-tbl th {{ background-color: #0f172a; color: white; }}
                         .p-btn {{ display: block; width: 100%; background-color: #dc2626; color: white; text-align: center; padding: 12px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }}
@@ -2087,19 +2087,12 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                         
                         <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
                             <tr>
-                                <td style="width: 50%; border: 1px solid #64748b; padding: 10px; vertical-align: top;">
+                                <td style="width: 100%; border: 1px solid #64748b; padding: 10px; vertical-align: top; background-color: #ffffff;">
                                     <b>[공급받는 자 (Client)]</b><br>
                                     상호: <b>{selected_invoice_client}</b><br>
                                     사업자등록번호: {c_bno}<br>
                                     주소: {c_addr}<br>
                                     담당자: {c_mgr} 귀하
-                                </td>
-                                <td style="width: 50%; border: 1px solid #64748b; padding: 10px; vertical-align: top; background-color: #f8fafc;">
-                                    <b>[공급자 (Supplier)]</b><br>
-                                    상호: (주)범운해운항공 (대표이사 이상복)<br>
-                                    사업자등록번호: 279-81-02581<br>
-                                    주소: 경기도 김포시 풍무동 326-5번지 2층<br>
-                                    입금계좌: <b>{bank_account_choice}</b>
                                 </td>
                             </tr>
                         </table>
@@ -2144,7 +2137,11 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                         </tr>
                         </table>
 
-                        <div style="margin-top: 35px; text-align: center; font-weight: bold; font-size: 11pt;">
+                        <div style="margin-top: 25px; padding: 12px; border: 1px solid #cbd5e1; background-color: #f8fafc; border-radius: 6px; font-size: 9.5pt;">
+                            <b>📌 입금 계좌 안내:</b> <span style="color: #1e3a8a; font-weight: bold;">{bank_account_choice}</span>
+                        </div>
+
+                        <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
                             주식회사 범운해운항공 대표이사 이상복 [직인생략]
                         </div>
                     </div>
