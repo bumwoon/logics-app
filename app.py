@@ -2421,57 +2421,52 @@ elif selected_menu == "🤝 거래처 미팅 노트":
 # [금일발송 매니페스트] 메뉴 구간
 # ==========================================
 elif selected_menu == "📱 금일발송 매니페스트":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📦"
-      " 금일발송 매니페스트 (Manifest)</h3>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>선택하신"
-      " 날짜의 발송 화물 목록과 킬로 무게(중량)를 확인하고 매니페스트를"
-      " 출력합니다.</p>",
-      unsafe_allow_html=True,
-  )
-
-  selected_manifest_date = st.date_input(
-      "조회할 선적 날짜 선택", value=date.today(), key="mani_date"
-  )
-  target_date_str = str(selected_manifest_date)
-
-  date_shipments = []
-  if "bl_data_list" in st.session_state and st.session_state.bl_data_list:
-    for item in st.session_state.bl_data_list:
-      if str(item.get("날짜", "")) == target_date_str:
-        date_shipments.append(item)
-
-  if date_shipments:
     st.markdown(
-        f"#### 📌 [{target_date_str}] 발송 화물 목록 (총"
-        f" {len(date_shipments)}건)"
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📦 금일발송 매니페스트 (Manifest)</h3>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>선택하신 날짜의 발송 화물 목록과 킬로 무게(중량)를 확인하고 매니페스트를 출력합니다.</p>",
+        unsafe_allow_html=True,
     )
 
-    # 화면 표 (Job 번호 제거, 킬로 무게 포함)
-    df_mani = pd.DataFrame(date_shipments)
-    show_cols = [
-        col
-        for col in [
-            "B/L 번호",
-            "국가",
-            "화주명(매출)",
-            "해외수하인",
-            "품목",
-            "박스수",
-            "매출청구중량(kg)",
-        ]
-        if col in df_mani.columns
-    ]
-    if show_cols:
-      st.dataframe(df_mani[show_cols], use_container_width=True)
-    else:
-      st.dataframe(df_mani, use_container_width=True)
+    selected_manifest_date = st.date_input(
+        "조회할 선적 날짜 선택", value=date.today(), key="mani_date"
+    )
+    target_date_str = str(selected_manifest_date)
 
-    if st.button("🖨 매니페스트 정식 인쇄 / PDF 저장하기", type="primary"):
-      manifest_html = f"""
+    date_shipments = []
+    if "bl_data_list" in st.session_state and st.session_state.bl_data_list:
+        for item in st.session_state.bl_data_list:
+            if str(item.get("날짜", "")) == target_date_str:
+                date_shipments.append(item)
+
+    if date_shipments:
+        st.markdown(
+            f"#### 📌 [{target_date_str}] 발송 화물 목록 (총 {len(date_shipments)}건)"
+        )
+
+        df_mani = pd.DataFrame(date_shipments)
+        show_cols = [
+            col
+            for col in [
+                "B/L 번호",
+                "국가",
+                "화주명(매출)",
+                "해외수하인",
+                "품목",
+                "박스수",
+                "매출청구중량(kg)",
+            ]
+            if col in df_mani.columns
+        ]
+        if show_cols:
+            st.dataframe(df_mani[show_cols], use_container_width=True)
+        else:
+            st.dataframe(df_mani, use_container_width=True)
+
+        if st.button("🖨 매니페스트 정식 인쇄 / PDF 저장하기", type="primary"):
+            manifest_html = f"""
             <div style="font-family: 'Pretendard', sans-serif; padding: 25px; border: 2px solid #1e3a8a; border-radius: 8px; background: #fff; max-width: 850px; margin: 0 auto;">
                 <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 5px;">화물 발송 매니페스트</h2>
                 <p style="text-align: center; color: #475569; font-size: 10pt;">주식회사 범운해운항공 | 조회 기준일자: {target_date_str}</p>
@@ -2487,34 +2482,36 @@ elif selected_menu == "📱 금일발송 매니페스트":
                         <th style="border: 1px solid #475569; padding: 8px; width: 12%;">박스수</th>
                         <th style="border: 1px solid #475569; padding: 8px; width: 13%;">킬로 무게 (kg)</th>
                     </tr>
-        """
+            """
 
-      total_weight_sum = 0
-      for r in date_shipments:
-        bl_no = r.get("B/L 번호", "")
-        country = r.get("국가", "")
-        shipper = r.get("화주명(매출)", "")
-        consignee = (
-            r.get("해외수하인")
-            or r.get("해외수화인")
-            or r.get("수하인")
-            or "-"
-        )
-        item = r.get("품목", "")
-        box_cnt = r.get("박스수", "-")
-        weight_val = (
-            r.get("매출청구중량(kg)")
-            or r.get("중량(kg)")
-            or r.get("중량")
-            or 0
-        )
+            total_weight_sum = 0
+            for r in date_shipments:
+                bl_no = r.get("B/L 번호", "")
+                country = r.get("국가", "")
+                shipper = r.get("화주명(매출)", "")
+                consignee = (
+                    r.get("해외수하인")
+                    or r.get("해외수화인")
+                    or r.get("수하인")
+                    or "-"
+                )
+                item = r.get("품목", "")
+                box_cnt = r.get("박스수", "-")
+                weight_val = (
+                    r.get("매출청구중량(kg)")
+                    or r.get("중량(kg)")
+                    or r.get("중량")
+                    or 0
+                )
 
-        try:
-          total_weight_sum += float(str(weight_val).replace("kg", "").strip())
-        except:
-          pass
+                try:
+                    total_weight_sum += float(
+                        str(weight_val).replace("kg", "").strip()
+                    )
+                except:
+                    pass
 
-        manifest_html += f"""
+                manifest_html += f"""
                 <tr>
                     <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-weight: bold;">{bl_no}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center;">{country}</td>
@@ -2526,7 +2523,7 @@ elif selected_menu == "📱 금일발송 매니페스트":
                 </tr>
                 """
 
-      manifest_html += f"""
+            manifest_html += f"""
                 </table>
                 
                 <div style="margin-top: 15px; text-align: right; font-size: 10pt; font-weight: bold;">
@@ -2537,12 +2534,10 @@ elif selected_menu == "📱 금일발송 매니페스트":
                     주식회사 범운해운항공 물류운송팀 / 대표이사 이상복 [직인생략]
                 </div>
             </div>
-        """
-      st.components.v1.html(manifest_html, height=1000, scrolling=True)
-  else:
-    st.info("선택하신 날짜에 해당하는 발송 데이터가 없습니다.")    
-  else:
-    st.info("선택하신 날짜에 해당하는 발송 데이터가 없습니다.")
+            """
+            st.components.v1.html(manifest_html, height=1000, scrolling=True)
+    else:
+        st.info("선택하신 날짜에 해당하는 발송 데이터가 없습니다.")
 # ==========================================
 # [8] 거래처 등록 및 요금 상세 관리 메뉴
 # ==========================================
