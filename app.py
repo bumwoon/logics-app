@@ -2418,12 +2418,18 @@ elif selected_menu == "🤝 거래처 미팅 노트":
 
 
 # ==========================================
-# [7] 날짜별 발송 매니페스트
+# [금일발송 매니페스트] 메뉴 구간
 # ==========================================
 elif selected_menu == "📱 금일발송 매니페스트":
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📦"
-      " 날짜별 발송 화물 매니페스트</h3>",
+      " 금일발송 매니페스트 (Manifest)</h3>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>선택하신"
+      " 날짜의 발송 화물 목록과 킬로 무게(중량)를 확인하고 매니페스트를"
+      " 출력합니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -2444,7 +2450,7 @@ elif selected_menu == "📱 금일발송 매니페스트":
         f" {len(date_shipments)}건)"
     )
 
-    # 데이터프레임 미리보기 (Job 번호 제거하고 킬로 무게 확인용 컬럼 배치)
+    # 화면 표 (Job 번호 제거, 킬로 무게 포함)
     df_mani = pd.DataFrame(date_shipments)
     show_cols = [
         col
@@ -2468,7 +2474,7 @@ elif selected_menu == "📱 금일발송 매니페스트":
       manifest_html = f"""
             <div style="font-family: 'Pretendard', sans-serif; padding: 25px; border: 2px solid #1e3a8a; border-radius: 8px; background: #fff; max-width: 850px; margin: 0 auto;">
                 <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 5px;">화물 발송 매니페스트</h2>
-                <p style="text-align: center; color: #475569; font-size: 10pt;">주식회사 범운해운항공 | 조회가 기준일자: {target_date_str}</p>
+                <p style="text-align: center; color: #475569; font-size: 10pt;">주식회사 범운해운항공 | 조회 기준일자: {target_date_str}</p>
                 <hr style="border: 1.5px solid #1e3a8a; margin: 15px 0;">
                 
                 <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
