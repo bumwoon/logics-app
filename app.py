@@ -2475,7 +2475,7 @@ elif selected_menu == "📱 금일발송 매니페스트":
             <div style="font-family: 'Pretendard', sans-serif; padding: 25px; border: 2px solid #1e3a8a; border-radius: 8px; background: #fff; max-width: 850px; margin: 0 auto;">
                 <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 5px;">화물 발송 매니페스트</h2>
                 <p style="text-align: center; color: #475569; font-size: 10pt;">주식회사 범운해운항공 | 조회 기준일자: {target_date_str}</p>
-                <hr style="border: 1.5px solid #1e3a8a; margin: 15px 0;">
+                <div style="border-bottom: 2px solid #1e3a8a; margin: 15px 0;"></div>
                 
                 <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
                     <tr style="background-color: #0f172a; color: white; text-align: center;">
@@ -2537,8 +2537,10 @@ elif selected_menu == "📱 금일발송 매니페스트":
                     주식회사 범운해운항공 물류운송팀 / 대표이사 이상복 [직인생략]
                 </div>
             </div>
-            """
+        """
       st.components.v1.html(manifest_html, height=1000, scrolling=True)
+  else:
+    st.info("선택하신 날짜에 해당하는 발송 데이터가 없습니다.")    
   else:
     st.info("선택하신 날짜에 해당하는 발송 데이터가 없습니다.")
 # ==========================================
