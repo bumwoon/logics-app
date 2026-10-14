@@ -2858,19 +2858,18 @@ elif selected_menu == "🏢 거래처 등록 요금 상세 관리":
 
 
 # ==========================================
-# [9] 거래처 미수금관리
+# [9] 거래처 미수금관리 (거래처별 필터링 추가 완료)
 # ==========================================
 elif selected_menu == "💵 거래처 미수금관리":
   st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>💵"
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>💵"
       " 거래처별 미수금 및 수금 현황 관리</h3>",
       unsafe_allow_html=True,
   )
   st.markdown(
-      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>수금이"
-      " 완료된 건의 <b>선택(체크박스)</b>을 체크한 뒤, 아래의 <b>[💰 선택 건"
-      " [수금완료] 일괄처리]</b> 버튼을 누르면 곧바로 수금 상태가"
-      " 업데이트됩니다.</p>",
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>거래처를"
+      " 선택하여 해당 업체의 미수금 내역만 정확하게 확인하고 일괄 수금 처리할"
+      " 수 있습니다.</p>",
       unsafe_allow_html=True,
   )
 
@@ -2880,30 +2879,52 @@ elif selected_menu == "💵 거래처 미수금관리":
       df_unpaid.insert(0, "선택", False)
     if "수금상태" not in df_unpaid.columns:
       df_unpaid["수금상태"] = "미수"
-    if "매출액(원)" not in df_unpaid.columns:
-      df_unpaid["매출액(원)"] = 0
-    if "최종작성자" not in df_unpaid.columns:
-      df_unpaid["최종작성자"] = "이상복"
-    if "최종수정자" not in df_unpaid.columns:
-      df_unpaid["최종수정자"] = "-"
 
-    st.markdown("#### 📊 전체 B/L 수금 상태 요약표")
+    # 거래처별 필터링 셀렉트박스 추가
+    client_filter_options = ["전체 거래처 보기"] + st.session_state.client_list
+    selected_client_filter = st.selectbox(
+        "🔍 조회할 거래처 선택하기", options=client_filter_options
+    )
+
+    # 선택된 거래처에 따라 데이터 필터링
+    if selected_client_filter != "전체 거래처 보기":
+      df_filtered = df_unpaid[
+          df_unpaid["화주명(매출)"].astype(str).str.strip()
+          == str(selected_client_filter).strip()
+      ]
+    else:
+      df_filtered = df_unpaid
+
+    # 미수 상태인 항목들만 모아서 총 미수금 잔액 계산
+    if not df_filtered.empty:
+      current_unpaid_sum = df_filtered[
+          df_filtered["수금상태"].astype(str) != "수금완료"
+      ]["매출액(원)"].sum()
+    else:
+      current_unpaid_sum = 0
+
+    st.markdown(
+        f"""
+        <div style='background-color: #1e293b; padding: 12px 18px; border-radius: 8px; color: white; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;'>
+            <div>
+                <span style='font-size: 13.5px; color: #94a3b8;'>현재 조회 중인 거래처:</span> 
+                <b style='font-size: 15px; color: #60a5fa;'>{selected_client_filter}</b>
+            </div>
+            <div>
+                <span style='font-size: 13.5px; color: #94a3b8;'>현재 총 미수금 잔액:</span> 
+                <span style='font-size: 18px; color: #f87171; font-weight: 800;'>{current_unpaid_sum:,} 원</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     edited_unpaid_table = st.data_editor(
-        df_unpaid[[
-            "선택",
-            "Job 번호",
-            "B/L 번호",
-            "날짜",
-            "화주명(매출)",
-            "매출액(원)",
-            "수금상태",
-            "최종작성자",
-            "최종수정자",
-        ]],
+        df_filtered,
         hide_index=True,
         use_container_width=True,
         column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-        key="unpaid_select_table",
+        key="unpaid_filter_table",
     )
 
     selected_unpaid_rows = edited_unpaid_table[
@@ -2911,39 +2932,25 @@ elif selected_menu == "💵 거래처 미수금관리":
     ]
 
     if st.button(
-        "💰 선택 건 [수금완료] 일괄처리", type="primary", use_container_width=True
+        "💰 선택 건 [수금완료] 일괄처리",
+        type="primary",
+        use_container_width=True,
     ):
       if len(selected_unpaid_rows) > 0:
         for idx in selected_unpaid_rows.index.tolist():
+          # 원본 st.session_state.bl_data_list의 해당 인덱스 값을 업데이트
           st.session_state.bl_data_list[idx]["수금상태"] = "수금완료"
           st.session_state.bl_data_list[idx]["최종수정자"] = current_user_name
         save_bl_data(st.session_state.bl_data_list)
         st.success(
-            f"선택하신 B/L 건들이 '수금완료' 처리되었습니다! (수정자:"
-            f" {current_user_name})"
+            f"선택하신 {len(selected_unpaid_rows)}건이 '수금완료' 처리되었습니다!"
+            f" (처리자: {current_user_name})"
         )
         st.rerun()
       else:
-        st.warning(
-            "수금완료 처리할 B/L 행의 체크박스를 1개 이상 체크해주세요."
-        )
-
-    unpaid_only = df_unpaid[df_unpaid["수금상태"] != "수금완료"]
-    total_unpaid_sum = (
-        unpaid_only["매출액(원)"].sum() if not unpaid_only.empty else 0
-    )
-
-    st.markdown(
-        f"""
-        <div style="background-color: #fef2f2; border: 1.5px solid #ef4444; padding: 15px; border-radius: 8px; margin-top: 15px;">
-            <b>🚨 현재 총 미수금 잔액: <span style="color: #dc2626; font-size: 14pt;">{total_unpaid_sum:,} 원</span></b>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        st.warning("수금완료 처리할 B/L 행의 체크박스를 선택해주세요.")
   else:
-    st.info("등록된 화물 데이터가 없습니다.")
-
+    st.info("등록된 B/L 내역이 없습니다.")
 
 # ==========================================
 # [10] 일계표 및 입출금 장부
