@@ -837,95 +837,105 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 진짜 엑셀(.xlsx) 백업 및 자동 이어붙이기 업로드 기능
+# 💾 통합 데이터 백업 및 일괄 복원 시스템 (거래처 + 미수/요율 + B/L 물류 내역 통합)
 # ==========================================
-st.sidebar.subheader("💾 데이터 백업 및 이어붙이기 (엑셀)")
+import json
+
+st.sidebar.subheader("💾 전체 데이터 통합 백업 및 복원")
 
 
-def convert_df_to_excel_bytes(df):
+def generate_integrated_backup_bytes():
+  """B/L 물류 내역, 거래처 목록, 요율, 상세 정보, 미수금 상태를 하나의 통합 엑셀로 백업"""
+  bl_data = st.session_state.get("bl_data_list", [])
+  client_list = st.session_state.get("client_list", [])
+  client_rates = st.session_state.get("client_rates", {})
+  client_infos = st.session_state.get("client_infos", {})
+
+  df_bl = pd.DataFrame(bl_data) if bl_data else pd.DataFrame()
+
+  meta_dict = {
+      "client_list": client_list,
+      "client_rates": client_rates,
+      "client_infos": client_infos,
+  }
+  meta_json_str = json.dumps(meta_dict, ensure_ascii=False)
+  df_bl["__SYSTEM_META__"] = meta_json_str
+
   output = io.BytesIO()
   with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    df.to_excel(writer, index=False, sheet_name="BL_History")
+    df_bl.to_excel(writer, index=False, sheet_name="Bumwoon_Integrated_Backup")
   return output.getvalue()
 
 
-existing_data_for_backup = load_bl_data()
-if existing_data_for_backup:
-  df_backup = pd.DataFrame(existing_data_for_backup)
-  excel_bytes = convert_df_to_excel_bytes(df_backup)
-  st.sidebar.download_button(
-      label="📥 백업 파일 다운로드 (.xlsx)",
-      data=excel_bytes,
-      file_name="범운해운항공_물류데이터_백업.xlsx",
-      mime=(
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      ),
-      use_container_width=True,
-  )
-else:
-  st.sidebar.info("다운로드할 기존 데이터가 없습니다.")
+integrated_excel_bytes = generate_integrated_backup_bytes()
+st.sidebar.download_button(
+    label="📥 전체 데이터 통합 백업 다운로드 (.xlsx)",
+    data=integrated_excel_bytes,
+    file_name=f"범운해운항공_전체데이터_통합백업_{date.today()}.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    use_container_width=True,
+)
 
 st.sidebar.markdown("---")
 
-uploaded_excel_file = st.sidebar.file_uploader(
-    "📤 백업 엑셀파일 자동 이어붙이기 (.xlsx)",
+uploaded_integrated_file = st.sidebar.file_uploader(
+    "📤 통합 백업파일 일괄 복원 업로드 (.xlsx)",
     type=["xlsx", "xls", "csv"],
     help=(
-        "백업받은 엑셀 파일(.xlsx)을 올리면 기존 데이터와 중복 없이"
-        " 이어붙여집니다."
+        "거래처 등록 정보, 요율, 미수금 상태 및 B/L 물류 내역이 한 번에"
+        " 복원됩니다."
     ),
 )
 
-if uploaded_excel_file is not None:
+if uploaded_integrated_file is not None:
   try:
-    file_extension = uploaded_excel_file.name.split(".")[-1].lower()
+    file_extension = uploaded_integrated_file.name.split(".")[-1].lower()
     if file_extension == "csv":
-      df_uploaded = pd.read_csv(uploaded_excel_file)
+      df_in = pd.read_csv(uploaded_integrated_file)
     else:
-      df_uploaded = pd.read_excel(uploaded_excel_file, sheet_name=0)
+      df_in = pd.read_excel(uploaded_integrated_file, sheet_name=0)
 
-    if not df_uploaded.empty:
-      df_uploaded.columns = df_uploaded.columns.astype(str).str.strip()
+    if not df_in.empty:
+      df_in.columns = df_in.columns.astype(str).str.strip()
 
-      existing_data = load_bl_data()
-      df_existing = (
-          pd.DataFrame(existing_data) if existing_data else pd.DataFrame()
-      )
+      if "__SYSTEM_META__" in df_in.columns:
+        meta_val = df_in["__SYSTEM_META__"].iloc[0]
+        if pd.notna(meta_val) and str(meta_val).strip():
+          try:
+            parsed_meta = json.loads(str(meta_val))
+            st.session_state.client_list = parsed_meta.get(
+                "client_list", st.session_state.client_list
+            )
+            st.session_state.client_rates = parsed_meta.get(
+                "client_rates", st.session_state.client_rates
+            )
+            st.session_state.client_infos = parsed_meta.get(
+                "client_infos", st.session_state.client_infos
+            )
+            save_client_data(
+                st.session_state.client_list,
+                st.session_state.client_rates,
+                st.session_state.client_infos,
+            )
+          except Exception as me:
+            print(f"Meta parse error: {me}")
+        df_in = df_in.drop(columns=["__SYSTEM_META__"])
 
-      if not df_existing.empty:
-        df_existing.columns = df_existing.columns.astype(str).str.strip()
-        existing_bls = (
-            df_existing["B/L 번호"].astype(str).tolist()
-            if "B/L 번호" in df_existing.columns
-            else []
-        )
-
-        if "B/L 번호" in df_uploaded.columns:
-          df_new_only = df_uploaded[
-              ~df_uploaded["B/L 번호"].astype(str).isin(existing_bls)
-          ]
-        else:
-          df_new_only = df_uploaded
-
-        combined_df = pd.concat(
-            [df_existing, df_new_only], ignore_index=True
-        )
-      else:
-        combined_df = df_uploaded
-
-      st.session_state.bl_data_list = combined_df.to_dict("records")
-      save_bl_data(st.session_state.bl_data_list)
+      if "B/L 번호" in df_in.columns:
+        st.session_state.bl_data_list = df_in.to_dict("records")
+        save_bl_data(st.session_state.bl_data_list)
 
       if "refresh_key" not in st.session_state:
         st.session_state.refresh_key = 0
       st.session_state.refresh_key += 1
 
       st.sidebar.success(
-          "🎉 엑셀 백업 데이터가 기존 데이터에 이어붙여졌습니다!"
+          "🎉 거래처, 요율, 미수금 및 물류 데이터 전체가 완벽하게"
+          " 복원되었습니다!"
       )
       st.rerun()
   except Exception as e:
-    st.sidebar.error(f"엑셀 파일 업로드 중 오류가 발생했습니다: {e}")
+    st.sidebar.error(f"통합 데이터 복원 중 오류가 발생했습니다: {e}")
 
 
 
