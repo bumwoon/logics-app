@@ -837,7 +837,7 @@ with col_sb2:
 st.sidebar.markdown("---")
 
 # ==========================================
-# 💾 통합 데이터 백업 및 일괄 복원 시스템 (거래처 + 미수/요율 + B/L 물류 내역 통합)
+# 💾 최종 통합 데이터 백업 및 일괄 복원 시스템 (물류 + 거래처/요율 + 입출금 장부 통합)
 # ==========================================
 import json
 
@@ -845,11 +845,12 @@ st.sidebar.subheader("💾 전체 데이터 통합 백업 및 복원")
 
 
 def generate_integrated_backup_bytes():
-  """B/L 물류 내역, 거래처 목록, 요율, 상세 정보, 미수금 상태를 하나의 통합 엑셀로 백업"""
+  """B/L, 거래처, 요율, 미수금 상태 + 입출금 장부(일계표) 내역까지 하나의 통합 엑셀로 백업"""
   bl_data = st.session_state.get("bl_data_list", [])
   client_list = st.session_state.get("client_list", [])
   client_rates = st.session_state.get("client_rates", {})
   client_infos = st.session_state.get("client_infos", {})
+  ledger_data = st.session_state.get("ledger_data", [])  # 👈 입출금 장부 데이터 추가
 
   df_bl = pd.DataFrame(bl_data) if bl_data else pd.DataFrame()
 
@@ -857,6 +858,7 @@ def generate_integrated_backup_bytes():
       "client_list": client_list,
       "client_rates": client_rates,
       "client_infos": client_infos,
+      "ledger_data": ledger_data,  # 👈 메타데이터 상자에 입출금 장부 쏙 담기
   }
   meta_json_str = json.dumps(meta_dict, ensure_ascii=False)
   df_bl["__SYSTEM_META__"] = meta_json_str
@@ -882,7 +884,7 @@ uploaded_integrated_file = st.sidebar.file_uploader(
     "📤 통합 백업파일 일괄 복원 업로드 (.xlsx)",
     type=["xlsx", "xls", "csv"],
     help=(
-        "거래처 등록 정보, 요율, 미수금 상태 및 B/L 물류 내역이 한 번에"
+        "거래처, 요율, 미수금 상태, 입출금 장부 및 B/L 물류 내역이 한 번에"
         " 복원됩니다."
     ),
 )
@@ -912,6 +914,11 @@ if uploaded_integrated_file is not None:
             st.session_state.client_infos = parsed_meta.get(
                 "client_infos", st.session_state.client_infos
             )
+            # 👈 입출금 장부 데이터 복원 반영
+            if "ledger_data" in parsed_meta:
+              st.session_state.ledger_data = parsed_meta["ledger_data"]
+              save_ledger_data(st.session_state.ledger_data)
+
             save_client_data(
                 st.session_state.client_list,
                 st.session_state.client_rates,
@@ -930,8 +937,8 @@ if uploaded_integrated_file is not None:
       st.session_state.refresh_key += 1
 
       st.sidebar.success(
-          "🎉 거래처, 요율, 미수금 및 물류 데이터 전체가 완벽하게"
-          " 복원되었습니다!"
+          "🎉 거래처, 요율, 미수금, 입출금 장부 및 물류 데이터 전체가"
+          " 완벽하게 복원되었습니다!"
       )
       st.rerun()
   except Exception as e:
