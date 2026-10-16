@@ -1959,7 +1959,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [📑 거래처 인보이스 발행] (날짜 선택 기능 추가)
+# [📑 거래처 인보이스 발행] (날짜 선택 기능 및 B/L 앞 날짜 추가 완료)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -2014,24 +2014,27 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
     if client_bl_list:
       df_inv = pd.DataFrame(client_bl_list)
-      show_cols = [
-          col
-          for col in [
-              "구분",
-              "날짜",
-              "B/L 번호",
-              "국가",
-              "출발지",
-              "화주명(매출)",
-              "해외수하인",
-              "품목",
-              "박스수",
-              "부피규격",
-              "매출청구중량(kg)",
-              "매출액(원)",
-          ]
-          if col in df_inv.columns
+      # '날짜' 컬럼이 맨 앞으로 오도록 컬럼 순서 재배치
+      preferred_cols = [
+          "날짜",
+          "B/L 번호",
+          "구분",
+          "국가",
+          "출발지",
+          "화주명(매출)",
+          "해외수하인",
+          "품목",
+          "박스수",
+          "부피규격",
+          "매출청구중량(kg)",
+          "매출액(원)",
       ]
+      show_cols = [col for col in preferred_cols if col in df_inv.columns]
+      # 혹시 누락된 컬럼이 있다면 뒤에 마저 추가
+      for col in df_inv.columns:
+        if col not in show_cols:
+          show_cols.append(col)
+
       if show_cols:
         st.dataframe(df_inv[show_cols], use_container_width=True)
       else:
@@ -2116,12 +2119,12 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
                         <table class="t-tbl">
                             <tr>
-                                <th style="width: 20%;">B/L 번호</th>
-                                <th style="width: 12%;">국가</th>
-                                <th style="width: 18%;">수하인</th>
+                                <th style="width: 12%;">작성일자</th>
+                                <th style="width: 18%;">B/L 번호</th>
+                                <th style="width: 10%;">국가</th>
+                                <th style="width: 16%;">수하인</th>
                                 <th style="width: 16%;">품목 / 박스</th>
-                                <th style="width: 16%;">부피규격 (Size)</th>
-                                <th style="width: 8%;">청구중량</th>
+                                <th style="width: 10%;">청구중량</th>
                                 <th style="width: 10%;">금액 (원)</th>
                             </tr>
             """
@@ -2129,11 +2132,11 @@ elif selected_menu == "📑 거래처 인보이스 발행":
         for r in client_bl_list:
           invoice_html += f"""
                     <tr>
+                        <td style="font-size: 8.5pt;">{r.get("날짜", target_date_str)}</td>
                         <td style="font-weight: bold;">{r.get("B/L 번호", "-")}</td>
                         <td>{r.get("국가", "-")}</td>
                         <td>{r.get("해외수하인", "-")}</td>
                         <td>{r.get("품목", "-")} ({r.get("박스수", "1 박스")})</td>
-                        <td style="font-size: 8.5pt;">{r.get("부피규격", "-")}</td>
                         <td>{r.get("매출청구중량(kg)", 1.0)} kg</td>
                         <td style="text-align: right; font-weight: bold;">{int(r.get("매출액(원)", 0)):,} 원</td>
                     </tr>
