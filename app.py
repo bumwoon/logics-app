@@ -1429,7 +1429,7 @@ if selected_menu == "📊 수출입 B/L 등록":
     
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역 (검색 및 거래처별 필터 추가)
+# [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   st.markdown(
@@ -1455,52 +1455,8 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
     if "최종수정자" not in df_bl.columns:
       df_bl["최종수정자"] = "-"
 
-    # 🔍 검색 및 거래처별 필터 입력 부스 추가
-    col_filter1, col_filter2 = st.columns([1.5, 1])
-    with col_filter1:
-      search_keyword = st.text_input(
-          "🔍 B/L 번호, Job 번호, 화주명, 수하인 키워드 검색",
-          value="",
-          placeholder="검색어를 입력하세요...",
-      )
-    with col_filter2:
-      client_filter_opts = ["전체 거래처 보기"] + st.session_state.get(
-          "client_list", []
-      )
-      selected_client_sch = st.selectbox(
-          "🏢 거래처별 조회 필터", options=client_filter_opts
-      )
-
-    # 필터링 적용 로직
-    df_filtered = df_bl.copy()
-
-    # 1. 거래처 필터 적용
-    if selected_client_sch != "전체 거래처 보기":
-      df_filtered = df_filtered[
-          df_filtered["화주명(매출)"].astype(str).str.strip()
-          == str(selected_client_sch).strip()
-      ]
-
-    # 2. 키워드 검색 적용 (B/L 번호, Job 번호, 화주명, 해외수하인, 품목 등 포함 여부 검사)
-    if search_keyword.strip():
-      kw = search_keyword.strip().lower()
-      mask = (
-          df_filtered["B/L 번호"].astype(str).str.lower().str.contains(kw)
-          | df_filtered["Job 번호"].astype(str).str.lower().str.contains(kw)
-          | df_filtered["화주명(매출)"].astype(str).str.lower().str.contains(kw)
-          | df_filtered["해외수하인"].astype(str).str.lower().str.contains(kw)
-          | df_filtered["품목"].astype(str).str.lower().str.contains(kw)
-      )
-      df_filtered = df_filtered[mask]
-
-    st.markdown(
-        f"<p style='font-size: 12.5px; color: #475569; margin-top: -5px;"
-        f" margin-bottom: 10px;'>조회 결과: 총 <b>{len(df_filtered)}</b>건</p>",
-        unsafe_allow_html=True,
-    )
-
     edited_table = st.data_editor(
-        df_filtered,
+        df_bl,
         hide_index=True,
         use_container_width=True,
         column_config={"선택": st.column_config.CheckboxColumn(required=True)},
@@ -1515,9 +1471,9 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
           "✏️ 선택한 B/L 수정하기", type="primary", use_container_width=True
       ):
         if len(selected_rows) == 1:
-          # 필터링된 행의 원래 원본 인덱스(Original Index)를 정확히 찾아냄
-          real_idx = selected_rows.index[0]
-          st.session_state.edit_target_index = real_idx
+          st.session_state.edit_target_index = edited_table[
+              edited_table["선택"] == True
+          ].index[0]
           st.rerun()
         elif len(selected_rows) == 0:
           st.warning("수정할 B/L 행의 체크박스를 선택해주세요.")
@@ -1531,11 +1487,9 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
           "💰 선택 건 [수금완료] 일괄처리", use_container_width=True
       ):
         if len(selected_rows) > 0:
-          for real_idx in selected_rows.index.tolist():
-            st.session_state.bl_data_list[real_idx]["수금상태"] = "수금완료"
-            st.session_state.bl_data_list[real_idx][
-                "최종수정자"
-            ] = current_user_name
+          for idx in selected_rows.index.tolist():
+            st.session_state.bl_data_list[idx]["수금상태"] = "수금완료"
+            st.session_state.bl_data_list[idx]["최종수정자"] = current_user_name
           save_bl_data(st.session_state.bl_data_list)
           st.success(
               f"선택하신 B/L 건들이 '수금완료' 처리되었으며, [{current_user_name}]님이"
@@ -1710,10 +1664,9 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 "비고", value=str(target_item.get("비고", ""))
             )
 
-                  submitted_edit = st.form_submit_button(
+          if st.form_submit_button(
               "💾 수정 완료 및 저장하기", type="primary", use_container_width=True
-          )
-          if submitted_edit:
+          ):
             existing_writer = str(target_item.get("최종작성자", "이상복"))
             st.session_state.bl_data_list[idx] = {
                 "구분": u_io,
@@ -1751,6 +1704,9 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 f" {current_user_name})"
             )
             st.rerun()
+  else:
+    st.info("등록된 B/L 내역이 없습니다.")
+
 
 # ==========================================
 # [3] B/L 운송장 출력 메뉴
