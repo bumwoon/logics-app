@@ -1959,7 +1959,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
 
 # ==========================================
-# [📑 거래처 인보이스 발행] (날짜 선택 기능 및 B/L 앞 날짜 추가 완료)
+# [📑 거래처 인보이스 발행] (A4 가로 폭 최적화 및 부피규격 포함 완료)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -2014,14 +2014,10 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
     if client_bl_list:
       df_inv = pd.DataFrame(client_bl_list)
-      # '날짜' 컬럼이 맨 앞으로 오도록 컬럼 순서 재배치
       preferred_cols = [
           "날짜",
           "B/L 번호",
-          "구분",
           "국가",
-          "출발지",
-          "화주명(매출)",
           "해외수하인",
           "품목",
           "박스수",
@@ -2030,7 +2026,6 @@ elif selected_menu == "📑 거래처 인보이스 발행":
           "매출액(원)",
       ]
       show_cols = [col for col in preferred_cols if col in df_inv.columns]
-      # 혹시 누락된 컬럼이 있다면 뒤에 마저 추가
       for col in df_inv.columns:
         if col not in show_cols:
           show_cols.append(col)
@@ -2088,13 +2083,13 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                         @media print {{
                             body {{ -webkit-print-color-adjust: exact; }}
                             .no-print {{ display: none !important; }}
-                            @page {{ size: A4 portrait; margin: 10mm; }}
+                            @page {{ size: A4 portrait; margin: 8mm; }}
                         }}
-                        body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9.5pt; margin: 0; padding: 15px; background: #fff; }}
-                        .inv-box {{ max-width: 800px; margin: 0 auto; border: 2px solid #0f172a; padding: 25px; border-radius: 8px; }}
-                        .t-tbl {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
-                        .t-tbl th, .t-tbl td {{ border: 1px solid #64748b; padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 9pt; }}
-                        .t-tbl th {{ background-color: #0f172a; color: white; }}
+                        body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 8.5pt; margin: 0; padding: 10px; background: #fff; }}
+                        .inv-box {{ max-width: 820px; margin: 0 auto; border: 2px solid #0f172a; padding: 20px; border-radius: 8px; }}
+                        .t-tbl {{ width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: fixed; }}
+                        .t-tbl th, .t-tbl td {{ border: 1px solid #64748b; padding: 5px 4px; text-align: center; vertical-align: middle; font-size: 8pt; word-break: break-all; }}
+                        .t-tbl th {{ background-color: #0f172a; color: white; font-size: 8.5pt; }}
                         .p-btn {{ display: block; width: 100%; background-color: #dc2626; color: white; text-align: center; padding: 12px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }}
                     </style>
                 </head>
@@ -2102,41 +2097,41 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                     <div class="inv-box">
                         <button class="p-btn no-print" onclick="window.print()">🖨 인보이스 인쇄 및 PDF 저장 (Print / Save as PDF)</button>
                         
-                        <h1 style="text-align: center; color: #1e3a8a; margin-bottom: 5px; font-size: 20pt; font-weight: 900;">청 구 서 (INVOICE)</h1>
-                        <p style="text-align: center; color: #475569; font-size: 9pt; margin-top: 0;">(주)범운해운항공 | 발행일자: {date.today()} | 선적기준일: {target_date_str}</p>
+                        <h1 style="text-align: center; color: #1e3a8a; margin-bottom: 5px; font-size: 18pt; font-weight: 900;">청 구 서 (INVOICE)</h1>
+                        <p style="text-align: center; color: #475569; font-size: 8.5pt; margin-top: 0;">(주)범운해운항공 | 발행일자: {date.today()} | 선적기준일: {target_date_str}</p>
                         
-                        <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
+                        <table style="width: 100%; margin-top: 12px; border-collapse: collapse;">
                             <tr>
-                                <td style="width: 100%; border: 1px solid #64748b; padding: 10px; vertical-align: top; background-color: #ffffff;">
+                                <td style="width: 100%; border: 1px solid #64748b; padding: 8px; vertical-align: top; background-color: #ffffff; font-size: 9pt;">
                                     <b>[공급받는 자 (Client)]</b><br>
-                                    상호: <b>{selected_invoice_client}</b><br>
-                                    사업자등록번호: {c_bno}<br>
-                                    주소: {c_addr}<br>
-                                    담당자: {c_mgr} 귀하
+                                    상호: <b>{selected_invoice_client}</b> | 사업자등록번호: {c_bno} | 담당자: {c_mgr} 귀하<br>
+                                    주소: {c_addr}
                                 </td>
                             </tr>
                         </table>
 
                         <table class="t-tbl">
                             <tr>
-                                <th style="width: 12%;">작성일자</th>
-                                <th style="width: 18%;">B/L 번호</th>
-                                <th style="width: 10%;">국가</th>
-                                <th style="width: 16%;">수하인</th>
-                                <th style="width: 16%;">품목 / 박스</th>
-                                <th style="width: 10%;">청구중량</th>
-                                <th style="width: 10%;">금액 (원)</th>
+                                <th style="width: 11%;">작성일자</th>
+                                <th style="width: 16%;">B/L 번호</th>
+                                <th style="width: 8%;">국가</th>
+                                <th style="width: 13%;">수하인</th>
+                                <th style="width: 15%;">품목 / 박스</th>
+                                <th style="width: 15%;">부피규격 (Size)</th>
+                                <th style="width: 9%;">청구중량</th>
+                                <th style="width: 13%;">금액 (원)</th>
                             </tr>
             """
 
         for r in client_bl_list:
           invoice_html += f"""
                     <tr>
-                        <td style="font-size: 8.5pt;">{r.get("날짜", target_date_str)}</td>
-                        <td style="font-weight: bold;">{r.get("B/L 번호", "-")}</td>
+                        <td>{r.get("날짜", target_date_str)}</td>
+                        <td style="font-weight: bold; font-size: 7.5pt;">{r.get("B/L 번호", "-")}</td>
                         <td>{r.get("국가", "-")}</td>
                         <td>{r.get("해외수하인", "-")}</td>
-                        <td>{r.get("품목", "-")} ({r.get("박스수", "1 박스")})</td>
+                        <td>{r.get("품목", "-")} ({r.get("박ส수", "1 박스")})</td>
+                        <td style="font-size: 7.5pt;">{r.get("부피규격", "-")}</td>
                         <td>{r.get("매출청구중량(kg)", 1.0)} kg</td>
                         <td style="text-align: right; font-weight: bold;">{int(r.get("매출액(원)", 0)):,} 원</td>
                     </tr>
@@ -2144,24 +2139,24 @@ elif selected_menu == "📑 거래처 인보이스 발행":
 
         invoice_html += f"""
                         <tr>
-                            <td colspan="6" style="text-align: right; font-weight: bold; background-color: #f1f5f9;">공급가액 합계</td>
+                            <td colspan="7" style="text-align: right; font-weight: bold; background-color: #f1f5f9;">공급가액 합계</td>
                             <td style="text-align: right; font-weight: bold; background-color: #f1f5f9;">{subtotal_amount:,} 원</td>
                         </tr>
                         <tr>
-                            <td colspan="6" style="text-align: right; font-weight: bold; background-color: #f1f5f9;">부가가치세 (VAT) [{tax_mode}]</td>
+                            <td colspan="7" style="text-align: right; font-weight: bold; background-color: #f1f5f9;">부가가치세 (VAT) [{tax_mode}]</td>
                             <td style="text-align: right; font-weight: bold; background-color: #f1f5f9;">{vat_amount:,} 원</td>
                         </tr>
                         <tr>
-                            <td colspan="6" style="text-align: right; font-weight: bold; background-color: #0f172a; color: white; font-size: 10.5pt;">총 청구금액 (GRAND TOTAL)</td>
-                            <td style="text-align: right; font-weight: bold; background-color: #0f172a; color: white; font-size: 10.5pt;">{grand_total:,} 원</td>
+                            <td colspan="7" style="text-align: right; font-weight: bold; background-color: #0f172a; color: white; font-size: 10pt;">총 청구금액 (GRAND TOTAL)</td>
+                            <td style="text-align: right; font-weight: bold; background-color: #0f172a; color: white; font-size: 10pt;">{grand_total:,} 원</td>
                         </tr>
                         </table>
 
-                        <div style="margin-top: 25px; padding: 12px; border: 1px solid #cbd5e1; background-color: #f8fafc; border-radius: 6px; font-size: 9.5pt;">
+                        <div style="margin-top: 20px; padding: 10px; border: 1px solid #cbd5e1; background-color: #f8fafc; border-radius: 6px; font-size: 9pt;">
                             <b>📌 입금 계좌 안내:</b> <span style="color: #1e3a8a; font-weight: bold;">{bank_account_choice}</span>
                         </div>
 
-                        <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
+                        <div style="margin-top: 25px; text-align: center; font-weight: bold; font-size: 10.5pt;">
                             주식회사 범운해운항공 대표이사 이상복 [직인생략]
                         </div>
                     </div>
