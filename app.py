@@ -2529,9 +2529,10 @@ elif selected_menu == "📋 금일발송 매니페스트":
       tot_purchase_sum += p_amt
       tot_profit_sum += profit_amt
 
-      # 중량 및 부피규격 데이터 안전하게 가져오기
-      weight_val = row.get("매출청구중량(kg)", row.get("중량", 1.0))
+      # 박스수와 부피규격 데이터 명확하게 분리 매핑
+      box_val = row.get("박스수", "1 박스")
       size_val = row.get("부피규격", "-")
+      weight_val = row.get("매출청구중량(kg)", row.get("중량", 1.0))
 
       man_rows_html += f"""
             <tr>
@@ -2541,14 +2542,14 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8pt;">{row.get('화주명(매출)', '')}</td>
                 <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8pt;">{row.get('해외수하인', '')}</td>
                 <td style="border: 1px solid #64748b; padding: 6px; font-size: 8pt;">{row.get('품목', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8pt;">{row.get('박ส수', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8pt; font-weight: bold; color: #2563eb;">{box_val}</td>
                 <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 7.5pt;">{weight_val} kg</td>
                 <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 7.5pt;">{size_val}</td>
                 <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-size: 8pt;">{s_amt:,}원</td>
                 <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-size: 8pt;">{p_amt:,}원</td>
                 <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-weight: bold; color: #047857; font-size: 8.5pt;">{profit_amt:,}원</td>
             </tr>
-            """
+            """    
 
     manifest_html_output = f"""
         <!DOCTYPE html>
