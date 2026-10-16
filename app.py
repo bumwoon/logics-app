@@ -2480,7 +2480,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
 
 
 # ==========================================
-# [7] 날짜별 발송 매니페스트
+# [7] 날짜별 발송 매니페스트 (중량 및 부피규격 추가 완료)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
   st.markdown(
@@ -2529,18 +2529,24 @@ elif selected_menu == "📋 금일발송 매니페스트":
       tot_purchase_sum += p_amt
       tot_profit_sum += profit_amt
 
+      # 중량 및 부피규격 데이터 안전하게 가져오기
+      weight_val = row.get("매출청구중량(kg)", row.get("중량", 1.0))
+      size_val = row.get("부피규격", "-")
+
       man_rows_html += f"""
             <tr>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('Job 번호', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-weight: bold; color: #1e3a8a; font-size: 8.5pt;">{row.get('B/L 번호', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('국가', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('화주명(매출)', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('해외수하인', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; font-size: 8.5pt;">{row.get('품목', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8.5pt;">{row.get('박스수', '')}</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-size: 8.5pt;">{s_amt:,}원</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-size: 8.5pt;">{p_amt:,}원</td>
-                <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-weight: bold; color: #047857; font-size: 9pt;">{profit_amt:,}원</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8pt;">{row.get('Job 번호', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-weight: bold; color: #1e3a8a; font-size: 8pt;">{row.get('B/L 번호', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8pt;">{row.get('국가', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8pt;">{row.get('화주명(매출)', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8pt;">{row.get('해외수하인', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; font-size: 8pt;">{row.get('품목', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 8pt;">{row.get('박ส수', '')}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 7.5pt;">{weight_val} kg</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: center; font-size: 7.5pt;">{size_val}</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-size: 8pt;">{s_amt:,}원</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-size: 8pt;">{p_amt:,}원</td>
+                <td style="border: 1px solid #64748b; padding: 6px; text-align: right; font-weight: bold; color: #047857; font-size: 8.5pt;">{profit_amt:,}원</td>
             </tr>
             """
 
@@ -2553,22 +2559,22 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 @media print {{
                     body {{ -webkit-print-color-adjust: exact; }}
                     .no-print {{ display: none !important; }}
-                    @page {{ size: A4 landscape; margin: 10mm; }}
+                    @page {{ size: A4 landscape; margin: 8mm; }}
                 }}
                 body {{
                     font-family: 'Pretendard', sans-serif;
                     color: #1e293b;
-                    font-size: 9pt;
-                    line-height: 1.4;
+                    font-size: 8.5pt;
+                    line-height: 1.3;
                     margin: 0;
                     padding: 10px;
                     background-color: #ffffff;
                 }}
                 .man-container {{
-                    max-width: 1100px;
+                    max-width: 1150px;
                     margin: 0 auto;
                     border: 2px solid #0f172a;
-                    padding: 25px;
+                    padding: 20px;
                     border-radius: 8px;
                     background-color: #ffffff;
                 }}
@@ -2579,12 +2585,12 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     color: white;
                     text-align: center;
                     padding: 12px;
-                    font-size: 11.5pt;
+                    font-size: 11pt;
                     font-weight: bold;
                     border: none;
                     border-radius: 6px;
                     cursor: pointer;
-                    margin-bottom: 20px;
+                    margin-bottom: 15px;
                 }}
                 .print-btn:hover {{ background-color: #1d4ed8; }}
             </style>
@@ -2593,51 +2599,53 @@ elif selected_menu == "📋 금일발송 매니페스트":
             <div class="man-container">
                 <button class="print-btn no-print" onclick="window.print()">🖨 매니페스트 정식 인쇄 / PDF 저장하기 (Print / Save as PDF)</button>
 
-                <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px;">
+                <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px;">
                     <tr>
                         <td style="width: 60%; border: none;">
                             <div style="display: flex; align-items: center;">
                                 {logo_embed_man}
                                 <div>
-                                    <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                    <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
+                                    <div style="font-size: 13pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                    <div style="font-size: 7pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
                                 </div>
                             </div>
                         </td>
                         <td style="width: 40%; text-align: right; border: none;">
-                            <div style="font-size: 17pt; font-weight: 900; color: #0f172a; letter-spacing: 1px;">화물 발송 매니페스트 및 정산서</div>
-                            <div style="font-size: 9pt; color: #475569; margin-top: 4px;">선적 일자: <b>{target_date_str}</b></div>
+                            <div style="font-size: 15pt; font-weight: 900; color: #0f172a; letter-spacing: 1px;">화물 발송 매니페스트 및 정산서</div>
+                            <div style="font-size: 8.5pt; color: #475569; margin-top: 3px;">선적 일자: <b>{target_date_str}</b></div>
                         </td>
                     </tr>
                 </table>
 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; table-layout: fixed;">
                     <thead>
-                        <tr style="background-color: #0f172a; color: white; text-align: center; font-size: 8.5pt;">
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 10%;">Job 번호</th>
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 13%;">B/L 번호</th>
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 8%;">도착국가</th>
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 11%;">화주명</th>
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 11%;">수하인</th>
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 17%;">품명</th>
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 6%;">박스수</th>
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 11%;">매출액</th>
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 11%;">매입액</th>
-                            <th style="border: 1px solid #64748b; padding: 7px; width: 12%;">수익 (Profit)</th>
+                        <tr style="background-color: #0f172a; color: white; text-align: center; font-size: 8pt;">
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 9%;">Job 번호</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 11%;">B/L 번호</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 6%;">국가</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 10%;">화주명</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 10%;">수하인</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 14%;">품명</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 5%;">박스수</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 7%;">중량</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 11%;">부피규격</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 9%;">매출액</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 9%;">매입액</th>
+                            <th style="border: 1px solid #64748b; padding: 6px; width: 9%;">수익(Profit)</th>
                         </tr>
                     </thead>
                     <tbody>
                         {man_rows_html}
                         <tr style="background-color: #eff6ff; font-weight: bold;">
-                            <td colspan="7" style="border: 1px solid #64748b; padding: 8px; text-align: center;">합 계 (TOTAL)</td>
-                            <td style="border: 1px solid #64748b; padding: 8px; text-align: right; color: #1e3a8a;">{tot_sales_sum:,}원</td>
-                            <td style="border: 1px solid #64748b; padding: 8px; text-align: right; color: #b91c1c;">{tot_purchase_sum:,}원</td>
-                            <td style="border: 1px solid #64748b; padding: 8px; text-align: right; color: #047857; font-size: 10pt;">{tot_profit_sum:,}원</td>
+                            <td colspan="9" style="border: 1px solid #64748b; padding: 7px; text-align: center;">합 계 (TOTAL)</td>
+                            <td style="border: 1px solid #64748b; padding: 7px; text-align: right; color: #1e3a8a; font-size: 8pt;">{tot_sales_sum:,}원</td>
+                            <td style="border: 1px solid #64748b; padding: 7px; text-align: right; color: #b91c1c; font-size: 8pt;">{tot_purchase_sum:,}원</td>
+                            <td style="border: 1px solid #64748b; padding: 7px; text-align: right; color: #047857; font-size: 9pt;">{tot_profit_sum:,}원</td>
                         </tr>
                     </tbody>
                 </table>
 
-                <div style="text-align: center; font-size: 11pt; font-weight: 900; color: #0f172a; margin-top: 30px;">
+                <div style="text-align: center; font-size: 10.5pt; font-weight: 900; color: #0f172a; margin-top: 25px;">
                     주식회사 범운해운항공 물류운송팀 / 대표이사 이상복 [직인생략]
                 </div>
             </div>
@@ -2657,7 +2665,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
         f"선택하신 날짜({target_date_str})로 등록된 선적 B/L 내역이 없습니다."
         " 다른 날짜를 선택하시거나 B/L 등록 메뉴에서 등록해주세요."
     )
-
 
 # ==========================================
 # [8] 거래처 등록 및 요금 상세 관리 메뉴
