@@ -1710,9 +1710,10 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 "비고", value=str(target_item.get("비고", ""))
             )
 
-          if st.form_submit_button(
+                  submitted_edit = st.form_submit_button(
               "💾 수정 완료 및 저장하기", type="primary", use_container_width=True
-          ):
+          )
+          if submitted_edit:
             existing_writer = str(target_item.get("최종작성자", "이상복"))
             st.session_state.bl_data_list[idx] = {
                 "구분": u_io,
@@ -1722,6 +1723,34 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 "국가": u_country,
                 "출발지": u_origin,
                 "화주명(매출)": u_shipper,
+                "해외수하인": u_consignee,
+                "매입처": u_vendor,
+                "운송형태": u_transport,
+                "서비스옵션": str(
+                    target_item.get("서비스옵션", "Door To Door")
+                ),
+                "품목": u_item,
+                "박스수": target_item.get("박스수", "1 박스"),
+                "부피규격": target_item.get("부피규격", "-"),
+                "CBM": target_item.get("CBM", "-"),
+                "매출청구중량(kg)": u_sales_cw,
+                "매입청구중량(kg)": u_purchase_cw,
+                "현재 상태": u_tracking_status,
+                "수금상태": u_pay_status,
+                "매출액(원)": u_sales,
+                "매입액(원)": u_purchase,
+                "예상Profit(원)": u_sales - u_purchase,
+                "비고": u_remarks,
+                "최종작성자": existing_writer,
+                "최종수정자": current_user_name,
+            }
+            save_bl_data(st.session_state.bl_data_list)
+            del st.session_state.edit_target_index
+            st.success(
+                f"B/L 정보가 수정되었습니다! (작성자: {existing_writer} / 수정자:"
+                f" {current_user_name})"
+            )
+            st.rerun()
 
 # ==========================================
 # [3] B/L 운송장 출력 메뉴
