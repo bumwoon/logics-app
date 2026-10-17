@@ -7,37 +7,99 @@ import re
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
-    # ==========================================
-    # [여기 10번과 11번 줄 사이에 아래 코드를 통째로 붙여넣으세요]
 import json
-auto_backup_path = "범운해운항공_전체데이터_통합백업_2026-10-16.xlsx"
-if os.path.exists(auto_backup_path):
-      try:
-        df_backup = pd.read_excel(auto_backup_path, sheet_name=0)
-        if "__SYSTEM_META__" in df_backup.columns:
-          bl_df_clean = df_backup.drop(
-              columns=["__SYSTEM_META__"], errors="ignore"
+
+# ==========================================
+# [보안 및 계정 파일 저장소 시스템]
+# ==========================================
+ACCOUNT_USER_FILE = "system_user_accounts.csv"
+
+
+def load_user_db():
+  if os.path.exists(ACCOUNT_USER_FILE):
+    try:
+      df = pd.read_csv(ACCOUNT_USER_FILE)
+      user_db = {}
+      for _, row in df.iterrows():
+        uid = str(row.get("아이디", "")).strip()
+        if uid:
+          user_db[uid] = {
+              "pw": str(row.get("비밀번호", "")).strip(),
+              "role": str(row.get("권한", "직원")).strip(),
+              "name": str(row.get("성명", "")).strip(),
+          }
+      if user_db:
+        return user_db
+    except Exception:
+      pass
+  return {
+      "lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}
+  }
+
+
+def save_user_db(user_db):
+  rows = []
+  for uid, info in user_db.items():
+    rows.append({
+        "아이디": uid,
+        "비밀번호": info.get("pw", ""),
+        "권한": info.get("role", "직원"),
+        "성명": info.get("name", ""),
+    })
+  pd.DataFrame(rows).to_csv(ACCOUNT_USER_FILE, index=False, encoding="utf-8-sig")
+
+
+if "user_db" not in st.session_state:
+  st.session_state.user_db = load_user_db()
+
+if "logged_in_user" not in st.session_state:
+  st.session_state.logged_in_user = None
+
+if "user_role" not in st.session_state:
+  st.session_state.user_role = None
+
+
+def login_screen():
+  """로그인 화면 출력 함수"""
+  st.markdown("<br><br>", unsafe_allow_html=True)
+  col1, col2, col3 = st.columns([1, 1.2, 1])
+
+  with col2:
+    st.markdown(
+        "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 물류"
+        " 시스템 (사내 관리자)</h2>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p style='text-align: center; color: #64748b; font-size:"
+        " 9.5pt;'>관계자 외 접속이 제한된 보안 구역입니다.</p><br>",
+        unsafe_allow_html=True,
+    )
+
+    with st.form("login_form"):
+      input_id = st.text_input("아이디 (ID)")
+      input_pw = st.text_input("비밀번호 (Password)", type="password")
+      submit_login = st.form_submit_button("로그인", use_container_width=True)
+
+      if submit_login:
+        if (
+            input_id in st.session_state.user_db
+            and st.session_state.user_db[input_id]["pw"] == input_pw
+        ):
+          st.session_state.logged_in_user = input_id
+          st.session_state.user_role = st.session_state.user_db[input_id][
+              "role"
+          ]
+          st.success(
+              f"환영합니다, {st.session_state.user_db[input_id]['name']}님!"
           )
-          if (
-              "bl_data_list" not in st.session_state
-              or not st.session_state.bl_data_list
-          ):
-            st.session_state.bl_data_list = bl_df_clean.to_dict("records")
+          st.rerun()
+        else:
+          st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-          meta_str = df_backup["__SYSTEM_META__"].iloc[0]
-          meta_json = json.loads(meta_str)
-
-          if (
-              "client_list" not in st.session_state
-              or st.session_state.client_list == ["아코글로벌"]
-          ):
-            st.session_state.client_list = meta_json.get("client_list", [])
-          if not st.session_state.get("client_rates"):
-            st.session_state.client_rates = meta_json.get("client_rates", {})
-          if not st.session_state.get("client_infos"):
-            st.session_state.client_infos = meta_json.get("client_infos", {})
-      except Exception as e:
-        print("자동 복구 중 오류 발생:", e)
+    if st.button("⬅ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
+      st.query_params.clear()
+      st.rerun()
 
 
 # ==========================================
@@ -45,7 +107,7 @@ if os.path.exists(auto_backup_path):
 # ==========================================
 DATA_FILE = "bl_history_data.csv"
 CLIENT_FILE = "client_data.csv"
-SUPPLIER_FILE = "supplier_data.csv"  # 매입 거래처(선사/항공사/협력사) 전용 파일 추가
+SUPPLIER_FILE = "supplier_data.csv"
 ACCOUNT_FILE = "account_ledger_data.csv"
 EXPENSE_FILE = "expense_data.csv"
 NOTE_FILE = "daily_note_data.csv"
@@ -162,7 +224,7 @@ def save_note_data(data_list):
 
 
 # ==========================================
-# [매출 거래처(화주)] 데이터 불러오기 및 저장
+# [매출 거래처(화주)] 데이터 관리
 # ==========================================
 def load_client_data():
   if os.path.exists(CLIENT_FILE):
@@ -302,7 +364,7 @@ def save_client_data(client_list, client_rates, client_infos):
 
 
 # ==========================================
-# [매입 거래처(선사/항공사/협력사)] 데이터 불러오기 및 저장
+# [매입 거래처(선사/항공사/협력사)] 데이터 관리
 # ==========================================
 def load_supplier_data():
   if os.path.exists(SUPPLIER_FILE):
@@ -540,14 +602,12 @@ def generate_barcode_html(text):
 # ==========================================
 # 세션 상태 필수 데이터 초기화
 # ==========================================
-# 1. 매출 거래처(화주) 초기화
 if "client_list" not in st.session_state or not st.session_state.client_list:
   c_list, c_rates, c_infos = load_client_data()
   st.session_state.client_list = c_list
   st.session_state.client_rates = c_rates
   st.session_state.client_infos = c_infos
 
-# 2. 매입 거래처(선사/항공사/협력사) 초기화
 if (
     "supplier_list" not in st.session_state
     or not st.session_state.supplier_list
@@ -578,7 +638,6 @@ TRACKING_STATUS_OPTIONS = [
 
 query_params = st.query_params
 mode_param = query_params.get("mode", "")
-
 # ==========================================
 # [관리자 로그인 모드 (?mode=admin)]
 # ==========================================
