@@ -1,13 +1,13 @@
-from datetime import date, datetime
 import base64
+from datetime import date, datetime
 import io
+import json
 import math
 import os
 import re
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
-import json
 
 # ==========================================
 # [보안 및 계정 파일 저장소 시스템]
@@ -32,9 +32,7 @@ def load_user_db():
         return user_db
     except Exception:
       pass
-  return {
-      "lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}
-  }
+  return {"lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}}
 
 
 def save_user_db(user_db):
@@ -330,7 +328,7 @@ def save_client_data(client_list, client_rates, client_infos):
           "주소": info.get("주소", ""),
           "국가": "미국",
           "운송형태": "항공(Air)",
-          "품명": "보톡스 필러 (Botox & Filler)",
+          "품명": "보톡스 필러",
           "기본중량": 1.0,
           "기본요금": 38000,
           "추가단가": 25000,
@@ -504,9 +502,6 @@ def calculate_auto_price(
     client_name, cw, transport_mode="항공(Air)", item_name="일반화물"
 ):
   rates_dict = st.session_state.get("client_rates", {}).get(client_name, {})
-  if not rates_dict:
-    rates_dict = st.session_state.get("supplier_rates", {}).get(client_name, {})
-
   if rates_dict:
     for country, trans_dict in rates_dict.items():
       if isinstance(trans_dict, dict):
@@ -852,22 +847,4 @@ else:
                             <table class="t-tbl">
                                 <tr>
                                     <td style="width: 50%;">
-                                        <div class="s-hdr">FROM (SHIPPER / 송하인)</div>
-                                        <b>상호:</b> {shipper_n}<br>
-                                        <b>주소:</b> {shipper_addr}<br>
-                                        <b>연락처:</b> {shipper_tel}
-                                    </td>
-                                    <td style="width: 50%;">
-                                        <div class="s-hdr">TO (CONSIGNEE / 수하인)</div>
-                                        <b>수하인:</b> <span style="color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br>
-                                        <b>도착 국가:</b> {dest_c}<br>
-                                        <b>출발지:</b> {origin_p}
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <table class="t-tbl">
-                                <tr>
-                                    <td style="width: 33%;">
-                                        <div style="font-weight: bold; font-size: 8pt; color: #0f172a;">CARRIER</div>
-                                        {air_c} AIR &nbsp; {sea_c} SEA<br><span style="font-size: 7.5pt; color: #64748b;">{transport_t}
+                                        <div class="s-hdr">FROM (SHIPPER
