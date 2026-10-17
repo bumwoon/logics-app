@@ -503,52 +503,73 @@ def save_supplier_data(supplier_list, supplier_rates, supplier_infos):
   pd.DataFrame(rows).to_csv(SUPPLIER_FILE, index=False, encoding="utf-8-sig")
 
 
+def _select_rate(rates_by_country, country, transport_mode, item_name):
+  """Select only an exact country/transport/item rate, or an unambiguous sole option."""
+  if not isinstance(rates_by_country, dict) or not rates_by_country:
+    return None
+
+  country_key = str(country or "").strip()
+  if country_key in rates_by_country:
+    country_rates = rates_by_country[country_key]
+  elif len(rates_by_country) == 1:
+    country_rates = next(iter(rates_by_country.values()))
+  else:
+    return None
+
+  if not isinstance(country_rates, dict) or not country_rates:
+    return None
+  if transport_mode in country_rates:
+    transport_rates = country_rates[transport_mode]
+  elif len(country_rates) == 1:
+    transport_rates = next(iter(country_rates.values()))
+  else:
+    return None
+
+  if not isinstance(transport_rates, dict) or not transport_rates:
+    return None
+  item_key = str(item_name or "").strip()
+  if item_key in transport_rates:
+    rate = transport_rates[item_key]
+  elif len(transport_rates) == 1:
+    rate = next(iter(transport_rates.values()))
+  else:
+    return None
+  return rate if isinstance(rate, dict) else None
+
+
+def _calculate_weight_rate(rate, cw, default_base, default_add):
+  try:
+    chargeable_weight = max(0.0, float(cw))
+    base_weight = max(0.0, float(rate.get("기본중량", 1.0)))
+    base_price = max(0, int(float(rate.get("기본요금", default_base))))
+    add_price = max(0, int(float(rate.get("추가단가", default_add))))
+  except (TypeError, ValueError, OverflowError):
+    return None
+  if chargeable_weight <= base_weight:
+    return base_price
+  return int(base_price + math.ceil(chargeable_weight - base_weight) * add_price)
+
+
 def calculate_auto_price(
-    client_name, cw, transport_mode="항공(Air)", item_name="일반화물"
+    client_name, cw, transport_mode="항공(Air)", item_name="일반화물", country=None
 ):
   rates_dict = st.session_state.get("client_rates", {}).get(client_name, {})
-  if rates_dict:
-    for country, trans_dict in rates_dict.items():
-      if isinstance(trans_dict, dict):
-        t_dict = trans_dict.get(transport_mode)
-        if not t_dict and len(trans_dict) > 0:
-          t_dict = list(trans_dict.values())[0]
-        if isinstance(t_dict, dict):
-          r_val = t_dict.get(item_name)
-          if not r_val and len(t_dict) > 0:
-            r_val = list(t_dict.values())[0]
-          if isinstance(r_val, dict):
-            base_w = float(r_val.get("기본중량", 1.0))
-            base_p = int(r_val.get("기본요금", 38000))
-            add_p = int(r_val.get("추가단가", 25000))
-            if cw <= base_w:
-              return base_p
-            else:
-              return int(base_p + math.ceil(cw - base_w) * add_p)
-  return int(38000 + max(0.0, cw - 1.0) * 25000)
+  rate = _select_rate(rates_dict, country, transport_mode, item_name)
+  price = _calculate_weight_rate(rate, cw, 38000, 25000) if rate else None
+  if price is not None:
+    return price
+  return int(38000 + math.ceil(max(0.0, float(cw) - 1.0)) * 25000)
+
+
 def calculate_purchase_auto_price(
-    supplier_name, cw, transport_mode="항공(Air)", item_name="일반화물"
+    supplier_name, cw, transport_mode="항공(Air)", item_name="일반화물", country=None
 ):
   rates_dict = st.session_state.get("supplier_rates", {}).get(supplier_name, {})
-  if rates_dict:
-    for country, trans_dict in rates_dict.items():
-      if isinstance(trans_dict, dict):
-        t_dict = trans_dict.get(transport_mode)
-        if not t_dict and len(trans_dict) > 0:
-          t_dict = list(trans_dict.values())[0]
-        if isinstance(t_dict, dict):
-          r_val = t_dict.get(item_name)
-          if not r_val and len(t_dict) > 0:
-            r_val = list(t_dict.values())[0]
-          if isinstance(r_val, dict):
-            base_w = float(r_val.get("기본중량", 1.0))
-            base_p = int(r_val.get("기본요금", 35000))
-            add_p = int(r_val.get("추가단가", 22000))
-            if cw <= base_w:
-              return base_p
-            else:
-              return int(base_p + math.ceil(cw - base_w) * add_p)
-  return int(35000 + max(0.0, cw - 1.0) * 22000)
+  rate = _select_rate(rates_dict, country, transport_mode, item_name)
+  price = _calculate_weight_rate(rate, cw, 35000, 22000) if rate else None
+  if price is not None:
+    return price
+  return int(35000 + math.ceil(max(0.0, float(cw) - 1.0)) * 22000)
 
 def generate_barcode_html(text):
   clean_txt = str(text).strip()
@@ -1533,7 +1554,7 @@ if selected_menu == "📊 수출입 B/L 등록":
       )
 
       auto_sales_price = calculate_auto_price(
-          shipper_name, sales_chargeable_weight, transport_type, item_desc
+          shipper_name, sales_chargeable_weight, transport_type, item_desc, dest_country
       )
       total_sales = st.number_input(
           "총 매출액 (원) [자동 계산 및 수정 가능]",
@@ -1556,7 +1577,9 @@ if selected_menu == "📊 수출입 B/L 등록":
           step=1.0,
       )
 
-      auto_purchase_price = calculate_purchase_auto_price(purchase_vendor, purchase_chargeable_weight, transport_type, item_desc)         
+      auto_purchase_price = calculate_purchase_auto_price(
+          purchase_vendor, purchase_chargeable_weight, transport_type, item_desc, dest_country
+      )
       total_purchase = st.number_input(
           "총 매입액 (원) [자동 계산 및 수정 가능]",
           value=int(auto_purchase_price),
@@ -2284,11 +2307,118 @@ elif selected_menu == "📋 금일발송 매니페스트":
   date_shipments = [
       item
       for item in st.session_state.bl_data_list
-      if str(item.get("날짜")) == target_date_str
+      if str(item.get("날짜", ""))[:10] == target_date_str
   ]
 
   if date_shipments:
-    st.dataframe(pd.DataFrame(date_shipments), use_container_width=True)
+    manifest_df = pd.DataFrame(date_shipments)
+    st.dataframe(manifest_df, use_container_width=True)
+
+    # CSV 다운로드는 PDF 생성에 실패하더라도 사용할 수 있도록 제공
+    csv_bytes = manifest_df.to_csv(index=False).encode("utf-8-sig")
+    st.download_button(
+        "📥 매니페스트 엑셀용 CSV 다운로드",
+        data=csv_bytes,
+        file_name=f"범운해운항공_매니페스트_{target_date_str}.csv",
+        mime="text/csv",
+        key="manifest_csv_download",
+    )
+
+    # PDF 파일 직접 생성 (한글 CID 글꼴 사용)
+    try:
+      from reportlab.lib import colors
+      from reportlab.lib.pagesizes import A4, landscape
+      from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+      from reportlab.lib.enums import TA_CENTER
+      from reportlab.pdfbase import pdfmetrics
+      from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+      from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
+      pdf_buffer = io.BytesIO()
+      pdfmetrics.registerFont(UnicodeCIDFont("HYSMyeongJo-Medium"))
+      pdf_doc = SimpleDocTemplate(
+          pdf_buffer, pagesize=landscape(A4), rightMargin=18, leftMargin=18,
+          topMargin=18, bottomMargin=18
+      )
+      pdf_styles = getSampleStyleSheet()
+      pdf_title_style = ParagraphStyle(
+          "ManifestTitle", parent=pdf_styles["Title"], fontName="HYSMyeongJo-Medium",
+          fontSize=15, leading=19, alignment=TA_CENTER, spaceAfter=6
+      )
+      pdf_body_style = ParagraphStyle(
+          "ManifestBody", parent=pdf_styles["Normal"], fontName="HYSMyeongJo-Medium",
+          fontSize=6, leading=8, wordWrap="CJK"
+      )
+      pdf_story = [
+          Paragraph("(주)범운해운항공 - 날짜별 발송 화물 매니페스트", pdf_title_style),
+          Paragraph(f"선적일: {target_date_str} · Profit 정산 포함", pdf_body_style),
+          Spacer(1, 8),
+      ]
+      pdf_table_data = [[Paragraph(_v, pdf_body_style) for _v in []]]
+      pdf_table_data = [[Paragraph(str(col).replace("&", "&amp;"), pdf_body_style) for col in manifest_df.columns]]
+      for _, pdf_row in manifest_df.iterrows():
+        pdf_cells = []
+        for value in pdf_row.tolist():
+          value_text = "" if pd.isna(value) else str(value)
+          value_text = (value_text.replace("&", "&amp;").replace("<", "&lt;")
+                        .replace(">", "&gt;").replace("\n", "<br/>"))
+          pdf_cells.append(Paragraph(value_text, pdf_body_style))
+        pdf_table_data.append(pdf_cells)
+      available_width = landscape(A4)[0] - 36
+      col_width = available_width / max(len(manifest_df.columns), 1)
+      pdf_table = Table(pdf_table_data, colWidths=[col_width] * len(manifest_df.columns), repeatRows=1)
+      pdf_table.setStyle(TableStyle([
+          ("FONTNAME", (0, 0), (-1, -1), "HYSMyeongJo-Medium"),
+          ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DCE6F1")),
+          ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
+          ("GRID", (0, 0), (-1, -1), 0.35, colors.grey),
+          ("VALIGN", (0, 0), (-1, -1), "TOP"),
+          ("LEFTPADDING", (0, 0), (-1, -1), 3),
+          ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+          ("TOPPADDING", (0, 0), (-1, -1), 3),
+          ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+      ]))
+      pdf_story.append(pdf_table)
+      pdf_doc.build(pdf_story)
+      st.download_button(
+          "📄 매니페스트 PDF 다운로드", data=pdf_buffer.getvalue(),
+          file_name=f"범운해운항공_매니페스트_{target_date_str}.pdf",
+          mime="application/pdf", key="manifest_pdf_download",
+      )
+    except ImportError:
+      st.warning("PDF 생성 라이브러리(reportlab)가 설치되어 있지 않습니다. 아래 인쇄용 파일을 이용해 PDF로 저장하세요.")
+    except Exception as pdf_error:
+      st.warning(f"PDF 파일 생성 중 오류가 발생했습니다. 인쇄용 파일을 이용해 PDF로 저장하세요. ({pdf_error})")
+
+    # 인쇄용 HTML: PDF 직접 생성이 지원되지 않는 환경의 대체 방법
+    import html as _html
+    manifest_columns = list(manifest_df.columns)
+    table_head = "".join(f"<th>{_html.escape(str(col))}</th>" for col in manifest_columns)
+    table_rows = []
+    for _, row in manifest_df.iterrows():
+      cells = "".join(
+          f"<td>{_html.escape('' if pd.isna(value) else str(value))}</td>"
+          for value in row.tolist()
+      )
+      table_rows.append(f"<tr>{cells}</tr>")
+    manifest_html = f"""<!doctype html>
+<html lang=\"ko\"><head><meta charset=\"utf-8\"><title>매니페스트 {target_date_str}</title>
+<style>body{{font-family:Arial,sans-serif;margin:18px;color:#111}}h2{{margin-bottom:4px}}p{{margin-top:0}}
+button{{padding:8px 14px;margin:8px 0}}table{{border-collapse:collapse;width:100%;font-size:9px}}
+th,td{{border:1px solid #777;padding:4px;text-align:left;overflow-wrap:anywhere}}th{{background:#eee}}
+@media print{{.no-print{{display:none}}@page{{size:A4 landscape;margin:8mm}}}}</style></head>
+<body><button class=\"no-print\" onclick=\"window.print()\">🖨 인쇄 / PDF로 저장</button>
+<h2>(주)범운해운항공</h2><p>날짜별 발송 화물 매니페스트 (Profit 정산 포함) · 선적일: {target_date_str}</p>
+<table><thead><tr>{table_head}</tr></thead><tbody>{''.join(table_rows)}</tbody></table>
+</body></html>"""
+    st.download_button(
+        "🖨 매니페스트 인쇄용 파일 다운로드 (열어서 PDF 저장)",
+        data=manifest_html.encode("utf-8"),
+        file_name=f"범운해운항공_매니페스트_{target_date_str}.html",
+        mime="text/html",
+        key="manifest_print_html_download",
+    )
+    st.caption("PDF 저장: 인쇄용 파일을 다운로드해 브라우저에서 연 다음, 인쇄 메뉴에서 'PDF로 저장'을 선택하세요.")
   else:
     st.info("선택하신 날짜로 등록된 선적 B/L 내역이 없습니다.")
 
