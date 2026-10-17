@@ -1581,73 +1581,48 @@ if selected_menu == "📊 수출입 B/L 등록":
 # ==========================================
 # [새로운 독립 트랙] 매출 관리 (화주별)
 # ==========================================
-elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
-    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>💰 매출 및 미수금 통합 관리 (화주별·월별 트랙)</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>화주별 총 매출, 수금완료 금액, 전체 미수 잔액을 월별로 집계하고 관리합니다.</p>", unsafe_allow_html=True)
-    
-    if st.session_state.get("bl_data_list"):
+elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
+    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
+    if st.session_state.bl_data_list:
         df_bl = pd.DataFrame(st.session_state.bl_data_list)
-        if "화주명(매출)" in df_bl.columns and "매출액(원)" in df_bl.columns:
-            df_bl["화주명(매출)"] = df_bl["화주명(매출)"].astype(str).str.strip()
-            df_bl["매출액(원)"] = pd.to_numeric(df_bl["매출액(원)"], errors="coerce").fillna(0)
-            
-            if "날짜" in df_bl.columns:
-                df_bl["연도월"] = pd.to_datetime(df_bl["날짜"], errors="coerce").dt.strftime("%Y-%m").fillna("기타")
-            else:
-                df_bl["연도월"] = "기타"
-            
-            total_sales_all = df_bl["매출액(원)"].sum()
-            total_collected_all = df_bl[df_bl["수금상태"] == "수금완료"]["매출액(원)"].sum()
-            total_unpaid_all = total_sales_all - total_collected_all
-            
-            kpi1, kpi2, kpi3 = st.columns(3)
-            with kpi1: st.metric("📦 전체 누적 청구 매출", f"{total_sales_all:,.0f} 원")
-            with kpi2: st.metric("✅ 전체 수금 완료 금액", f"{total_collected_all:,.0f} 원")
-            with kpi3: st.metric("🚨 전체 미수금 잔액", f"{total_unpaid_all:,.0f} 원", delta=f"-{total_unpaid_all:,.0f} 원" if total_unpaid_all > 0 else "0 원", delta_color="inverse")
-            
-            st.markdown("---")
-            
-            st.subheader("📅 월별 매출 및 미수 잔액 추이")
-            monthly_group = df_bl.groupby("연도월").agg(
-                총매출액=("매출액(원)", "sum"),
-                수금완료액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] == "수금완료"].sum()),
-                미수금액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] != "수금완료"].sum()),
-                건수=("B/L 번호", "count")
-            ).reset_index().sort_values("연도월", ascending=False)
-            
-            st.dataframe(monthly_group, use_container_width=True)
-            
-            st.markdown("---")
-            
-            st.subheader("📋 화주별 매출 및 미수 잔액 요약")
-            sales_group = df_bl.groupby("화주명(매출)").agg(
-                총매출액=("매출액(원)", "sum"),
-                수금완료금액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] == "수금완료"].sum()),
-                미수금액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] != "수금완료"].sum()),
-                건수=("B/L 번호", "count")
-            ).reset_index().sort_values("미수금액", ascending=False)
-            
-            st.dataframe(sales_group, use_container_width=True)
-            
-            st.markdown("---")
-            
-            st.subheader("🔍 특정 화주 상세 매출 및 월별 미수 내역 조회")
-            col_s1, col_s2 = st.columns(2)
-            with col_s1:
-                sel_s = st.selectbox("조회할 화주 선택", df_bl["화주명(매출)"].unique(), key="sales_track_shipper")
-            with col_s2:
-                available_months = ["전체 월 보기"] + sorted(df_bl["연도월"].unique().tolist(), reverse=True)
-                sel_month = st.selectbox("조회할 월(Month) 선택", options=available_months, key="sales_track_month")
-                
-            shipper_detail = df_bl[df_bl["화주명(매출)"] == sel_s]
-            if sel_month != "전체 월 보기":
-                shipper_detail = shipper_detail[shipper_detail["연도월"] == sel_month]
-                
-            st.dataframe(shipper_detail, use_container_width=True)
-        else:
-            st.warning("데이터에 '화주명(매출)' 또는 '매출액(원)' 컬럼이 없습니다.")
+        if "선택" not in df_bl.columns:
+            df_bl.insert(0, "선택", False)
+        
+        edited_bl_table = st.data_editor(
+            df_bl,
+            hide_index=True,
+            use_container_width=True,
+            column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+            key="edit_bl_profit_table"
+        )
+        
+        col_e1, col_e2 = st.columns(2)
+        with col_e1:
+            if st.button("💾 수정된 B/L 내용 저장", type="primary", use_container_width=True):
+                updated_records = edited_bl_table.drop(columns=["선택"]).to_dict("records")
+                for r in updated_records:
+                    r["예상Profit(원)"] = int(r.get("매출액(원)", 0)) - int(r.get("매입액(원)", 0))
+                    r["최종수정자"] = current_user_name
+                st.session_state.bl_data_list = updated_records
+                save_bl_data(st.session_state.bl_data_list)
+                st.success("B/L 수정 내역이 성공적으로 저장되었습니다!")
+                st.rerun()
+        with col_e2:
+            if st.button("🚨 선택한 B/L 삭제", type="secondary", use_container_width=True):
+                selected_rows = edited_bl_table[edited_bl_table["선택"] == True]
+                if not selected_rows.empty:
+                    indices_to_drop = selected_rows.index.tolist()
+                    st.session_state.bl_data_list = [
+                        item for idx, item in enumerate(st.session_state.bl_data_list) if idx not in indices_to_drop
+                    ]
+                    save_bl_data(st.session_state.bl_data_list)
+                    st.success("선택한 B/L 내역이 삭제되었습니다.")
+                    st.rerun()
+                else:
+                    st.warning("삭제할 B/L 행의 체크박스를 선택해주세요.")
     else:
         st.info("등록된 B/L 데이터가 없습니다.")
+
 # ==========================================
 # [새로운 독립 트랙] 매입 관리 (협력사별)
 # ==========================================
