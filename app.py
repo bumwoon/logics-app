@@ -1577,6 +1577,47 @@ if selected_menu == "📊 수출입 B/L 등록":
 # ==========================================
 # [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
+elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
+    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
+    if st.session_state.bl_data_list:
+        df_bl = pd.DataFrame(st.session_state.bl_data_list)
+        if "선택" not in df_bl.columns:
+            df_bl.insert(0, "선택", False)
+        
+        edited_bl_table = st.data_editor(
+            df_bl,
+            hide_index=True,
+            use_container_width=True,
+            column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+            key="edit_bl_profit_table"
+        )
+        
+        col_e1, col_e2 = st.columns(2)
+        with col_e1:
+            if st.button("💾 수정된 B/L 내용 저장", type="primary", use_container_width=True):
+                updated_records = edited_bl_table.drop(columns=["선택"]).to_dict("records")
+                for r in updated_records:
+                    r["예상Profit(원)"] = int(r.get("매출액(원)", 0)) - int(r.get("매입액(원)", 0))
+                    r["최종수정자"] = current_user_name
+                st.session_state.bl_data_list = updated_records
+                save_bl_data(st.session_state.bl_data_list)
+                st.success("B/L 수정 내역이 성공적으로 저장되었습니다!")
+                st.rerun()
+        with col_e2:
+            if st.button("🚨 선택한 B/L 삭제", type="secondary", use_container_width=True):
+                selected_rows = edited_bl_table[edited_bl_table["선택"] == True]
+                if not selected_rows.empty:
+                    indices_to_drop = selected_rows.index.tolist()
+                    st.session_state.bl_data_list = [
+                        item for idx, item in enumerate(st.session_state.bl_data_list) if idx not in indices_to_drop
+                    ]
+                    save_bl_data(st.session_state.bl_data_list)
+                    st.success("선택한 B/L 내역이 삭제되었습니다.")
+                    st.rerun()
+                else:
+                    st.warning("삭제할 B/L 행의 체크박스를 선택해주세요.")
+    else:
+        st.info("등록된 B/L 데이터가 없습니다.")
 
 # ==========================================
 # [새로운 독립 트랙] 매출 관리 (화주별)
