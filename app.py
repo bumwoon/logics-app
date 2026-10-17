@@ -333,7 +333,7 @@ def save_client_data(client_list, client_rates, client_infos):
           "주소": info.get("주소", ""),
           "국가": "미국",
           "운송형태": "항공(Air)",
-          "품명": "보톡스 필러 (Botox & Filler)",
+          "품명": "보톡스",
           "기본중량": 1.0,
           "기본요금": 38000,
           "추가단가": 25000,
@@ -1446,7 +1446,7 @@ if selected_menu == "📊 수출입 B/L 등록":
     with col1:
       dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
       item_desc = st.selectbox(
-          "품목", options=["일반화물", "보톡스 필러", "화장품", "특기품목"]
+          "품목", options=["보톡스", "필러", "화장품", "특가품목", "기타"]
       )
       consignee_name = st.text_input("해외 수하인")
       transport_type = st.selectbox(
@@ -2538,7 +2538,7 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
             ),
             "품명": st.column_config.SelectboxColumn(
                 "품명",
-                options=["일반화물", "보톡스 필러", "화장품", "특기품목"],
+                options=["보톡스", "필러", "화장품", "특가품목", "기타"],
                 required=True,
             ),
         },
@@ -2775,7 +2775,7 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
             ),
             "품명": st.column_config.SelectboxColumn(
                 "품명",
-                options=["일반화물", "보톡스 필러", "화장품", "특기품목"],
+                options=["보톡스", "필러", "화장품", "특가품목", "기타"],
                 required=True,
             ),
         },
