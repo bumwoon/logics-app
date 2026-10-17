@@ -41,102 +41,11 @@ if os.path.exists(auto_backup_path):
 
 
 # ==========================================
-# [보안 및 계정 파일 저장소 시스템]
+# 데이터 파일 경로 및 로고 공통 정의
 # ==========================================
-ACCOUNT_USER_FILE = "system_user_accounts.csv"
-
-
-def load_user_db():
-  if os.path.exists(ACCOUNT_USER_FILE):
-    try:
-      df = pd.read_csv(ACCOUNT_USER_FILE)
-      user_db = {}
-      for _, row in df.iterrows():
-        uid = str(row.get("아이디", "")).strip()
-        if uid:
-          user_db[uid] = {
-              "pw": str(row.get("비밀번호", "")).strip(),
-              "role": str(row.get("권한", "직원")).strip(),
-              "name": str(row.get("성명", "")).strip(),
-          }
-      if user_db:
-        return user_db
-    except Exception:
-      pass
-  return {
-      "lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}
-  }
-
-
-def save_user_db(user_db):
-  rows = []
-  for uid, info in user_db.items():
-    rows.append({
-        "아이디": uid,
-        "비밀번호": info.get("pw", ""),
-        "권한": info.get("role", "직원"),
-        "성명": info.get("name", ""),
-    })
-  pd.DataFrame(rows).to_csv(ACCOUNT_USER_FILE, index=False, encoding="utf-8-sig")
-
-
-if "user_db" not in st.session_state:
-  st.session_state.user_db = load_user_db()
-
-if "logged_in_user" not in st.session_state:
-  st.session_state.logged_in_user = None
-
-if "user_role" not in st.session_state:
-  st.session_state.user_role = None
-
-
-def login_screen():
-  """로그인 화면 출력 함수"""
-  st.markdown("<br><br>", unsafe_allow_html=True)
-  col1, col2, col3 = st.columns([1, 1.2, 1])
-
-  with col2:
-    st.markdown(
-        "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 물류"
-        " 시스템 (사내 관리자)</h2>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<p style='text-align: center; color: #64748b; font-size:"
-        " 9.5pt;'>관계자 외 접속이 제한된 보안 구역입니다.</p><br>",
-        unsafe_allow_html=True,
-    )
-
-    with st.form("login_form"):
-      input_id = st.text_input("아이디 (ID)")
-      input_pw = st.text_input("비밀번호 (Password)", type="password")
-      submit_login = st.form_submit_button("로그인", use_container_width=True)
-
-      if submit_login:
-        if (
-            input_id in st.session_state.user_db
-            and st.session_state.user_db[input_id]["pw"] == input_pw
-        ):
-          st.session_state.logged_in_user = input_id
-          st.session_state.user_role = st.session_state.user_db[input_id][
-              "role"
-          ]
-          st.success(
-              f"환영합니다, {st.session_state.user_db[input_id]['name']}님!"
-          )
-          st.rerun()
-        else:
-          st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
-
-    if st.button("⬅ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
-      st.query_params.clear()
-      st.rerun()
-
-
-
-# 데이터 파일 경로 및 로고 공통 정의 (에러 방지를 위해 최상단 선언)
 DATA_FILE = "bl_history_data.csv"
 CLIENT_FILE = "client_data.csv"
+SUPPLIER_FILE = "supplier_data.csv"  # 매입 거래처(선사/항공사/협력사) 전용 파일 추가
 ACCOUNT_FILE = "account_ledger_data.csv"
 EXPENSE_FILE = "expense_data.csv"
 NOTE_FILE = "daily_note_data.csv"
@@ -252,6 +161,9 @@ def save_note_data(data_list):
       os.remove(NOTE_FILE)
 
 
+# ==========================================
+# [매출 거래처(화주)] 데이터 불러오기 및 저장
+# ==========================================
 def load_client_data():
   if os.path.exists(CLIENT_FILE):
     try:
@@ -289,7 +201,7 @@ def load_client_data():
     except Exception:
       pass
 
-  default_clients = ["아코글로벌", "카ส", "주식회사 조은로직스"]
+  default_clients = ["아코글로벌", "주식회사 조은로직스"]
   default_rates = {
       "아코글로벌": {
           "미국": {
@@ -299,18 +211,6 @@ def load_client_data():
                       "기본요금": 38000,
                       "추가단가": 25000,
                       "1CBM당단가": 3700000,
-                  }
-              }
-          }
-      },
-      "카ส": {
-          "미국": {
-              "항공(Air)": {
-                  "보톡스 필러": {
-                      "기본중량": 1.0,
-                      "기본요금": 35000,
-                      "추가단가": 22000,
-                      "1CBM당단가": 3500000,
                   }
               }
           }
@@ -335,13 +235,6 @@ def load_client_data():
           "담당자": "박장우대표님",
           "전화번호": "",
           "주소": "경기도 김포시 풍무동 326-5번지 2층",
-      },
-      "카ส": {
-          "사업자등록번호": "",
-          "이메일": "",
-          "담당자": "",
-          "전화번호": "",
-          "주소": "",
       },
       "주식회사 조은로직스": {
           "사업자등록번호": "",
@@ -408,6 +301,146 @@ def save_client_data(client_list, client_rates, client_infos):
   pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
 
 
+# ==========================================
+# [매입 거래처(선사/항공사/협력사)] 데이터 불러오기 및 저장
+# ==========================================
+def load_supplier_data():
+  if os.path.exists(SUPPLIER_FILE):
+    try:
+      df = pd.read_csv(SUPPLIER_FILE)
+      suppliers = df["거래처명"].unique().tolist()
+      rates = {}
+      supplier_infos = {}
+      for supplier in suppliers:
+        rates[supplier] = {}
+        sub_df = df[df["거래처명"] == supplier]
+        first_row = sub_df.iloc[0]
+        supplier_infos[supplier] = {
+            "사업자등록번호": str(first_row.get("사업자등록번호", "")),
+            "이메일": str(first_row.get("이메일", "")),
+            "담당자": str(first_row.get("담당자", "")),
+            "전화번호": str(first_row.get("전화번호", "")),
+            "주소": str(first_row.get("주소", "")),
+        }
+        for _, row in sub_df.iterrows():
+          country = row.get("국가", "미국")
+          transport = str(row.get("운송형태", "항공(Air)")).strip()
+          item = str(row.get("품명", "일반공산품")).strip()
+          if country not in rates[supplier]:
+            rates[supplier][country] = {}
+          if transport not in rates[supplier][country]:
+            rates[supplier][country][transport] = {}
+          rates[supplier][country][transport][item] = {
+              "기본중량": float(row.get("기본중량", 1.0)),
+              "기본요금": int(row.get("기본요금", 35000)),
+              "추가단가": int(row.get("추가단가", 22000)),
+              "1CBM당단가": int(row.get("1CBM당단가", 3500000)),
+          }
+      if suppliers:
+        return suppliers, rates, supplier_infos
+    except Exception:
+      pass
+
+  default_suppliers = ["(주)카스익스프레스", "ESI"]
+  default_rates = {
+      "(주)카스익스프레스": {
+          "미국": {
+              "항공(Air)": {
+                  "보톡스 필러": {
+                      "기본중량": 1.0,
+                      "기본요금": 35000,
+                      "추가단가": 22000,
+                      "1CBM당단가": 3500000,
+                  }
+              }
+          }
+      },
+      "ESI": {
+          "미국": {
+              "항공(Air)": {
+                  "일반화물": {
+                      "기본중량": 1.0,
+                      "기본요금": 35000,
+                      "추가단가": 22000,
+                      "1CBM당단가": 3500000,
+                  }
+              }
+          }
+      },
+  }
+  default_infos = {
+      "(주)카스익스프레스": {
+          "사업자등록번호": "",
+          "이메일": "",
+          "담당자": "",
+          "전화번호": "",
+          "주소": "",
+      },
+      "ESI": {
+          "사업자등록번호": "",
+          "이메일": "",
+          "담당자": "정재국대표님",
+          "전화번호": "",
+          "주소": "",
+      },
+  }
+  return default_suppliers, default_rates, default_infos
+
+
+def save_supplier_data(supplier_list, supplier_rates, supplier_infos):
+  rows = []
+  for supplier in supplier_list:
+    info = supplier_infos.get(
+        supplier,
+        {
+            "사업자등록번호": "",
+            "이메일": "",
+            "담당자": "",
+            "전화번호": "",
+            "주소": "",
+        },
+    )
+    country_dict = supplier_rates.get(supplier, {})
+    if not country_dict:
+      rows.append({
+          "거래처명": supplier,
+          "사업자등록번호": info.get("사업자등록번호", ""),
+          "이메일": info.get("이메일", ""),
+          "담당자": info.get("담당자", ""),
+          "전화번호": info.get("전화번호", ""),
+          "주소": info.get("주소", ""),
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품명": "일반화물",
+          "기본중량": 1.0,
+          "기본요금": 35000,
+          "추가단가": 22000,
+          "1CBM당단가": 3500000,
+      })
+    else:
+      for country, trans_dict in country_dict.items():
+        if isinstance(trans_dict, dict):
+          for transport, item_dict in trans_dict.items():
+            if isinstance(item_dict, dict):
+              for item_name, r_val in item_dict.items():
+                rows.append({
+                    "거래처명": supplier,
+                    "사업자등록번호": info.get("사업자등록번호", ""),
+                    "이메일": info.get("이메일", ""),
+                    "담당자": info.get("담당자", ""),
+                    "전화번호": info.get("전화번호", ""),
+                    "주소": info.get("주소", ""),
+                    "국가": country,
+                    "운송형태": transport,
+                    "품명": item_name,
+                    "기본중량": r_val.get("기본중량", 1.0),
+                    "기본요금": r_val.get("기본요금", 35000),
+                    "추가단가": r_val.get("추가단가", 22000),
+                    "1CBM당단가": r_val.get("1CBM당단가", 3500000),
+                })
+  pd.DataFrame(rows).to_csv(SUPPLIER_FILE, index=False, encoding="utf-8-sig")
+
+
 def calculate_auto_price(
     client_name, cw, transport_mode="항공(Air)", item_name="일반화물"
 ):
@@ -431,7 +464,6 @@ def calculate_auto_price(
             else:
               return int(base_p + math.ceil(cw - base_w) * add_p)
   return int(38000 + max(0.0, cw - 1.0) * 25000)
-
 
 
 def generate_barcode_html(text):
@@ -505,12 +537,26 @@ def generate_barcode_html(text):
     """
 
 
+# ==========================================
 # 세션 상태 필수 데이터 초기화
+# ==========================================
+# 1. 매출 거래처(화주) 초기화
 if "client_list" not in st.session_state or not st.session_state.client_list:
   c_list, c_rates, c_infos = load_client_data()
   st.session_state.client_list = c_list
   st.session_state.client_rates = c_rates
   st.session_state.client_infos = c_infos
+
+# 2. 매입 거래처(선사/항공사/협력사) 초기화
+if (
+    "supplier_list" not in st.session_state
+    or not st.session_state.supplier_list
+):
+  s_list, s_rates, s_infos = load_supplier_data()
+  st.session_state.supplier_list = s_list
+  st.session_state.supplier_rates = s_rates
+  st.session_state.supplier_infos = s_infos
+
 if "bl_data_list" not in st.session_state:
   st.session_state.bl_data_list = load_bl_data()
 if "meeting_data_list" not in st.session_state:
