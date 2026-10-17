@@ -1581,45 +1581,68 @@ if selected_menu == "📊 수출입 B/L 등록":
 # ==========================================
 # [새로운 독립 트랙] 매출 관리 (화주별)
 # ==========================================
-elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
-    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
-    if st.session_state.bl_data_list:
+elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
+    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>💰 매출 관리 (화주별 독립 트랙)</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>화주별 매출액, 수금 완료 금액, 미수금 잔액을 집계하고 건별 수금 상태를 관리합니다.</p>", unsafe_allow_html=True)
+    
+    if st.session_state.get("bl_data_list"):
         df_bl = pd.DataFrame(st.session_state.bl_data_list)
-        if "선택" not in df_bl.columns:
-            df_bl.insert(0, "선택", False)
-        
-        edited_bl_table = st.data_editor(
-            df_bl,
-            hide_index=True,
-            use_container_width=True,
-            column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-            key="edit_bl_profit_table"
-        )
-        
-        col_e1, col_e2 = st.columns(2)
-        with col_e1:
-            if st.button("💾 수정된 B/L 내용 저장", type="primary", use_container_width=True):
-                updated_records = edited_bl_table.drop(columns=["선택"]).to_dict("records")
-                for r in updated_records:
-                    r["예상Profit(원)"] = int(r.get("매출액(원)", 0)) - int(r.get("매입액(원)", 0))
-                    r["최종수정자"] = current_user_name
-                st.session_state.bl_data_list = updated_records
-                save_bl_data(st.session_state.bl_data_list)
-                st.success("B/L 수정 내역이 성공적으로 저장되었습니다!")
-                st.rerun()
-        with col_e2:
-            if st.button("🚨 선택한 B/L 삭제", type="secondary", use_container_width=True):
-                selected_rows = edited_bl_table[edited_bl_table["선택"] == True]
-                if not selected_rows.empty:
-                    indices_to_drop = selected_rows.index.tolist()
-                    st.session_state.bl_data_list = [
-                        item for idx, item in enumerate(st.session_state.bl_data_list) if idx not in indices_to_drop
-                    ]
+        if "화주명(매출)" in df_bl.columns and "매출액(원)" in df_bl.columns:
+            df_bl["화주명(매출)"] = df_bl["화주명(매출)"].astype(str).str.strip()
+            df_bl["매출액(원)"] = pd.to_numeric(df_bl["매출액(원)"], errors="coerce").fillna(0)
+            if "수금상태" not in df_bl.columns:
+                df_bl["수금상태"] = "미수"
+            
+            # 1. 화주별 매출 및 미수 요약
+            sales_group = df_bl.groupby("화주명(매출)").agg(
+                총매출액=("매출액(원)", "sum"),
+                수금완료액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] == "수금완료"].sum()),
+                미수금잔액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] != "수금완료"].sum()),
+                건수=("B/L 번호", "count")
+            ).reset_index().sort_values("미수금잔액", ascending=False)
+            
+            st.subheader("📋 화주별 매출 및 미수금 현황 요약")
+            st.dataframe(sales_group, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # 2. 특정 화주 상세 매출 내역 및 수금 상태 관리
+            st.subheader("🔍 특정 화주 상세 매출 내역 및 수금 상태 관리")
+            col_s1, col_s2 = st.columns([2, 1])
+            with col_s1:
+                sel_c = st.selectbox("조회할 화주(매출처) 선택", df_bl["화주명(매출)"].unique(), key="sales_track_client")
+            with col_s2:
+                only_unpaid_c = st.checkbox("📌 미수 건만 보기", value=True, key="only_unpaid_sales_client")
+            
+            client_detail = df_bl[df_bl["화주명(매출)"] == sel_c].copy()
+            if only_unpaid_c:
+                client_detail = client_detail[client_detail["수금상태"].astype(str).str.strip() != "수금완료"]
+            
+            if "선택" not in client_detail.columns:
+                client_detail.insert(0, "선택", False)
+            
+            edited_sales_table = st.data_editor(
+                client_detail,
+                hide_index=True,
+                use_container_width=True,
+                column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+                key="sales_unpaid_edit_table"
+            )
+            
+            selected_sales_rows = edited_sales_table[edited_sales_table["선택"] == True]
+            
+            if st.button("💰 선택한 매출 건 [수금완료] 일괄 처리", type="primary", use_container_width=True):
+                if len(selected_sales_rows) > 0:
+                    for real_idx in selected_sales_rows.index.tolist():
+                        st.session_state.bl_data_list[real_idx]["수금상태"] = "수금완료"
+                        st.session_state.bl_data_list[real_idx]["최종수정자"] = current_user_name
                     save_bl_data(st.session_state.bl_data_list)
-                    st.success("선택한 B/L 내역이 삭제되었습니다.")
+                    st.success("선택하신 매출 건들이 '수금완료' 처리되었습니다!")
                     st.rerun()
                 else:
-                    st.warning("삭제할 B/L 행의 체크박스를 선택해주세요.")
+                    st.warning("수금완료 처리할 B/L 행의 체크박스를 선택해주세요.")
+        else:
+            st.warning("데이터에 '화주명(매출)' 또는 '매출액(원)' 컬럼이 없습니다.")
     else:
         st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
