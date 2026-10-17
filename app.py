@@ -1669,14 +1669,6 @@ elif selected_menu == "🤝 매입 관리 (협력사별 독립 트랙)":
             # 1. 협력사별 매입 및 미지급 요약
             purchase_group = df_bl.groupby("매입처").agg(
                 총매입액=("매입액(원)", "sum"),
-                지급완료액=("매출액(원)" if "매출액(원)" in df_bl.columns else "매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] == "지급완료"].sum()) if "매입액(원)" in df_bl.columns else 0, # 안전 장치
-                미지급잔액=("매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] != "지급완료"].sum()),
-                건수=("B/L 번호", "count")
-            ).reset_index().sort_values("미지급잔액", ascending=False)
-            
-            # 위 코드에서 지급완료액 계산식 간소화 및 오류 방지 보완 버전:
-            purchase_group = df_bl.groupby("매입처").agg(
-                총매입액=("매입액(원)", "sum"),
                 지급완료액=("매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] == "지급완료"].sum()),
                 미지급잔액=("매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] != "지급완료"].sum()),
                 건수=("B/L 번호", "count")
@@ -1726,7 +1718,6 @@ elif selected_menu == "🤝 매입 관리 (협력사별 독립 트랙)":
             st.warning("데이터에 '매입처' 또는 '매입액(원)' 컬럼이 없습니다.")
     else:
         st.info("등록된 B/L 데이터가 없습니다.")
-
 # ==========================================
 # [3] B/L 운송장 출력 메뉴
 # ==========================================
