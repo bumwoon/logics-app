@@ -169,7 +169,7 @@ def load_meeting_data():
   if os.path.exists(MEETING_FILE):
     try:
       return pd.read_csv(MEETING_FILE).to_dict("records")
-    except:
+    except Exception:
       return []
   return []
 
@@ -188,7 +188,7 @@ def load_expense_data():
   if os.path.exists(EXPENSE_FILE):
     try:
       return pd.read_csv(EXPENSE_FILE).to_dict("records")
-    except:
+    except Exception:
       return []
   return []
 
@@ -207,7 +207,7 @@ def load_note_data():
   if os.path.exists(NOTE_FILE):
     try:
       return pd.read_csv(NOTE_FILE).to_dict("records")
-    except:
+    except Exception:
       return []
   return []
 
@@ -323,4 +323,345 @@ def save_client_data(client_list, client_rates, client_infos):
     if not country_dict:
       rows.append({
           "거래처명": client,
-          "사업자등록번호":
+          "사업자등록번호": info.get("사업자등록번호", ""),
+          "이메일": info.get("이메일", ""),
+          "담당자": info.get("담당자", ""),
+          "전화번호": info.get("전화번호", ""),
+          "주소": info.get("주소", ""),
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품명": "보톡스 필러 (Botox & Filler)",
+          "기본중량": 1.0,
+          "기본요금": 38000,
+          "추가단가": 25000,
+          "1CBM당단가": 3700000,
+      })
+    else:
+      for country, trans_dict in country_dict.items():
+        if isinstance(trans_dict, dict):
+          for transport, item_dict in trans_dict.items():
+            if isinstance(item_dict, dict):
+              for item_name, r_val in item_dict.items():
+                rows.append({
+                    "거래처명": client,
+                    "사업자등록번호": info.get("사업자등록번호", ""),
+                    "이메일": info.get("이메일", ""),
+                    "담당자": info.get("담당자", ""),
+                    "전화번호": info.get("전화번호", ""),
+                    "주소": info.get("주소", ""),
+                    "국가": country,
+                    "운송형태": transport,
+                    "품명": item_name,
+                    "기본중량": r_val.get("기본중량", 1.0),
+                    "기본요금": r_val.get("기본요금", 38000),
+                    "추가단가": r_val.get("추가단가", 25000),
+                    "1CBM당단가": r_val.get("1CBM당단가", 3700000),
+                })
+  pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
+
+
+# ==========================================
+# [매입 거래처(선사/항공사/협력사)] 데이터 관리
+# ==========================================
+def load_supplier_data():
+  if os.path.exists(SUPPLIER_FILE):
+    try:
+      df = pd.read_csv(SUPPLIER_FILE)
+      suppliers = df["거래처명"].unique().tolist()
+      rates = {}
+      supplier_infos = {}
+      for supplier in suppliers:
+        rates[supplier] = {}
+        sub_df = df[df["거래처명"] == supplier]
+        first_row = sub_df.iloc[0]
+        supplier_infos[supplier] = {
+            "사업자등록번호": str(first_row.get("사업자등록번호", "")),
+            "이메일": str(first_row.get("이메일", "")),
+            "담당자": str(first_row.get("담당자", "")),
+            "전화번호": str(first_row.get("전화번호", "")),
+            "주소": str(first_row.get("주소", "")),
+        }
+        for _, row in sub_df.iterrows():
+          country = row.get("국가", "미국")
+          transport = str(row.get("운송형태", "항공(Air)")).strip()
+          item = str(row.get("품명", "일반공산품")).strip()
+          if country not in rates[supplier]:
+            rates[supplier][country] = {}
+          if transport not in rates[supplier][country]:
+            rates[supplier][country][transport] = {}
+          rates[supplier][country][transport][item] = {
+              "기본중량": float(row.get("기본중량", 1.0)),
+              "기본요금": int(row.get("기본요금", 35000)),
+              "추가단가": int(row.get("추가단가", 22000)),
+              "1CBM당단가": int(row.get("1CBM당단가", 3500000)),
+          }
+      if suppliers:
+        return suppliers, rates, supplier_infos
+    except Exception:
+      pass
+
+  default_suppliers = ["(주)카스익스프레스", "ESI"]
+  default_rates = {
+      "(주)카스익스프레스": {
+          "미국": {
+              "항공(Air)": {
+                  "보톡스 필러": {
+                      "기본중량": 1.0,
+                      "기본요금": 35000,
+                      "추가단가": 22000,
+                      "1CBM당단가": 3500000,
+                  }
+              }
+          }
+      },
+      "ESI": {
+          "미국": {
+              "항공(Air)": {
+                  "일반화물": {
+                      "기본중량": 1.0,
+                      "기본요금": 35000,
+                      "추가단가": 22000,
+                      "1CBM당단가": 3500000,
+                  }
+              }
+          }
+      },
+  }
+  default_infos = {
+      "(주)카스익스프레스": {
+          "사업자등록번호": "",
+          "이메일": "",
+          "담당자": "",
+          "전화번호": "",
+          "주소": "",
+      },
+      "ESI": {
+          "사업자등록번호": "",
+          "이메일": "",
+          "담당자": "정재국대표님",
+          "전화번호": "",
+          "주소": "",
+      },
+  }
+  return default_suppliers, default_rates, default_infos
+
+
+def save_supplier_data(supplier_list, supplier_rates, supplier_infos):
+  rows = []
+  for supplier in supplier_list:
+    info = supplier_infos.get(
+        supplier,
+        {
+            "사업자등록번호": "",
+            "이메일": "",
+            "담당자": "",
+            "전화번호": "",
+            "주소": "",
+        },
+    )
+    country_dict = supplier_rates.get(supplier, {})
+    if not country_dict:
+      rows.append({
+          "거래처명": supplier,
+          "사업자등록번호": info.get("사업자등록번호", ""),
+          "이메일": info.get("이메일", ""),
+          "담당자": info.get("담당자", ""),
+          "전화번호": info.get("전화번호", ""),
+          "주소": info.get("주소", ""),
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품명": "일반화물",
+          "기본중량": 1.0,
+          "기본요금": 35000,
+          "추가단가": 22000,
+          "1CBM당단가": 3500000,
+      })
+    else:
+      for country, trans_dict in country_dict.items():
+        if isinstance(trans_dict, dict):
+          for transport, item_dict in trans_dict.items():
+            if isinstance(item_dict, dict):
+              for item_name, r_val in item_dict.items():
+                rows.append({
+                    "거래처명": supplier,
+                    "사업자등록번호": info.get("사업자등록번호", ""),
+                    "이메일": info.get("이메일", ""),
+                    "담당자": info.get("담당자", ""),
+                    "전화번호": info.get("전화번호", ""),
+                    "주소": info.get("주소", ""),
+                    "국가": country,
+                    "운송형태": transport,
+                    "품명": item_name,
+                    "기본중량": r_val.get("기본중량", 1.0),
+                    "기본요금": r_val.get("기본요금", 35000),
+                    "추가단가": r_val.get("추가단가", 22000),
+                    "1CBM당단가": r_val.get("1CBM당단가", 3500000),
+                })
+  pd.DataFrame(rows).to_csv(SUPPLIER_FILE, index=False, encoding="utf-8-sig")
+
+
+def calculate_auto_price(
+    client_name, cw, transport_mode="항공(Air)", item_name="일반화물"
+):
+  rates_dict = st.session_state.get("client_rates", {}).get(client_name, {})
+  if not rates_dict:
+    rates_dict = st.session_state.get("supplier_rates", {}).get(
+        client_name, {}
+    )
+
+  if rates_dict:
+    for country, trans_dict in rates_dict.items():
+      if isinstance(trans_dict, dict):
+        t_dict = trans_dict.get(transport_mode)
+        if not t_dict and len(trans_dict) > 0:
+          t_dict = list(trans_dict.values())[0]
+        if isinstance(t_dict, dict):
+          r_val = t_dict.get(item_name)
+          if not r_val and len(t_dict) > 0:
+            r_val = list(t_dict.values())[0]
+          if isinstance(r_val, dict):
+            base_w = float(r_val.get("기본중량", 1.0))
+            base_p = int(r_val.get("기본요금", 38000))
+            add_p = int(r_val.get("추가단가", 25000))
+            if cw <= base_w:
+              return base_p
+            else:
+              return int(base_p + math.ceil(cw - base_w) * add_p)
+  return int(38000 + max(0.0, cw - 1.0) * 25000)
+
+
+def generate_barcode_html(text):
+  clean_txt = str(text).strip()
+  code128_patterns = {
+      "0": "212222",
+      "1": "222122",
+      "2": "222221",
+      "3": "121223",
+      "4": "121322",
+      "5": "131222",
+      "6": "122213",
+      "7": "122312",
+      "8": "132212",
+      "9": "221213",
+      "A": "212321",
+      "B": "232121",
+      "C": "113222",
+      "D": "123122",
+      "E": "123221",
+      "F": "223112",
+      "G": "223211",
+      "H": "212231",
+      "I": "231221",
+      "J": "221321",
+      "K": "312122",
+      "L": "321122",
+      "M": "321221",
+      "N": "312212",
+      "O": "322112",
+      "P": "322211",
+      "Q": "212132",
+      "R": "212312",
+      "S": "232112",
+      "T": "213122",
+      "U": "311222",
+      "V": "321112",
+      "W": "322102",
+      "X": "312112",
+      "Y": "321211",
+      "Z": "212113",
+      "-": "112232",
+      ".": "122132",
+      " ": "122231",
+      "default": "212222",
+  }
+
+  encoded_bars = "211214"
+  for ch in clean_txt.upper():
+    encoded_bars += code128_patterns.get(ch, code128_patterns["default"])
+  encoded_bars += "2331112"
+
+  bars_html = ""
+  is_black = True
+  for char_val in encoded_bars:
+    try:
+      width_multiplier = int(char_val)
+    except Exception:
+      width_multiplier = 1
+
+    w_px = width_multiplier * 1.5
+    bg_color = "#000000" if is_black else "#ffffff"
+    bars_html += f"<div style='display:inline-block; width:{w_px}px; height:44px; background-color:{bg_color};'></div>"
+    is_black = not is_black
+
+  return f"""
+    <div style="text-align: right; display: inline-block; background: #ffffff; padding: 6px; border-radius: 4px;">
+        <div style="line-height: 0; white-space: nowrap;">{bars_html}</div>
+        <div style="font-size: 10.5pt; font-weight: 900; color: #000000; margin-top: 4px; letter-spacing: 2px; text-align: center;">{clean_txt}</div>
+    </div>
+    """
+
+
+# ==========================================
+# 세션 상태 필수 데이터 초기화
+# ==========================================
+if "client_list" not in st.session_state or not st.session_state.client_list:
+  c_list, c_rates, c_infos = load_client_data()
+  st.session_state.client_list = c_list
+  st.session_state.client_rates = c_rates
+  st.session_state.client_infos = c_infos
+
+if (
+    "supplier_list" not in st.session_state
+    or not st.session_state.supplier_list
+):
+  s_list, s_rates, s_infos = load_supplier_data()
+  st.session_state.supplier_list = s_list
+  st.session_state.supplier_rates = s_rates
+  st.session_state.supplier_infos = s_infos
+
+if "bl_data_list" not in st.session_state:
+  st.session_state.bl_data_list = load_bl_data()
+if "meeting_data_list" not in st.session_state:
+  st.session_state.meeting_data_list = load_meeting_data()
+if "expense_data_list" not in st.session_state:
+  st.session_state.expense_data_list = load_expense_data()
+if "note_data_list" not in st.session_state:
+  st.session_state.note_data_list = load_note_data()
+
+TRACKING_STATUS_OPTIONS = [
+    "📦 물류센터 입고 및 접수 완료",
+    "🔄 수출입 통관 진행 중",
+    "✈ 항공/해상 선적 완료 (운송 중)",
+    "📍 현지 공항/항만 도착",
+    "🚚 현지 배송 진행 중 (Out for Delivery)",
+    "✅ 배송 완료 (Delivered)",
+    "⚠ 운송 지연 또는 보류",
+]
+
+query_params = st.query_params
+mode_param = query_params.get("mode", "")
+
+# ==========================================
+# [관리자 로그인 모드 (?mode=admin)]
+# ==========================================
+if mode_param == "admin":
+  if not st.session_state.logged_in_user:
+    login_screen()
+    st.stop()
+else:
+  top_c1, top_c2 = st.columns([6, 1.2])
+  with top_c2:
+    if st.button("🔐 사내 관리자 로그인", use_container_width=True):
+      st.query_params["mode"] = "admin"
+      st.rerun()
+
+  logo_img_tag = ""
+  if encoded_sidebar_logo:
+    logo_img_tag = f"<img src='data:image/png;base64,{encoded_sidebar_logo}' style='width: 250px; max-width: 100%; height: auto; margin-bottom: 8px; border-radius: 8px;'>"
+
+  st.markdown(
+      f"""
+    <div style="text-align: center; padding: 22px 15px; background-color: white; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); margin-bottom: 15px;">
+        <div style="display: inline-block;">{logo_img_tag}</div>
+        <h1 style="color: #1e3a8a; font-size: 26px; font-weight: 800; margin-bottom: 3px; letter-spacing: -0.5px;">(주)범운해운항공</h1>
+        <p style="color: #475569; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; margin: 0;">BUM
