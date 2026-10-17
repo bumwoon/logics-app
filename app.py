@@ -2312,105 +2312,74 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
   if date_shipments:
     manifest_df = pd.DataFrame(date_shipments)
+    
+    # 1. 화면에는 사진과 같이 모든 전체 컬럼을 그대로 출력합니다.
     st.dataframe(manifest_df, use_container_width=True)
 
-    # CSV 다운로드는 PDF 생성에 실패하더라도 사용할 수 있도록 제공
-    csv_bytes = manifest_df.to_csv(index=False).encode("utf-8-sig")
+    # 2. 인쇄 및 다운로드(CSV / HTML) 시 부피 항목을 포함하여 추출 및 이름 변경
+    print_columns = [
+        "날짜",
+        "B/L 번호",
+        "국가",
+        "화주명(매출)",
+        "해외수하인",
+        "품목",
+        "박스수",
+        "부피규격",
+        "매출청구중량(kg)",
+        "매출액(원)",
+        "매입액(원)",
+        "예상Profit(원)"
+    ]
+    existing_print_cols = [col for col in print_columns if col in manifest_df.columns]
+    manifest_print_df = manifest_df[existing_print_cols].copy()
+    
+    # 출력용 컬럼명 매핑
+    manifest_print_df = manifest_print_df.rename(columns={
+        "화주명(매출)": "화주",
+        "해외수하인": "수하인",
+        "품목": "품명",
+        "박수수": "박수",
+        "부피규격": "부피",
+        "매출청구중량(kg)": "수량(kg)",
+        "매출액(원)": "매출",
+        "매입액(원)": "매입",
+        "예상Profit(원)": "프로핏"
+    })
+
+    # CSV 다운로드 (부피 포함)
+    csv_bytes = manifest_print_df.to_csv(index=False).encode("utf-8-sig")
     st.download_button(
-        "📥 매니페스트 엑셀용 CSV 다운로드",
+        "📥 매니페스트 엑셀용 CSV 다운로드 (부피 포함)",
         data=csv_bytes,
         file_name=f"범운해운항공_매니페스트_{target_date_str}.csv",
         mime="text/csv",
         key="manifest_csv_download",
     )
 
-    # PDF 파일 직접 생성 (한글 CID 글꼴 사용)
-    try:
-      from reportlab.lib import colors
-      from reportlab.lib.pagesizes import A4, landscape
-      from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-      from reportlab.lib.enums import TA_CENTER
-      from reportlab.pdfbase import pdfmetrics
-      from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-      from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-
-      pdf_buffer = io.BytesIO()
-      pdfmetrics.registerFont(UnicodeCIDFont("HYSMyeongJo-Medium"))
-      pdf_doc = SimpleDocTemplate(
-          pdf_buffer, pagesize=landscape(A4), rightMargin=18, leftMargin=18,
-          topMargin=18, bottomMargin=18
-      )
-      pdf_styles = getSampleStyleSheet()
-      pdf_title_style = ParagraphStyle(
-          "ManifestTitle", parent=pdf_styles["Title"], fontName="HYSMyeongJo-Medium",
-          fontSize=15, leading=19, alignment=TA_CENTER, spaceAfter=6
-      )
-      pdf_body_style = ParagraphStyle(
-          "ManifestBody", parent=pdf_styles["Normal"], fontName="HYSMyeongJo-Medium",
-          fontSize=6, leading=8, wordWrap="CJK"
-      )
-      pdf_story = [
-          Paragraph("(주)범운해운항공 - 날짜별 발송 화물 매니페스트", pdf_title_style),
-          Paragraph(f"선적일: {target_date_str} · Profit 정산 포함", pdf_body_style),
-          Spacer(1, 8),
-      ]
-      pdf_table_data = [[Paragraph(_v, pdf_body_style) for _v in []]]
-      pdf_table_data = [[Paragraph(str(col).replace("&", "&amp;"), pdf_body_style) for col in manifest_df.columns]]
-      for _, pdf_row in manifest_df.iterrows():
-        pdf_cells = []
-        for value in pdf_row.tolist():
-          value_text = "" if pd.isna(value) else str(value)
-          value_text = (value_text.replace("&", "&amp;").replace("<", "&lt;")
-                        .replace(">", "&gt;").replace("\n", "<br/>"))
-          pdf_cells.append(Paragraph(value_text, pdf_body_style))
-        pdf_table_data.append(pdf_cells)
-      available_width = landscape(A4)[0] - 36
-      col_width = available_width / max(len(manifest_df.columns), 1)
-      pdf_table = Table(pdf_table_data, colWidths=[col_width] * len(manifest_df.columns), repeatRows=1)
-      pdf_table.setStyle(TableStyle([
-          ("FONTNAME", (0, 0), (-1, -1), "HYSMyeongJo-Medium"),
-          ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DCE6F1")),
-          ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
-          ("GRID", (0, 0), (-1, -1), 0.35, colors.grey),
-          ("VALIGN", (0, 0), (-1, -1), "TOP"),
-          ("LEFTPADDING", (0, 0), (-1, -1), 3),
-          ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-          ("TOPPADDING", (0, 0), (-1, -1), 3),
-          ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-      ]))
-      pdf_story.append(pdf_table)
-      pdf_doc.build(pdf_story)
-      st.download_button(
-          "📄 매니페스트 PDF 다운로드", data=pdf_buffer.getvalue(),
-          file_name=f"범운해운항공_매니페스트_{target_date_str}.pdf",
-          mime="application/pdf", key="manifest_pdf_download",
-      )
-    except ImportError:
-      st.warning("PDF 생성 라이브러리(reportlab)가 설치되어 있지 않습니다. 아래 인쇄용 파일을 이용해 PDF로 저장하세요.")
-    except Exception as pdf_error:
-      st.warning(f"PDF 파일 생성 중 오류가 발생했습니다. 인쇄용 파일을 이용해 PDF로 저장하세요. ({pdf_error})")
-
-    # 인쇄용 HTML: PDF 직접 생성이 지원되지 않는 환경의 대체 방법
+    # 인쇄용 HTML 다운로드 (부피 포함)
     import html as _html
-    manifest_columns = list(manifest_df.columns)
-    table_head = "".join(f"<th>{_html.escape(str(col))}</th>" for col in manifest_columns)
+    manifest_cols_list = list(manifest_print_df.columns)
+    table_head = "".join(f"<th>{_html.escape(str(col))}</th>" for col in manifest_cols_list)
     table_rows = []
-    for _, row in manifest_df.iterrows():
+    for _, row in manifest_print_df.iterrows():
       cells = "".join(
           f"<td>{_html.escape('' if pd.isna(value) else str(value))}</td>"
           for value in row.tolist()
       )
       table_rows.append(f"<tr>{cells}</tr>")
+    
     manifest_html = f"""<!doctype html>
 <html lang=\"ko\"><head><meta charset=\"utf-8\"><title>매니페스트 {target_date_str}</title>
 <style>body{{font-family:Arial,sans-serif;margin:18px;color:#111}}h2{{margin-bottom:4px}}p{{margin-top:0}}
-button{{padding:8px 14px;margin:8px 0}}table{{border-collapse:collapse;width:100%;font-size:9px}}
-th,td{{border:1px solid #777;padding:4px;text-align:left;overflow-wrap:anywhere}}th{{background:#eee}}
+button{{padding:8px 14px;margin:8px 0}}table{{border-collapse:collapse;width:100%;font-size:9.5px}}
+th,td{{border:1px solid #777;padding:5px;text-align:left;overflow-wrap:anywhere}}th{{background:#eee}}
 @media print{{.no-print{{display:none}}@page{{size:A4 landscape;margin:8mm}}}}</style></head>
 <body><button class=\"no-print\" onclick=\"window.print()\">🖨 인쇄 / PDF로 저장</button>
-<h2>(주)범운해운항공</h2><p>날짜별 발송 화물 매니페스트 (Profit 정산 포함) · 선적일: {target_date_str}</p>
+<h2>(주)범운해운항공</h2><p>날짜별 발송 화물 매니페스트 · 선적일: {target_date_str}</p>
 <table><thead><tr>{table_head}</tr></thead><tbody>{''.join(table_rows)}</tbody></table>
 </body></html>"""
+    
     st.download_button(
         "🖨 매니페스트 인쇄용 파일 다운로드 (열어서 PDF 저장)",
         data=manifest_html.encode("utf-8"),
