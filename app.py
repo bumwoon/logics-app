@@ -2641,233 +2641,250 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
           st.warning("삭제할 요율 행의 체크박스를 선택해주세요.")
 
 
-# ----------------------------------------
+# ==========================================
 # [9] 매입 거래처(선사/협력사) 관리 (메인 메뉴 독립)
-# ----------------------------------------
+# ==========================================
 elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
-    st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🚢 매입 거래처(선사/항공사/협력사) 및 단가 요율 관리</h3>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>매입 거래처의 기본 정보 및 국가·운송형태별 매입 단가 요율표를 관리합니다.</p>",
-        unsafe_allow_html=True,
-    )
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🚢"
+      " 매입 거래처(선사/항공사/협력사) 및 단가 요율 관리</h3>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>매입"
+      " 거래처의 기본 정보 및 국가·운송형태별 매입 단가 요율표를 관리합니다.</p>",
+      unsafe_allow_html=True,
+  )
 
-    with st.expander("+ 신규 매입 거래처 추가하기", expanded=False):
-        new_supplier_input = st.text_input(
-            "신규 매입 거래처명 입력", key="new_supplier_input_key"
-        )
+  with st.expander("➕ 신규 매입 거래처 추가하기", expanded=False):
+    new_supplier_name_input = st.text_input(
+        "신규 매입 거래처명 입력", key="new_supplier_input_key"
+    )
     if st.button("매입 거래처 추가", key="btn_add_supplier"):
-        if (
-            new_supplier_input.strip()
-            and new_supplier_input not in st.session_state.supplier_list
-        ):
-            st.session_state.supplier_list.append(new_supplier_input.strip())
-            if new_supplier_input.strip() not in st.session_state.supplier_rates:
-                st.session_state.supplier_rates[new_supplier_input.strip()] = {}
-            if new_supplier_input.strip() not in st.session_state.supplier_infos:
-                st.session_state.supplier_infos[new_supplier_input.strip()] = {
-                    "대표자": "",
-                    "연락처": "",
-                    "이메일": "",
-                    "비고": "",
-                }
-            save_supplier_data(
-                st.session_state.supplier_list,
-                st.session_state.supplier_rates,
-                st.session_state.supplier_infos,
-            )
-            st.success(f"매입 거래처 '{new_supplier_input.strip()}'가 추가되었습니다.")
-            st.rerun()
-        else:
-            st.warning("거래처명을 올바르게 입력했는지 또는 이미 존재하는지 확인해주세요.")
-
-    if st.session_state.supplier_list:
-        selected_supplier_mgr = st.selectbox(
-            "관리할 매입 거래처 선택",
+      if (
+          new_supplier_name_input.strip()
+          and new_supplier_name_input not in st.session_state.supplier_list
+      ):
+        st.session_state.supplier_list.append(new_supplier_name_input.strip())
+        st.session_state.supplier_infos[new_supplier_name_input.strip()] = {
+            "사업자등록번호": "",
+            "이메일": "",
+            "담당자": "",
+            "전화번호": "",
+            "주소": "",
+        }
+        save_supplier_data(
             st.session_state.supplier_list,
-            key="selected_supplier_mgr_box",
+            st.session_state.supplier_rates,
+            st.session_state.supplier_infos,
         )
+        st.success(f"매입 거래처 '{new_supplier_name_input}'가 추가되었습니다!")
+        st.rerun()
 
-        st.markdown("---")
-        st.markdown(
-            f"<h4 style='color: #0f172a;'>📌 [{selected_supplier_mgr}] 기본 정보</h4>",
-            unsafe_allow_html=True,
+  st.markdown("---")
+
+  if st.session_state.supplier_list:
+    selected_supplier_mgr = st.selectbox(
+        "관리할 매입 거래처 선택",
+        options=st.session_state.supplier_list,
+        key="select_supplier_mgr_key",
+    )
+    s_info = st.session_state.supplier_infos.get(selected_supplier_mgr, {})
+
+    with st.form("supplier_info_form"):
+      st.markdown(f"#### 🚢 [{selected_supplier_mgr}] 매입 거래처 기본 정보 수정")
+      si_bno = st.text_input(
+          "사업자등록번호",
+          value=s_info.get("사업자등록번호", ""),
+          key="s_bno",
+      )
+      si_email = st.text_input(
+          "세금계산서 이메일", value=s_info.get("이메일", ""), key="s_email"
+      )
+      si_mgr = st.text_input(
+          "담당자 성명", value=s_info.get("담당자", ""), key="s_mgr"
+      )
+      si_tel = st.text_input(
+          "전화번호", value=s_info.get("전화번호", ""), key="s_tel"
+      )
+      si_addr = st.text_input(
+          "사업장 주소", value=s_info.get("주소", ""), key="s_addr"
+      )
+
+      if st.form_submit_button("💾 매입 거래처 정보 저장", type="primary"):
+        st.session_state.supplier_infos[selected_supplier_mgr] = {
+            "사업자등록번호": si_bno,
+            "이메일": si_email,
+            "담당자": si_mgr,
+            "전화번호": si_tel,
+            "주소": si_addr,
+        }
+        save_supplier_data(
+            st.session_state.supplier_list,
+            st.session_state.supplier_rates,
+            st.session_state.supplier_infos,
         )
+        st.success(f"[{selected_supplier_mgr}] 매입 거래처 정보가 저장되었습니다!")
 
-        if selected_supplier_mgr not in st.session_state.supplier_infos:
-            st.session_state.supplier_infos[selected_supplier_mgr] = {
-                "대표자": "",
-                "연락처": "",
-                "이메일": "",
-                "비고": "",
+    st.markdown("---")
+    st.markdown("#### 🗑 매입 거래처 삭제")
+    if st.button("🚨 선택한 매입 거래처 삭제하기", type="secondary"):
+      if len(st.session_state.supplier_list) > 1:
+        target_s = selected_supplier_mgr
+        st.session_state.supplier_list.remove(target_s)
+        if target_s in st.session_state.supplier_infos:
+          del st.session_state.supplier_infos[target_s]
+        if target_s in st.session_state.supplier_rates:
+          del st.session_state.supplier_rates[target_s]
+        save_supplier_data(
+            st.session_state.supplier_list,
+            st.session_state.supplier_rates,
+            st.session_state.supplier_infos,
+        )
+        st.success("매입 거래처가 삭제되었습니다.")
+        st.rerun()
+      else:
+        st.warning("최소 1개의 매입 거래처는 유지되어야 합니다.")
+
+    st.markdown("---")
+    st.markdown(
+        f"#### 📊 [{selected_supplier_mgr}] 국가별·운송형태별 매입 단가 및 요율표"
+    )
+
+    supp_rates_dict = st.session_state.supplier_rates.get(
+        selected_supplier_mgr, {}
+    )
+    supp_rate_rows = []
+    for country, trans_dict in supp_rates_dict.items():
+      if isinstance(trans_dict, dict):
+        for transport, item_dict in trans_dict.items():
+          if isinstance(item_dict, dict):
+            for item_name, r_val in item_dict.items():
+              supp_rate_rows.append({
+                  "국가": country if country else "미국",
+                  "운송형태": (
+                      transport
+                      if transport and transport != "None"
+                      else "항공(Air)"
+                  ),
+                  "품명": (
+                      item_name
+                      if item_name and item_name != "None"
+                      else "일반화물"
+                  ),
+                  "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
+                  "기본요금(원)": int(r_val.get("기본요금", 35000)),
+                  "추가단가(원/kg)": int(r_val.get("추가단가", 22000)),
+                  "1CBM당단가(원)": int(r_val.get("1CBM당단가", 3500000)),
+              })
+
+    if not supp_rate_rows:
+      supp_rate_rows = [{
+          "국가": "미국",
+          "운송형태": "항공(Air)",
+          "품명": "일반화물",
+          "기본중량(kg)": 1.0,
+          "기본요금(원)": 35000,
+          "추가단가(원/kg)": 22000,
+          "1CBM당단가(원)": 3500000,
+      }]
+
+    df_supp_rates = pd.DataFrame(supp_rate_rows)
+    if "선택" not in df_supp_rates.columns:
+      df_supp_rates.insert(0, "선택", False)
+
+    edited_supp_rates_df = st.data_editor(
+        df_supp_rates,
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "선택": st.column_config.CheckboxColumn(required=True),
+            "국가": st.column_config.SelectboxColumn(
+                "국가", options=COUNTRY_LIST, required=True
+            ),
+            "운송형태": st.column_config.SelectboxColumn(
+                "운송형태",
+                options=["항공(Air)", "해상(LCL)", "에어카고"],
+                required=True,
+            ),
+            "품명": st.column_config.SelectboxColumn(
+                "품명",
+                options=["보톡스", "필러", "화장품", "특가품목", "기타"],
+                required=True,
+            ),
+        },
+        num_rows="dynamic",
+        key=f"supp_rate_editor_{selected_supplier_mgr}",
+    )
+
+    sr_col1, sr_col2 = st.columns(2)
+    with sr_col1:
+      if st.button("💾 매입 요율표 저장하기", type="primary", use_container_width=True):
+        new_supp_rates_dict = {}
+        for _, row in edited_supp_rates_df.iterrows():
+          c_cntry = str(row.get("국가", "미국")).strip()
+          c_trans = str(row.get("운송형태", "항공(Air)")).strip()
+          c_item = str(row.get("품명", "일반화물")).strip()
+          if c_cntry and c_trans and c_item:
+            if c_cntry not in new_supp_rates_dict:
+              new_supp_rates_dict[c_cntry] = {}
+            if c_trans not in new_supp_rates_dict[c_cntry]:
+              new_supp_rates_dict[c_cntry][c_trans] = {}
+            new_supp_rates_dict[c_cntry][c_trans][c_item] = {
+                "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
+                "기본요금": int(row.get("기본요금(원)", 35000) or 0),
+                "추가단가": int(row.get("추가단가(원/kg)", 22000) or 0),
+                "1CBM당단가": int(row.get("1CBM당단가(원)", 3500000) or 0),
             }
-
-        curr_info = st.session_state.supplier_infos[selected_supplier_mgr]
-        col_i1, col_i2, col_i3 = st.columns(3)
-        with col_i1:
-            sup_ceo = st.text_input(
-                "대표자명",
-                value=curr_info.get("대표자", ""),
-                key=f"sup_ceo_{selected_supplier_mgr}",
-            )
-        with col_i2:
-            sup_phone = st.text_input(
-                "연락처",
-                value=curr_info.get("연락처", ""),
-                key=f"sup_phone_{selected_supplier_mgr}",
-            )
-        with col_i3:
-            sup_email = st.text_input(
-                "이메일",
-                value=curr_info.get("이메일", ""),
-                key=f"sup_email_{selected_supplier_mgr}",
-            )
-        sup_memo = st.text_area(
-            "비고 / 특이사항",
-            value=curr_info.get("비고", ""),
-            key=f"sup_memo_{selected_supplier_mgr}",
+        st.session_state.supplier_rates[selected_supplier_mgr] = (
+            new_supp_rates_dict
         )
-
-        if st.button("거래처 정보 저장", key=f"btn_save_info_{selected_supplier_mgr}"):
-            st.session_state.supplier_infos[selected_supplier_mgr] = {
-                "대표자": sup_ceo,
-                "연락처": sup_phone,
-                "이메일": sup_email,
-                "비고": sup_memo,
-            }
-            save_supplier_data(
-                st.session_state.supplier_list,
-                st.session_state.supplier_rates,
-                st.session_state.supplier_infos,
-            )
-            st.success("거래처 정보가 저장되었습니다.")
-            st.rerun()
-
-        st.markdown("---")
-        st.markdown(
-            f"<h4 style='color: #0f172a;'>💰 [{selected_supplier_mgr}] 단가 요율표 관리</h4>",
-            unsafe_allow_html=True,
+        save_supplier_data(
+            st.session_state.supplier_list,
+            st.session_state.supplier_rates,
+            st.session_state.supplier_infos,
         )
-        st.markdown(
-            "<p style='color: #64748b; font-size: 13px;'>국가, 운송형태(선사/항공 등), 품목별로 매입 단가를 설정합니다.</p>",
-            unsafe_allow_html=True,
-        )
+        st.success("매입 단가 및 요율표가 저장되었습니다!")
+        st.rerun()
 
-        current_rates_dict = st.session_state.supplier_rates.get(
-            selected_supplier_mgr, {}
-        )
+    with sr_col2:
+      if st.button("🗑 선택한 매입 요율 행 삭제", use_container_width=True):
+        selected_supp_rate_rows = edited_supp_rates_df[
+            edited_supp_rates_df["선택"] == True
+        ]
+        if not selected_supp_rate_rows.empty:
+          remaining_supp_rates_df = edited_supp_rates_df[
+              edited_supp_rates_df["선택"] == False
+          ]
+          new_supp_rates_dict = {}
+          for _, row in remaining_supp_rates_df.iterrows():
+            c_cntry = str(row.get("국가", "미국")).strip()
+            c_trans = str(row.get("운송형태", "항공(Air)")).strip()
+            c_item = str(row.get("품명", "일반화물")).strip()
+            if c_cntry and c_trans and c_item:
+              if c_cntry not in new_supp_rates_dict:
+                new_supp_rates_dict[c_cntry] = {}
+              if c_trans not in new_supp_rates_dict[c_cntry]:
+                new_supp_rates_dict[c_cntry][c_trans] = {}
+              new_supp_rates_dict[c_cntry][c_trans][c_item] = {
+                  "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
+                  "기본요금": int(row.get("기본요금(원)", 35000) or 0),
+                  "추가단가": int(row.get("추가단가(원/kg)", 22000) or 0),
+                  "1CBM당단가": int(row.get("1CBM당단가(원)", 3500000) or 0),
+              }
+          st.session_state.supplier_rates[selected_supplier_mgr] = (
+              new_supp_rates_dict
+          )
+          save_supplier_data(
+              st.session_state.supplier_list,
+              st.session_state.supplier_rates,
+              st.session_state.supplier_infos,
+          )
+          st.success("선택한 매입 요율 행이 삭제되었습니다.")
+          st.rerun()
+        else:
+          st.warning("삭제할 요율 행의 체크박스를 선택해주세요.")
 
-        rate_rows = []
-        for c_entry, trans_dict in current_rates_dict.items():
-            for c_trans, item_dict in trans_dict.items():
-                for c_item, val in item_dict.items():
-                    rate_rows.append(
-                        {
-                            "선택": False,
-                            "국가(지역)": c_entry,
-                            "운송형태": c_trans,
-                            "품목": c_item,
-                            "기본중량(kg)": val.get("기본중량", 1.0),
-                            "기본요금(원)": val.get("기본요금", 35000),
-                            "추가단가(원/kg)": val.get("추가단가", 22000),
-                            "1CBM당단가(원)": val.get("1CBM당단가", 3500000),
-                        }
-                    )
-
-        import pandas as pd
-
-        df_rates = pd.DataFrame(rate_rows)
-        if df_rates.empty:
-            df_rates = pd.DataFrame(
-                columns=[
-                    "선택",
-                    "국가(지역)",
-                    "운송형태",
-                    "품목",
-                    "기본중량(kg)",
-                    "기본요금(원)",
-                    "추가단가(원/kg)",
-                    "1CBM당단가(원)",
-                ]
-            )
-
-        edited_rates_df = st.data_editor(
-            df_rates,
-            num_rows="dynamic",
-            use_container_width=True,
-            key=f"editor_rates_{selected_supplier_mgr}",
-        )
-
-        col_r1, col_r2 = st.columns([1, 4])
-        with col_r1:
-            if st.button("요율 변경사항 저장", key=f"btn_save_rates_{selected_supplier_mgr}"):
-                new_supp_rates_dict = {}
-                for idx, row in edited_rates_df.iterrows():
-                    c_entry = str(row.get("국가(지역)", "")).strip()
-                    c_trans = str(row.get("운송형태", "")).strip()
-                    c_item = str(row.get("품목", "")).strip()
-                    if not c_entry or not c_trans or not c_item:
-                        continue
-                    if c_entry not in new_supp_rates_dict:
-                        new_supp_rates_dict[c_entry] = {}
-                    if c_trans not in new_supp_rates_dict[c_entry]:
-                        new_supp_rates_dict[c_entry][c_trans] = {}
-                    new_supp_rates_dict[c_entry][c_trans][c_item] = {
-                        "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
-                        "기본요금": int(row.get("기본요금(원)", 35000) or 0),
-                        "추가단가": int(row.get("추가단가(원/kg)", 22000) or 0),
-                        "1CBM당단가": int(row.get("1CBM당단가(원)", 3500000) or 0),
-                    }
-                st.session_state.supplier_rates[selected_supplier_mgr] = (
-                    new_supp_rates_dict
-                )
-                save_supplier_data(
-                    st.session_state.supplier_list,
-                    st.session_state.supplier_rates,
-                    st.session_state.supplier_infos,
-                )
-                st.success("매입 단가 요율이 성공적으로 저장되었습니다.")
-                st.rerun()
-
-        with col_r2:
-            if st.button("선택한 행 삭제", key=f"btn_del_rates_{selected_supplier_mgr}"):
-                to_delete = []
-                for idx, row in edited_rates_df.iterrows():
-                    if row.get("선택", False):
-                        to_delete.append(
-                            (
-                                str(row.get("국가(지역)", "")).strip(),
-                                str(row.get("운송형태", "")).strip(),
-                                str(row.get("품목", "")).strip(),
-                            )
-                        )
-                if to_delete:
-                    new_supp_rates_dict = current_rates_dict.copy()
-                    for c_entry, c_trans, c_item in to_delete:
-                        if (
-                            c_entry in new_supp_rates_dict
-                            and c_trans in new_supp_rates_dict[c_entry]
-                            and c_item in new_supp_rates_dict[c_entry][c_trans]
-                        ):
-                            del new_supp_rates_dict[c_entry][c_trans][c_item]
-                            if not new_supp_rates_dict[c_entry][c_trans]:
-                                del new_supp_rates_dict[c_entry][c_trans]
-                            if not new_supp_rates_dict[c_entry]:
-                                del new_supp_rates_dict[c_entry]
-                    st.session_state.supplier_rates[selected_supplier_mgr] = (
-                        new_supp_rates_dict
-                    )
-                    save_supplier_data(
-                        st.session_state.supplier_list,
-                        st.session_state.supplier_rates,
-                        st.session_state.supplier_infos,
-                    )
-                    st.success("선택한 매입 요율 행이 삭제되었습니다.")
-                    st.rerun()
-                else:
-                    st.warning("삭제할 요율 행의 체크박스를 선택해주세요.")
 
 # ==========================================
 # [10] 거래처 미수금관리
