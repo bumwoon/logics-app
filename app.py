@@ -132,11 +132,6 @@ def login_screen():
       st.query_params.clear()
       st.rerun()
 
-    st.markdown(
-        "<p style='text-align: center; font-size: 8.5pt; color: #94a3b8;"
-        " margin-top: 20px;'>* 관리자 아이디: <b>lsb</b> / 비밀번호: <b>7071</b></p>",
-        unsafe_allow_html=True,
-    )
 
 
 # 데이터 파일 경로 및 로고 공통 정의 (에러 방지를 위해 최상단 선언)
