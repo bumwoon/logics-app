@@ -1556,12 +1556,7 @@ if selected_menu == "📊 수출입 B/L 등록":
           step=1.0,
       )
 
-                 auto_purchase_price = calculate_purchase_auto_price(
-                purchase_vendor,
-                purchase_chargeable_weight,
-                transport_type,
-                item_desc,
-            )
+             auto_purchase_price = calculate_purchase_auto_price(purchase_vendor, purchase_chargeable_weight, transport_type, item_desc)
       )
       total_purchase = st.number_input(
           "총 매입액 (원) [자동 계산 및 수정 가능]",
