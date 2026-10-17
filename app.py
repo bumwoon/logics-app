@@ -1094,6 +1094,12 @@ if uploaded_integrated_file is not None:
                 st.session_state.supplier_rates,
                 st.session_state.supplier_infos,
             )
+            if "meeting_data" in parsed_meta:
+              st.session_state.meeting_data_list = parsed_meta["meeting_data"]
+              save_meeting_data(st.session_state.meeting_data_list)
+            if "note_data" in parsed_meta:
+              st.session_state.note_data_list = parsed_meta["note_data"]
+              save_note_data(st.session_state.note_data_list)     
           except Exception as me:
             print(f"Meta parse error: {me}")
         df_in = df_in.drop(columns=["__SYSTEM_META__"])
@@ -1550,8 +1556,12 @@ if selected_menu == "📊 수출입 B/L 등록":
           step=1.0,
       )
 
-      auto_purchase_price = calculate_auto_price(
-          purchase_vendor, purchase_chargeable_weight, transport_type, item_desc
+                 auto_purchase_price = calculate_purchase_auto_price(
+                purchase_vendor,
+                purchase_chargeable_weight,
+                transport_type,
+                item_desc,
+            )
       )
       total_purchase = st.number_input(
           "총 매입액 (원) [자동 계산 및 수정 가능]",
