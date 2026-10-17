@@ -526,7 +526,29 @@ def calculate_auto_price(
             else:
               return int(base_p + math.ceil(cw - base_w) * add_p)
   return int(38000 + max(0.0, cw - 1.0) * 25000)
-
+def calculate_purchase_auto_price(
+    supplier_name, cw, transport_mode="항공(Air)", item_name="일반화물"
+):
+  rates_dict = st.session_state.get("supplier_rates", {}).get(supplier_name, {})
+  if rates_dict:
+    for country, trans_dict in rates_dict.items():
+      if isinstance(trans_dict, dict):
+        t_dict = trans_dict.get(transport_mode)
+        if not t_dict and len(trans_dict) > 0:
+          t_dict = list(trans_dict.values())[0]
+        if isinstance(t_dict, dict):
+          r_val = t_dict.get(item_name)
+          if not r_val and len(t_dict) > 0:
+            r_val = list(t_dict.values())[0]
+          if isinstance(r_val, dict):
+            base_w = float(r_val.get("기본중량", 1.0))
+            base_p = int(r_val.get("기본요금", 35000))
+            add_p = int(r_val.get("추가단가", 22000))
+            if cw <= base_w:
+              return base_p
+            else:
+              return int(base_p + math.ceil(cw - base_w) * add_p)
+  return int(35000 + max(0.0, cw - 1.0) * 22000)
 
 def generate_barcode_html(text):
   clean_txt = str(text).strip()
