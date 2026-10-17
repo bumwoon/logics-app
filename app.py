@@ -2153,6 +2153,68 @@ elif selected_menu == "📄 화물 견적서 발행":
       use_container_width=True,
       key="quote_editor_table",
   )
+  st.session_state.quote_items_df = edited_quote_table.copy()
+
+  quote_items = edited_quote_table.fillna("").to_dict("records")
+  quote_html = f"""<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>범운해운항공 견적서</title>
+<style>
+@page {{ size: A4; margin: 16mm; }}
+body {{ font-family: Arial, 'Malgun Gothic', sans-serif; color:#172033; margin:0; }}
+.sheet {{ width:100%; }} h1 {{ text-align:center; font-size:26px; margin:8px 0 28px; }}
+.top {{ display:flex; justify-content:space-between; gap:20px; margin-bottom:20px; }}
+.meta {{ border-collapse:collapse; width:100%; margin:12px 0 20px; }}
+th,td {{ border:1px solid #64748b; padding:9px; font-size:12px; text-align:left; }}
+th {{ background:#f1f5f9; width:24%; }}
+.items th {{ text-align:center; }} .sign {{ margin-top:42px; text-align:right; font-size:15px; font-weight:bold; }}
+@media screen {{ body {{ padding:20px; }} .sheet {{ max-width:800px; margin:auto; }} }}
+</style></head><body><div class="sheet">
+<h1>견 적 서</h1>
+<div class="top"><div><b>수신:</b> {quote_manager}<br><b>거래처:</b> {selected_q_client}</div>
+<div><b>문서번호:</b> {quote_no}<br><b>시행일:</b> {quote_date}</div></div>
+<p><b>제목:</b> {quote_title}</p>
+<table class="meta"><tr><th>발행사</th><td>주식회사 범운해운항공</td></tr>
+<tr><th>영문명</th><td>BUMWOON OCEAN &amp; AIR CO., LTD.</td></tr>
+<tr><th>견적 안내</th><td>아래 조건을 기준으로 견적 내용을 안내드립니다.</td></tr></table>
+<table class="meta items"><thead><tr>{''.join(f'<th>{col}</th>' for col in edited_quote_table.columns)}</tr></thead><tbody>
+{''.join('<tr>'+''.join(f'<td>{str(row.get(col, ""))}</td>' for col in edited_quote_table.columns)+'</tr>' for row in quote_items)}
+</tbody></table>
+<p>※ 운임 및 발송 일정은 실제 화물 정보, 운송 상황 및 현지 조건에 따라 변경될 수 있습니다.</p>
+<div class="sign">주식회사 범운해운항공</div>
+</div><script>window.onload=function(){{setTimeout(function(){{window.print();}},300);}};</script></body></html>"""
+
+  quote_col1, quote_col2 = st.columns(2)
+  with quote_col1:
+    if st.button("💾 견적서 저장", type="primary", use_container_width=True):
+      quote_record = {
+          "문서번호": quote_no,
+          "견적일자": str(quote_date),
+          "거래처": selected_q_client,
+          "수신담당자": quote_manager,
+          "견적제목": quote_title,
+          "견적항목_JSON": json.dumps(quote_items, ensure_ascii=False),
+      }
+      try:
+        if os.path.exists(QUOTATION_FILE):
+          old_quotes = pd.read_csv(QUOTATION_FILE).to_dict("records")
+        else:
+          old_quotes = []
+        old_quotes = [r for r in old_quotes if str(r.get("문서번호", "")) != str(quote_no)]
+        old_quotes.append(quote_record)
+        pd.DataFrame(old_quotes).to_csv(QUOTATION_FILE, index=False, encoding="utf-8-sig")
+        st.success("견적서를 quotation_data.csv에 저장했습니다.")
+      except Exception as e:
+        st.error(f"견적서 저장 중 오류가 발생했습니다: {e}")
+  with quote_col2:
+    st.download_button(
+        "📥 견적서 HTML 다운로드 / PDF 저장",
+        data=quote_html.encode("utf-8-sig"),
+        file_name=f"견적서_{quote_no}.html",
+        mime="text/html",
+        use_container_width=True,
+    )
+  with st.expander("견적서 미리보기"):
+    components.html(quote_html.replace("<script>window.onload=function(){setTimeout(function(){window.print();},300);};</script>", ""), height=650, scrolling=True)
 
 
 # ==========================================
