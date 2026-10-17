@@ -872,8 +872,7 @@ def generate_integrated_backup_bytes():
   client_list = st.session_state.get("client_list", [])
   client_rates = st.session_state.get("client_rates", {})
   client_infos = st.session_state.get("client_infos", {})
-  ledger_data = st.session_state.get("ledger_data", [])  # 👈 입출금 장부 데이터 추가
-
+  ledger_data = st.session_state.get("expense_data_list", [])  # 👈 이렇게 변경
   df_bl = pd.DataFrame(bl_data) if bl_data else pd.DataFrame()
 
   meta_dict = {
@@ -937,9 +936,9 @@ if uploaded_integrated_file is not None:
                 "client_infos", st.session_state.client_infos
             )
             # 👈 입출금 장부 데이터 복원 반영
-            if "ledger_data" in parsed_meta:
-              st.session_state.ledger_data = parsed_meta["ledger_data"]
-              save_ledger_data(st.session_state.ledger_data)
+               if "ledger_data" in parsed_meta:
+        st.session_state.expense_data_list = parsed_meta["ledger_data"]
+        save_expense_data(st.session_state.expense_data_list)
 
             save_client_data(
                 st.session_state.client_list,
