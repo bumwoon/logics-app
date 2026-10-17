@@ -7,11 +7,40 @@ import re
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+9   import streamlit.components.v1 as components
+    # ==========================================
+    # [여기 10번과 11번 줄 사이에 아래 코드를 통째로 붙여넣으세요]
+    import json
 
-# 페이지 설정 (와이드 모드)
-st.set_page_config(
-    page_title="(주)범운해운항공 종합 관리 프로그램", page_icon="🚢", layout="wide"
-)
+    auto_backup_path = "범운해운항공_전체데이터_통합백업_2026-10-16.xlsx"
+    if os.path.exists(auto_backup_path):
+      try:
+        df_backup = pd.read_excel(auto_backup_path, sheet_name=0)
+        if "__SYSTEM_META__" in df_backup.columns:
+          bl_df_clean = df_backup.drop(
+              columns=["__SYSTEM_META__"], errors="ignore"
+          )
+          if (
+              "bl_data_list" not in st.session_state
+              or not st.session_state.bl_data_list
+          ):
+            st.session_state.bl_data_list = bl_df_clean.to_dict("records")
+
+          meta_str = df_backup["__SYSTEM_META__"].iloc[0]
+          meta_json = json.loads(meta_str)
+
+          if (
+              "client_list" not in st.session_state
+              or st.session_state.client_list == ["아코글로벌"]
+          ):
+            st.session_state.client_list = meta_json.get("client_list", [])
+          if not st.session_state.get("client_rates"):
+            st.session_state.client_rates = meta_json.get("client_rates", {})
+          if not st.session_state.get("client_infos"):
+            st.session_state.client_infos = meta_json.get("client_infos", {})
+      except Exception as e:
+        print("자동 복구 중 오류 발생:", e)
+
 
 # ==========================================
 # [보안 및 계정 파일 저장소 시스템]
