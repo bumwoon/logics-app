@@ -10,8 +10,8 @@ import streamlit.components.v1 as components
     # ==========================================
     # [여기 10번과 11번 줄 사이에 아래 코드를 통째로 붙여넣으세요]
 import json
-    auto_backup_path = "범운해운항공_전체데이터_통합백업_2026-10-16.xlsx"
-    if os.path.exists(auto_backup_path):
+auto_backup_path = "범운해운항공_전체데이터_통합백업_2026-10-16.xlsx"
+if os.path.exists(auto_backup_path):
       try:
         df_backup = pd.read_excel(auto_backup_path, sheet_name=0)
         if "__SYSTEM_META__" in df_backup.columns:
