@@ -1,13 +1,13 @@
-import base64
 from datetime import date, datetime
+import base64
 import io
-import json
 import math
 import os
 import re
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+import json
 
 # ==========================================
 # [보안 및 계정 파일 저장소 시스템]
@@ -32,7 +32,9 @@ def load_user_db():
         return user_db
     except Exception:
       pass
-  return {"lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}}
+  return {
+      "lsb": {"pw": "7071", "role": "관리자(대표)", "name": "이상복"}
+  }
 
 
 def save_user_db(user_db):
@@ -328,7 +330,7 @@ def save_client_data(client_list, client_rates, client_infos):
           "주소": info.get("주소", ""),
           "국가": "미국",
           "운송형태": "항공(Air)",
-          "품명": "보톡스 필러",
+          "품명": "보톡스 필러 (Botox & Filler)",
           "기본중량": 1.0,
           "기본요금": 38000,
           "추가단가": 25000,
@@ -502,6 +504,11 @@ def calculate_auto_price(
     client_name, cw, transport_mode="항공(Air)", item_name="일반화물"
 ):
   rates_dict = st.session_state.get("client_rates", {}).get(client_name, {})
+  if not rates_dict:
+    rates_dict = st.session_state.get("supplier_rates", {}).get(
+        client_name, {}
+    )
+
   if rates_dict:
     for country, trans_dict in rates_dict.items():
       if isinstance(trans_dict, dict):
@@ -767,84 +774,43 @@ else:
           sea_c = "☑" if "해상" in transport_t else "☐"
           d2d_c = "☑" if "Door" in service_opt else "☐"
 
-          mobile_awb_html = f"""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="utf-8">
-                        <style>
-                            @media print {{
-                                body {{ -webkit-print-color-adjust: exact; }}
-                                .no-print {{ display: none !important; }}
-                                @page {{ size: A4 portrait; margin: 8mm; }}
-                            }}
-                            body {{
-                                font-family: 'Pretendard', sans-serif;
-                                color: #1e293b;
-                                font-size: 9pt;
-                                line-height: 1.3;
-                                margin: 0;
-                                padding: 5px;
-                                background-color: #ffffff;
-                            }}
-                            .awb-box {{
-                                border: 2px solid #0f172a;
-                                padding: 15px;
-                                border-radius: 6px;
-                                background-color: #ffffff;
-                                margin-top: 10px;
-                            }}
-                            .t-tbl {{ width: 100%; border-collapse: collapse; margin-bottom: 6px; }}
-                            .t-tbl td {{ border: 1px solid #64748b; padding: 6px 8px; vertical-align: top; }}
-                            .s-hdr {{ background-color: #0f172a; color: white; font-weight: bold; font-size: 8.5pt; padding: 2px 5px; margin-bottom: 3px; }}
-                            .p-btn {{
-                                display: block;
-                                width: 100%;
-                                background-color: #dc2626;
-                                color: white;
-                                text-align: center;
-                                padding: 12px;
-                                font-size: 11pt;
-                                font-weight: bold;
-                                border: none;
-                                border-radius: 6px;
-                                cursor: pointer;
-                                margin-bottom: 15px;
-                            }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="awb-box">
-                            <button class="p-btn no-print" onclick="window.print()">🖨 휴대폰에서 B/L 운송장 인쇄 / PDF 저장하기</button>
-
-                            <table style="width: 100%; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 10px;">
-                                <tr>
-                                    <td style="width: 55%; border: none;">
-                                        <div style="display: flex; align-items: center;">
-                                            {logo_embed_m}
-                                            <div>
-                                                <div style="font-size: 12pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                                <div style="font-size: 7pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td style="width: 45%; text-align: right; border: none;">
-                                        <div style="font-size: 7.5pt; color: #64748b; font-weight: bold;">AIR WAYBILL / B/L NO.</div>
-                                        {barcode_html_m}
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <table style="width: 100%; background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
-                                <tr>
-                                    <td style="border: none; padding: 0;">
-                                        • <b>현재 화물 진행 상태:</b> <span style="color: #2563eb; font-weight: bold; font-size: 10.5pt;">{current_status_str}</span><br>
-                                        • <b>화주명:</b> {shipper_n} | <b>수하인:</b> {consignee_n}
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <table class="t-tbl">
-                                <tr>
-                                    <td style="width: 50%;">
-                                        <div class="s-hdr">FROM (SHIPPER
+          mobile_awb_html = (
+              "<!DOCTYPE html><html><head><meta charset='utf-8'><style>@media"
+              " print { body { -webkit-print-color-adjust: exact; } .no-print {"
+              " display: none !important; } @page { size: A4 portrait; margin:"
+              " 8mm; } } body { font-family: 'Pretendard', sans-serif; color:"
+              " #1e293b; font-size: 9pt; line-height: 1.3; margin: 0; padding:"
+              " 5px; background-color: #ffffff; } .awb-box { border: 2px solid"
+              " #0f172a; padding: 15px; border-radius: 6px; background-color:"
+              " #ffffff; margin-top: 10px; } .t-tbl { width: 100%;"
+              " border-collapse: collapse; margin-bottom: 6px; } .t-tbl td {"
+              " border: 1px solid #64748b; padding: 6px 8px; vertical-align:"
+              " top; } .s-hdr { background-color: #0f172a; color: white;"
+              " font-weight: bold; font-size: 8.5pt; padding: 2px 5px;"
+              " margin-bottom: 3px; } .p-btn { display: block; width: 100%;"
+              " background-color: #dc2626; color: white; text-align: center;"
+              " padding: 12px; font-size: 11pt; font-weight: bold; border: none;"
+              " border-radius: 6px; cursor: pointer; margin-bottom: 15px;"
+              " }</style></head><body><div class='awb-box'><button class='p-btn"
+              " no-print' onclick='window.print()'>🖨 휴대폰에서 B/L 운송장 인쇄 / PDF"
+              " 저장하기</button><table style='width: 100%; border-bottom: 2px"
+              " solid #0f172a; padding-bottom: 8px; margin-bottom:"
+              " 10px;'><tr><td style='width: 55%; border: none;'><div"
+              " style='display: flex; align-items:"
+              f" center;'>{logo_embed_m}<div><div style='font-size: 12pt;"
+              " font-weight: 900; color: #1e3a8a;'>주식회사 범운해운항공</div><div"
+              " style='font-size: 7pt; color: #475569; font-weight: bold;'>BUMWOON"
+              " OCEAN & AIR CO., LTD.</div></div></div></td><td style='width:"
+              " 45%; text-align: right; border: none;'><div style='font-size:"
+              " 7.5pt; color: #64748b; font-weight: bold;'>AIR WAYBILL / B/L"
+              f" NO.</div>{barcode_html_m}</td></tr></table><table"
+              " style='width: 100%; background-color: #eff6ff; border: 1px"
+              " solid #bfdbfe; padding: 10px; border-radius: 6px; margin-bottom:"
+              " 10px;'><tr><td style='border: none; padding: 0;'>• <b>현재 화물"
+              " 진행 상태:</b> <span style='color: #2563eb; font-weight: bold;"
+              f" font-size: 10.5pt;'>{current_status_str}</span><br>•"
+              f" <b>화주명:</b> {shipper_n} | <b>수하인:</b>"
+              " "
+              f"{consignee_n}</td></tr></table><table class='t-tbl'><tr><td"
+              " style='width: 50%;'><div class='s-hdr'>FROM (SHIPPER /"
+              f" 송하인)</div><b>상호:</b> {shipper_n}<br
