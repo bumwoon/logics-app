@@ -1882,12 +1882,15 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 u_vendor, u_purchase_cw, u_transport
             )
 
+            default_sales_val = int(target_item.get("매출액(원)", auto_u_sales) or auto_u_sales)
+            default_purchase_val = int(target_item.get("매입액(원)", auto_u_purchase) or auto_u_purchase)
+
             u_sales = st.number_input(
-                "총 매출액 (원)", value=int(auto_u_sales), step=1000, format="%d"
+                "총 매출액 (원)", value=default_sales_val, step=1000, format="%d"
             )
             u_purchase = st.number_input(
                 "총 매입액 (원)",
-                value=int(auto_u_purchase),
+                value=default_purchase_val,
                 step=1000,
                 format="%d",
             )
