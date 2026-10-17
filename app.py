@@ -2316,7 +2316,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
     # 1. 화면에는 사진과 같이 모든 전체 컬럼을 그대로 출력합니다.
     st.dataframe(manifest_df, use_container_width=True)
 
-    # 2. 인쇄 및 다운로드(CSV / HTML) 시 부피 항목을 포함하여 추출 및 이름 변경
+    # 2. 인쇄 및 다운로드(CSV / HTML) 시 항목 추출 및 이름 변경
     print_columns = [
         "날짜",
         "B/L 번호",
@@ -2339,7 +2339,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
         "화주명(매출)": "화주",
         "해외수하인": "수하인",
         "품목": "품명",
-        "박수수": "박수",
+        "박스수": "박수",
         "부피규격": "부피",
         "매출청구중량(kg)": "수량(kg)",
         "매출액(원)": "매출",
@@ -2347,7 +2347,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
         "예상Profit(원)": "프로핏"
     })
 
-    # CSV 다운로드 (부피 포함)
+    # CSV 다운로드
     csv_bytes = manifest_print_df.to_csv(index=False).encode("utf-8-sig")
     st.download_button(
         "📥 매니페스트 엑셀용 CSV 다운로드 (부피 포함)",
@@ -2357,10 +2357,17 @@ elif selected_menu == "📋 금일발송 매니페스트":
         key="manifest_csv_download",
     )
 
-    # 인쇄용 HTML 다운로드 (부피 포함)
+    # 3. HTML 인쇄용 테이블 생성 (하단 TOTAL 합계 행 포함)
     import html as _html
+    
+    # 숫자형 컬럼 합계 계산
+    total_sales = pd.to_numeric(manifest_print_df["매출"], errors="coerce").sum() if "매출" in manifest_print_df.columns else 0
+    total_purchase = pd.to_numeric(manifest_print_df["매입"], errors="coerce").sum() if "매입" in manifest_print_df.columns else 0
+    total_profit = pd.to_numeric(manifest_print_df["프로핏"], errors="coerce").sum() if "프로핏" in manifest_print_df.columns else 0
+
     manifest_cols_list = list(manifest_print_df.columns)
     table_head = "".join(f"<th>{_html.escape(str(col))}</th>" for col in manifest_cols_list)
+    
     table_rows = []
     for _, row in manifest_print_df.iterrows():
       cells = "".join(
@@ -2369,6 +2376,23 @@ elif selected_menu == "📋 금일발송 매니페스트":
       )
       table_rows.append(f"<tr>{cells}</tr>")
     
+    # TOTAL 합계 행 추가 (첫 번째 컬럼에 "TOTAL", 숫자 컬럼에 각각 합계 표시)
+    total_cells = []
+    for col in manifest_cols_list:
+      if col == manifest_cols_list[0]:
+        total_cells.append("<b>TOTAL (합계)</b>")
+      elif col == "매출":
+        total_cells.append(f"<b>{int(total_sales):,}</b>")
+      elif col == "매입":
+        total_cells.append(f"<b>{int(total_purchase):,}</b>")
+      elif col == "프로핏":
+        total_cells.append(f"<b>{int(total_profit):,}</b>")
+      else:
+        total_cells.append("")
+    
+    total_row_html = "<tr style='background-color: #f1f5f9; font-weight: bold; border-top: 2px solid #0f172a;'>" + "".join(f"<td>{cell}</td>" for cell in total_cells) + "</tr>"
+    table_rows.append(total_row_html)
+
     manifest_html = f"""<!doctype html>
 <html lang=\"ko\"><head><meta charset=\"utf-8\"><title>매니페스트 {target_date_str}</title>
 <style>body{{font-family:Arial,sans-serif;margin:18px;color:#111}}h2{{margin-bottom:4px}}p{{margin-top:0}}
@@ -2390,7 +2414,6 @@ th,td{{border:1px solid #777;padding:5px;text-align:left;overflow-wrap:anywhere}
     st.caption("PDF 저장: 인쇄용 파일을 다운로드해 브라우저에서 연 다음, 인쇄 메뉴에서 'PDF로 저장'을 선택하세요.")
   else:
     st.info("선택하신 날짜로 등록된 선적 B/L 내역이 없습니다.")
-
 
 # ==========================================
 # [8] 매출 거래처(화주) 관리 (메인 메뉴 독립)
