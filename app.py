@@ -1090,6 +1090,8 @@ if uploaded_integrated_file is not None:
 menu_options = [
     "📊 수출입 B/L 등록",
     "📋 등록 B/L 수정 및 Profit 내역",
+    "💰 매출 관리 (화주별 독립 트랙)",
+    "🤝 매입 관리 (협력사별 독립 트랙)",
     "🚢 B/L 운송장 출력",
     "📑 거래처 인보이스 발행",
     "📄 화물 견적서 발행",
@@ -1575,6 +1577,72 @@ if selected_menu == "📊 수출입 B/L 등록":
 # ==========================================
 # [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
+
+# ==========================================
+# [새로운 독립 트랙] 매출 관리 (화주별)
+# ==========================================
+elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
+    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>💰 매출 관리 (화주별 독립 트랙)</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>화주(고객)별 청구 매출액과 미수 상태를 협력사 매입 원가와 완전히 분리하여 독립적으로 집계 및 관리합니다.</p>", unsafe_allow_html=True)
+    
+    if st.session_state.get("bl_data_list"):
+        df_bl = pd.DataFrame(st.session_state.bl_data_list)
+        if "화주명(매출)" in df_bl.columns and "매출액(원)" in df_bl.columns:
+            df_bl["화주명(매출)"] = df_bl["화주명(매출)"].astype(str).str.strip()
+            df_bl["매출액(원)"] = pd.to_numeric(df_bl["매출액(원)"], errors="coerce").fillna(0)
+            
+            sales_group = df_bl.groupby("화주명(매출)").agg(
+                총매출액=("매출액(원)", "sum"),
+                미수금액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] != "수금완료"].sum()),
+                수금완료금액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] == "수금완료"].sum()),
+                건수=("B/L 번호", "count")
+            ).reset_index()
+            
+            st.subheader("📋 화주별 매출 및 미수 잔액 요약")
+            st.dataframe(sales_group, use_container_width=True)
+            
+            st.markdown("---")
+            st.subheader("🔍 특정 화주 상세 매출 내역 조회")
+            sel_s = st.selectbox("조회할 화주선택", df_bl["화주명(매출)"].unique(), key="sales_track_shipper")
+            shipper_detail = df_bl[df_bl["화주명(매출)"] == sel_s]
+            st.dataframe(shipper_detail, use_container_width=True)
+        else:
+            st.warning("데이터에 '화주명(매출)' 또는 '매출액(원)' 컬럼이 없습니다.")
+    else:
+        st.info("등록된 B/L 데이터가 없습니다.")
+
+# ==========================================
+# [새로운 독립 트랙] 매입 관리 (협력사별)
+# ==========================================
+elif selected_menu == "🤝 매입 관리 (협력사별 독립 트랙)":
+    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>🤝 매입 관리 (협력사별 독립 트랙)</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>협력사별 매입 원가 및 지출 내역을 화주 미수금과 완전히 분리하여 독립적으로 집계 및 관리합니다.</p>", unsafe_allow_html=True)
+    
+    if st.session_state.get("bl_data_list"):
+        df_bl = pd.DataFrame(st.session_state.bl_data_list)
+        if "매입처" in df_bl.columns and "매입액(원)" in df_bl.columns:
+            df_bl["매입처"] = df_bl["매입처"].astype(str).str.strip()
+            df_bl["매입액(원)"] = pd.to_numeric(df_bl["매입액(원)"], errors="coerce").fillna(0)
+            
+            purchase_group = df_bl.groupby("매입처").agg(
+                총매입액=("매입액(원)", "sum"),
+                건수=("B/L 번호", "count")
+            ).reset_index()
+            
+            st.subheader("📋 협력사별 매입(원가) 요약")
+            st.dataframe(purchase_group, use_container_width=True)
+            
+            st.markdown("---")
+            st.subheader("🔍 특정 협력사 상세 매입 내역 조회")
+            sel_v = st.selectbox("조회할 협력사 선택", df_bl["매입처"].unique(), key="purchase_track_vendor")
+            vendor_detail = df_bl[df_bl["매입처"] == sel_v]
+            st.dataframe(vendor_detail, use_container_width=True)
+        else:
+            st.warning("데이터에 '매입처' 또는 '매입액(원)' 컬럼이 없습니다.")
+    else:
+        st.info("등록된 B/L 데이터가 없습니다.")
+
+
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   st.markdown(
       "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>📋"
