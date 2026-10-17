@@ -3081,13 +3081,38 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
     nc_name = st.text_input("직원 성명")
     nc_role = st.selectbox("권한 설정", ["직원", "관리자(대표)"])
 
-    if st.form_submit_button("➕ 사내 계정 생성하기", type="primary"):
-      if nc_id.strip() and nc_pw.strip():
-        st.session_state.user_db[nc_id.strip()] = {
-            "pw": nc_pw.strip(),
+    submit_new_acc = st.form_submit_button("➕ 사내 계정 생성하기", type="primary")
+
+    if submit_new_acc:
+      clean_id = str(nc_id).strip()
+      clean_pw = str(nc_pw).strip()
+      clean_name = str(nc_name).strip()
+
+      if clean_id and clean_pw:
+        # 세션 상태 및 DB 파일 업데이트
+        if "user_db" not in st.session_state:
+          st.session_state.user_db = load_user_db()
+          
+        st.session_state.user_db[clean_id] = {
+            "pw": clean_pw,
             "role": nc_role,
-            "name": nc_name.strip() if nc_name.strip() else nc_id.strip(),
+            "name": clean_name if clean_name else clean_id,
         }
         save_user_db(st.session_state.user_db)
-        st.success(f"직원 계정 [{nc_id.strip()}]이 생성되었습니다!")
+        st.success(f"🎉 직원 계정 [{clean_id}]({clean_name})이(가) 성공적으로 생성되었습니다!")
         st.rerun()
+      else:
+        st.warning("⚠️ 아이디와 비밀번호를 모두 정확히 입력해주세요.")
+
+  # 현재 등록된 직원 계정 목록 표시
+  st.markdown("---")
+  st.markdown("#### 📋 등록된 사내 직원 계정 목록")
+  if "user_db" in st.session_state and st.session_state.user_db:
+    acc_list = []
+    for uid, info in st.session_state.user_db.items():
+      acc_list.append({
+          "아이디": uid,
+          "성명": info.get("name", ""),
+          "권한": info.get("role", "직원")
+      })
+    st.dataframe(pd.DataFrame(acc_list), use_container_width=True)
