@@ -867,27 +867,27 @@ st.sidebar.subheader("💾 전체 데이터 통합 백업 및 복원")
 
 
 def generate_integrated_backup_bytes():
-  """B/L, 거래처, 요율, 미수금 상태 + 입출금 장부(일계표) 내역까지 하나의 통합 엑셀로 백업"""
-  bl_data = st.session_state.get("bl_data_list", [])
-  client_list = st.session_state.get("client_list", [])
-  client_rates = st.session_state.get("client_rates", {})
-  client_infos = st.session_state.get("client_infos", {})
-  ledger_data = st.session_state.get("expense_data_list", [])  # 👈 이렇게 변경
-  df_bl = pd.DataFrame(bl_data) if bl_data else pd.DataFrame()
+    """B/L, 거래처, 요율, 미수금 상태 + 입출금 장부(일계표) 내역까지 하나의 통합 엑셀로 백업"""
+    bl_data = st.session_state.get("bl_data_list", [])
+    client_list = st.session_state.get("client_list", [])
+    client_rates = st.session_state.get("client_rates", {})
+    client_infos = st.session_state.get("client_infos", {})
+    ledger_data = st.session_state.get("expense_data_list", [])  # 입출금 장부 데이터
+    df_bl = pd.DataFrame(bl_data) if bl_data else pd.DataFrame()
 
-  meta_dict = {
-      "client_list": client_list,
-      "client_rates": client_rates,
-      "client_infos": client_infos,
-      "ledger_data": ledger_data,  # 👈 메타데이터 상자에 입출금 장부 쏙 담기
-  }
-  meta_json_str = json.dumps(meta_dict, ensure_ascii=False)
-  df_bl["__SYSTEM_META__"] = meta_json_str
+    meta_dict = {
+        "client_list": client_list,
+        "client_rates": client_rates,
+        "client_infos": client_infos,
+        "ledger_data": ledger_data,  # 메타데이터 상자에 입출금 장부 담기
+    }
+    meta_json_str = json.dumps(meta_dict, ensure_ascii=False)
+    df_bl["__SYSTEM_META__"] = meta_json_str
 
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    df_bl.to_excel(writer, index=False, sheet_name="Bumwoon_Integrated_Backup")
-  return output.getvalue()
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df_bl.to_excel(writer, index=False, sheet_name="Bumwoon_Integrated_Backup")
+    return output.getvalue()
 
 
 integrated_excel_bytes = generate_integrated_backup_bytes()
@@ -905,61 +905,62 @@ uploaded_integrated_file = st.sidebar.file_uploader(
     "📤 통합 백업파일 일괄 복원 업로드 (.xlsx)",
     type=["xlsx", "xls", "csv"],
     help=(
-        "거래처, 요율, 미수금 상태, 입출금 장부 및 B/L 물류 내역이 한 번에"
-        " 복원됩니다."
+        "거래처, 요율, 미수금 상태, 입출금 장부 및 B/L 물류 내역이 한 번에 복원됩니다."
     ),
 )
 
 if uploaded_integrated_file is not None:
-  try:
-    file_extension = uploaded_integrated_file.name.split(".")[-1].lower()
-    if file_extension == "csv":
-      df_in = pd.read_csv(uploaded_integrated_file)
-    else:
-      df_in = pd.read_excel(uploaded_integrated_file, sheet_name=0)
+    try:
+        file_extension = uploaded_integrated_file.name.split(".")[-1].lower()
+        if file_extension == "csv":
+            df_in = pd.read_csv(uploaded_integrated_file)
+        else:
+            df_in = pd.read_excel(uploaded_integrated_file, sheet_name=0)
 
-    if not df_in.empty:
-      df_in.columns = df_in.columns.astype(str).str.strip()
+        if not df_in.empty:
+            df_in.columns = df_in.columns.astype(str).str.strip()
 
-      if "__SYSTEM_META__" in df_in.columns:
-        meta_val = df_in["__SYSTEM_META__"].iloc[0]
-        if pd.notna(meta_val) and str(meta_val).strip():
-          try:
-            parsed_meta = json.loads(str(meta_val))
-            st.session_state.client_list = parsed_meta.get(
-                "client_list", st.session_state.client_list
+            if "__SYSTEM_META__" in df_in.columns:
+                meta_val = df_in["__SYSTEM_META__"].iloc[0]
+                if pd.notna(meta_val) and str(meta_val).strip():
+                    try:
+                        parsed_meta = json.loads(str(meta_val))
+                        st.session_state.client_list = parsed_meta.get(
+                            "client_list", st.session_state.client_list
+                        )
+                        st.session_state.client_rates = parsed_meta.get(
+                            "client_rates", st.session_state.client_rates
+                        )
+                        st.session_state.client_infos = parsed_meta.get(
+                            "client_infos", st.session_state.client_infos
+                        )
+                        if "ledger_data" in parsed_meta:
+                            st.session_state.expense_data_list = parsed_meta["ledger_data"]
+                            save_expense_data(st.session_state.expense_data_list)
+
+                        save_client_data(
+                            st.session_state.client_list,
+                            st.session_state.client_rates,
+                            st.session_state.client_infos,
+                        )
+                    except Exception as me:
+                        print(f"Meta parse error: {me}")
+                df_in = df_in.drop(columns=["__SYSTEM_META__"])
+
+            if "B/L 번호" in df_in.columns:
+                st.session_state.bl_data_list = df_in.to_dict("records")
+                save_bl_data(st.session_state.bl_data_list)
+
+            if "refresh_key" not in st.session_state:
+                st.session_state.refresh_key = 0
+            st.session_state.refresh_key += 1
+
+            st.sidebar.success(
+                "🎉 거래처, 요율, 미수금, 입출금 장부 및 물류 데이터 전체가 완벽하게 복원되었습니다!"
             )
-            st.session_state.client_rates = parsed_meta.get(
-                "client_rates", st.session_state.client_rates
-            )
-            st.session_state.client_infos = parsed_meta.get(
-                "client_infos", st.session_state.client_infos
-            )
-         save_client_data(
-                st.session_state.client_list,
-                st.session_state.client_rates,
-                st.session_state.client_infos,
-            )
-          except Exception as me:
-            print(f"Meta parse error: {me}")
-        df_in = df_in.drop(columns=["__SYSTEM_META__"])
-
-      if "B/L 번호" in df_in.columns:
-        st.session_state.bl_data_list = df_in.to_dict("records")
-        save_bl_data(st.session_state.bl_data_list)
-
-      if "refresh_key" not in st.session_state:
-        st.session_state.refresh_key = 0
-      st.session_state.refresh_key += 1
-
-      st.sidebar.success(
-          "🎉 거래처, 요율, 미수금, 입출금 장부 및 물류 데이터 전체가"
-          " 완벽하게 복원되었습니다!"
-      )
-      st.rerun()
-  except Exception as e:
-    st.sidebar.error(f"통합 데이터 복원 중 오류가 발생했습니다: {e}")
-
+            st.rerun()
+    except Exception as e:
+        st.sidebar.error(f"통합 데이터 복원 중 오류가 발생했습니다: {e}")
 
 
 menu_options = [
