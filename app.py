@@ -1655,330 +1655,77 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
 # [새로운 독립 트랙] 매입 관리 (협력사별)
 # ==========================================
 elif selected_menu == "🤝 매입 관리 (협력사별 독립 트랙)":
-    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>🤝 매입 관리 (협력사별 독립 트랙)</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>협력사별 매입 원가 및 지출 내역을 화주 미수금과 완전히 분리하여 독립적으로 집계 및 관리합니다.</p>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>🤝 매입 관리 및 협력사별 미지급금(미지급 원가) 관리</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>협력사별 매입 원가, 지급완료 금액, 미지급 잔액을 집계하고 건별 지급 상태를 관리합니다.</p>", unsafe_allow_html=True)
     
     if st.session_state.get("bl_data_list"):
         df_bl = pd.DataFrame(st.session_state.bl_data_list)
         if "매입처" in df_bl.columns and "매입액(원)" in df_bl.columns:
             df_bl["매입처"] = df_bl["매입처"].astype(str).str.strip()
             df_bl["매입액(원)"] = pd.to_numeric(df_bl["매입액(원)"], errors="coerce").fillna(0)
+            if "지급상태" not in df_bl.columns:
+                df_bl["지급상태"] = "미지급"
             
+            # 1. 협력사별 매입 및 미지급 요약
             purchase_group = df_bl.groupby("매입처").agg(
                 총매입액=("매입액(원)", "sum"),
+                지급완료액=("매출액(원)" if "매출액(원)" in df_bl.columns else "매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] == "지급완료"].sum()) if "매입액(원)" in df_bl.columns else 0, # 안전 장치
+                미지급잔액=("매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] != "지급완료"].sum()),
                 건수=("B/L 번호", "count")
-            ).reset_index()
+            ).reset_index().sort_values("미지급잔액", ascending=False)
             
-            st.subheader("📋 협력사별 매입(원가) 요약")
+            # 위 코드에서 지급완료액 계산식 간소화 및 오류 방지 보완 버전:
+            purchase_group = df_bl.groupby("매입처").agg(
+                총매입액=("매입액(원)", "sum"),
+                지급완료액=("매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] == "지급완료"].sum()),
+                미지급잔액=("매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] != "지급완료"].sum()),
+                건수=("B/L 번호", "count")
+            ).reset_index().sort_values("미지급잔액", ascending=False)
+            
+            st.subheader("📋 협력사별 매입 원가 및 미지급 잔액 요약")
             st.dataframe(purchase_group, use_container_width=True)
             
             st.markdown("---")
-            st.subheader("🔍 특정 협력사 상세 매입 내역 조회")
-            sel_v = st.selectbox("조회할 협력사 선택", df_bl["매입처"].unique(), key="purchase_track_vendor")
-            vendor_detail = df_bl[df_bl["매입처"] == sel_v]
-            st.dataframe(vendor_detail, use_container_width=True)
+            
+            # 2. 특정 협력사 상세 매입 내역 및 지급 상태 체크 관리
+            st.subheader("🔍 특정 협력사 상세 매입 내역 및 지급 상태 관리")
+            col_v1, col_v2 = st.columns([2, 1])
+            with col_v1:
+                sel_v = st.selectbox("조회할 협력사 선택", df_bl["매입처"].unique(), key="purchase_track_vendor")
+            with col_v2:
+                only_unpaid_v = st.checkbox("📌 미지급 건만 보기", value=True, key="only_unpaid_vendor")
+            
+            vendor_detail = df_bl[df_bl["매입처"] == sel_v].copy()
+            if only_unpaid_v:
+                vendor_detail = vendor_detail[vendor_detail["지급상태"].astype(str).str.strip() != "지급완료"]
+            
+            if "선택" not in vendor_detail.columns:
+                vendor_detail.insert(0, "선택", False)
+            
+            edited_vendor_table = st.data_editor(
+                vendor_detail,
+                hide_index=True,
+                use_container_width=True,
+                column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+                key="vendor_unpaid_edit_table"
+            )
+            
+            selected_vendor_rows = edited_vendor_table[edited_vendor_table["선택"] == True]
+            
+            if st.button("💳 선택한 매입 건 [지급완료] 일괄 처리", type="primary", use_container_width=True):
+                if len(selected_vendor_rows) > 0:
+                    for real_idx in selected_vendor_rows.index.tolist():
+                        st.session_state.bl_data_list[real_idx]["지급상태"] = "지급완료"
+                        st.session_state.bl_data_list[real_idx]["최종수정자"] = current_user_name
+                    save_bl_data(st.session_state.bl_data_list)
+                    st.success("선택하신 매입 건들이 '지급완료' 처리되었습니다!")
+                    st.rerun()
+                else:
+                    st.warning("지급완료 처리할 B/L 행의 체크박스를 선택해주세요.")
         else:
             st.warning("데이터에 '매입처' 또는 '매입액(원)' 컬럼이 없습니다.")
     else:
         st.info("등록된 B/L 데이터가 없습니다.")
-
-
-elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>📋"
-      " 등록 B/L 수정 및 Profit 내역</h3>",
-      unsafe_allow_html=True,
-  )
-
-  if st.session_state.bl_data_list:
-    df_bl = pd.DataFrame(st.session_state.bl_data_list)
-    if "선택" not in df_bl.columns:
-      df_bl.insert(0, "선택", False)
-    if "수금상태" not in df_bl.columns:
-      df_bl["수금상태"] = "미수"
-    if "최종작성자" not in df_bl.columns:
-      df_bl["최종작성자"] = "이상복"
-    if "최종수정자" not in df_bl.columns:
-      df_bl["최종수정자"] = "-"
-
-    col_filter1, col_filter2 = st.columns([1.5, 1])
-    with col_filter1:
-      search_keyword = st.text_input(
-          "🔍 B/L 번호, Job 번호, 화주명, 수하인 키워드 검색", value=""
-      )
-    with col_filter2:
-      client_filter_opts = ["전체 거래처 보기"] + st.session_state.get(
-          "client_list", []
-      )
-      selected_client_sch = st.selectbox(
-          "🏢 거래처별 조회 필터", options=client_filter_opts
-      )
-
-    df_filtered = df_bl.copy()
-    if selected_client_sch != "전체 거래처 보기":
-      df_filtered = df_filtered[
-          df_filtered["화주명(매출)"].astype(str).str.strip()
-          == str(selected_client_sch).strip()
-      ]
-
-    if search_keyword.strip():
-      kw = search_keyword.strip().lower()
-      mask = (
-          df_filtered["B/L 번호"].astype(str).str.lower().str.contains(kw)
-          | df_filtered["Job 번호"].astype(str).str.lower().str.contains(kw)
-          | df_filtered["화주명(매출)"].astype(str).str.lower().str.contains(kw)
-          | df_filtered["해외수하인"].astype(str).str.lower().str.contains(kw)
-          | df_filtered["품목"].astype(str).str.lower().str.contains(kw)
-      )
-      df_filtered = df_filtered[mask]
-
-    st.markdown(
-        f"<p style='font-size: 12.5px; color: #475569; margin-top: -5px;"
-        f" margin-bottom: 10px;'>조회 결과: 총 <b>{len(df_filtered)}</b>건</p>",
-        unsafe_allow_html=True,
-    )
-
-    edited_table = st.data_editor(
-        df_filtered,
-        hide_index=True,
-        use_container_width=True,
-        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-        key="bl_select_table",
-    )
-
-    selected_rows = edited_table[edited_table["선택"] == True]
-
-    col_btn1, col_btn2, col_btn3 = st.columns(3)
-    with col_btn1:
-      if st.button(
-          "✏️ 선택한 B/L 수정하기", type="primary", use_container_width=True
-      ):
-        if len(selected_rows) == 1:
-          real_idx = selected_rows.index[0]
-          st.session_state.edit_target_index = real_idx
-          st.rerun()
-        elif len(selected_rows) == 0:
-          st.warning("수정할 B/L 행의 체크박스를 선택해주세요.")
-        else:
-          st.warning("수정은 하나의 B/L만 선택하여 진행하실 수 있습니다.")
-
-    with col_btn2:
-      if st.button("💰 선택 건 [수금완료] 일괄처리", use_container_width=True):
-        if len(selected_rows) > 0:
-          for real_idx in selected_rows.index.tolist():
-            st.session_state.bl_data_list[real_idx]["수금상태"] = "수금완료"
-            st.session_state.bl_data_list[real_idx][
-                "최종수정자"
-            ] = current_user_name
-          save_bl_data(st.session_state.bl_data_list)
-          st.success("선택하신 B/L 건들이 '수금완료' 처리되었습니다!")
-          st.rerun()
-        else:
-          st.warning("수금완료 처리할 B/L 행을 선택해주세요.")
-
-    with col_btn3:
-      if st.button("🗑 선택한 B/L 삭제하기", type="secondary", use_container_width=True):
-        if len(selected_rows) > 0:
-          indices_to_drop = selected_rows.index.tolist()
-          st.session_state.bl_data_list = [
-              item
-              for i, item in enumerate(st.session_state.bl_data_list)
-              if i not in indices_to_drop
-          ]
-          save_bl_data(st.session_state.bl_data_list)
-          st.success("선택하신 B/L 내역이 삭제되었습니다!")
-          st.rerun()
-        else:
-          st.warning("삭제할 B/L 행의 체크박스를 선택해주세요.")
-
-    if "edit_target_index" in st.session_state:
-      idx = st.session_state.edit_target_index
-      if idx < len(st.session_state.bl_data_list):
-        target_item = st.session_state.bl_data_list[idx]
-        st.markdown("---")
-        st.markdown(
-            f"#### 📝 [B/L 번호: {target_item.get('B/L 번호', '')}] 상세 수정"
-        )
-
-        with st.form("detail_edit_form"):
-          e_col1, e_col2 = st.columns(2)
-          with e_col1:
-            u_io = st.selectbox(
-                "수출입 구분",
-                ["수출 (Export)", "수입 (Import)"],
-                index=(
-                    0
-                    if str(target_item.get("구분", "수출 (Export)"))
-                    .startswith("수출")
-                    else 1
-                ),
-            )
-            u_job = st.text_input(
-                "Job 번호", value=str(target_item.get("Job 번호", ""))
-            )
-            u_bl = st.text_input(
-                "B/L 번호", value=str(target_item.get("B/L 번호", ""))
-            )
-            try:
-              d_val = date.fromisoformat(
-                  str(target_item.get("날짜", date.today()))
-              )
-            except:
-              d_val = date.today()
-            u_date = st.date_input("선적 날짜", value=d_val)
-            u_country = st.selectbox(
-                "도착 국가",
-                COUNTRY_LIST,
-                index=(
-                    COUNTRY_LIST.index(str(target_item.get("국가", "미국")))
-                    if str(target_item.get("국가")) in COUNTRY_LIST
-                    else 0
-                ),
-            )
-            u_origin = st.text_input(
-                "출발지", value=str(target_item.get("출발지", ""))
-            )
-            u_item = st.text_input(
-                "품명", value=str(target_item.get("품목", ""))
-            )
-
-            cur_status_val = str(
-                target_item.get("현재 상태", TRACKING_STATUS_OPTIONS[0])
-            )
-            s_idx_val = (
-                TRACKING_STATUS_OPTIONS.index(cur_status_val)
-                if cur_status_val in TRACKING_STATUS_OPTIONS
-                else 0
-            )
-            u_tracking_status = st.selectbox(
-                "현재 진행 상태 수정",
-                options=TRACKING_STATUS_OPTIONS,
-                index=s_idx_val,
-            )
-
-            cur_pay_status = str(target_item.get("수금상태", "미수"))
-            p_idx_val = 0 if cur_pay_status != "수금완료" else 1
-            u_pay_status = st.selectbox(
-                "수금 상태 (미수 / 수금완료)",
-                options=["미수", "수금완료"],
-                index=p_idx_val,
-            )
-
-          with e_col2:
-            shipper_options = [""] + st.session_state.client_list
-            s_idx = (
-                shipper_options.index(str(target_item.get("화주명(매출)", "")))
-                if str(target_item.get("화주명(매출)")) in shipper_options
-                else 0
-            )
-            u_shipper = st.selectbox(
-                "화주명", options=shipper_options, index=s_idx
-            )
-            u_consignee = st.text_input(
-                "해외 수하인", value=str(target_item.get("해외수하인", ""))
-            )
-
-            supplier_options = (
-                [""] + st.session_state.supplier_list
-                if "supplier_list" in st.session_state
-                else [""]
-            )
-            v_idx = (
-                supplier_options.index(str(target_item.get("매입처", "")))
-                if str(target_item.get("매입처")) in supplier_options
-                else 0
-            )
-            u_vendor = st.selectbox(
-                "매입처", options=supplier_options, index=v_idx
-            )
-
-            t_options = ["항공(Air)", "해상(LCL)"]
-            t_idx = (
-                t_options.index(str(target_item.get("운송형태", "항공(Air)")))
-                if str(target_item.get("운송형태")) in t_options
-                else 0
-            )
-            u_transport = st.selectbox(
-                "운송 형태", options=t_options, index=t_idx
-            )
-
-            u_sales_cw = st.number_input(
-                "매출 청구중량 (kg)",
-                value=float(target_item.get("매출청구중량(kg)", 1.0)),
-                min_value=0.0,
-                step=0.5,
-            )
-            u_purchase_cw = st.number_input(
-                "매입 청구중량 (kg)",
-                value=float(target_item.get("매입청구중량(kg)", 1.0)),
-                min_value=0.0,
-                step=0.5,
-            )
-
-            auto_u_sales = calculate_auto_price(
-                u_shipper, u_sales_cw, u_transport
-            )
-            auto_u_purchase = calculate_auto_price(
-                u_vendor, u_purchase_cw, u_transport
-            )
-
-            default_sales_val = int(target_item.get("매출액(원)", auto_u_sales) or auto_u_sales)
-            default_purchase_val = int(target_item.get("매입액(원)", auto_u_purchase) or auto_u_purchase)
-
-            u_sales = st.number_input(
-                "총 매출액 (원)", value=default_sales_val, step=1000, format="%d"
-            )
-            u_purchase = st.number_input(
-                "총 매입액 (원)",
-                value=default_purchase_val,
-                step=1000,
-                format="%d",
-            )
-            u_remarks = st.text_area(
-                "비고", value=str(target_item.get("비고", ""))
-            )
-
-          submitted_edit = st.form_submit_button(
-              "💾 수정 완료 및 저장하기", type="primary", use_container_width=True
-          )
-          if submitted_edit:
-            existing_writer = str(target_item.get("최종작성자", "이상복"))
-            st.session_state.bl_data_list[idx] = {
-                "구분": u_io,
-                "날짜": str(u_date),
-                "Job 번호": u_job,
-                "B/L 번호": u_bl,
-                "국가": u_country,
-                "출발지": u_origin,
-                "화주명(매출)": u_shipper,
-                "해외수하인": u_consignee,
-                "매입처": u_vendor,
-                "운송형태": u_transport,
-                "서비스옵션": str(
-                    target_item.get("서비스옵션", "Door To Door")
-                ),
-                "품목": u_item,
-                "박스수": target_item.get("박스수", "1 박스"),
-                "부피규격": target_item.get("부피규격", "-"),
-                "CBM": target_item.get("CBM", "-"),
-                "매출청구중량(kg)": u_sales_cw,
-                "매입청구중량(kg)": u_purchase_cw,
-                "현재 상태": u_tracking_status,
-                "수금상태": u_pay_status,
-                "매출액(원)": u_sales,
-                "매입액(원)": u_purchase,
-                "예상Profit(원)": u_sales - u_purchase,
-                "비고": u_remarks,
-                "최종작성자": existing_writer,
-                "최종수정자": current_user_name,
-            }
-            save_bl_data(st.session_state.bl_data_list)
-            del st.session_state.edit_target_index
-            st.success("B/L 정보가 수정되었습니다!")
-            st.rerun()
-  else:
-    st.info("등록된 B/L 내역이 없습니다.")
-
 
 # ==========================================
 # [3] B/L 운송장 출력 메뉴
