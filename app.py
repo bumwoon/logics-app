@@ -935,10 +935,6 @@ if uploaded_integrated_file is not None:
             st.session_state.client_infos = parsed_meta.get(
                 "client_infos", st.session_state.client_infos
             )
-                   # 👈 입출금 장부 데이터 복원 반영
-      if "ledger_data" in parsed_meta:
-         st.session_state.expense_data_list = parsed_meta["ledger_data"]
-         save_expense_data(st.session_state.expense_data_list)
          save_client_data(
                 st.session_state.client_list,
                 st.session_state.client_rates,
