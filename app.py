@@ -1393,10 +1393,11 @@ if selected_menu == "📦 수출입 B/L 등록":
         unsafe_allow_html=True,
     )
 
-        # 🫱 F9 버튼 토글 코드
-     if st.button("🔲 [F9] 매입 거래처/단가 퀵 관리", key="btn_quick_f9_bl_top"):
-        st.session_state.show_supplier_f9 = not st.session_state.show_supplier_f9
-        st.rerun()   
+        # 🫱 F9 버튼 토글 코드  
+  if st.button("🔲 [F9] 매입 거래처/단가 퀵 관리", key="btn_quick_f9_bl_top"):
+      st.session_state.show_supplier_f9 = not st.session_state.show_supplier_f9
+      st.rerun()
+    
 
      st.markdown(
         """##### 📦 박스 규격 및 카톤수 입력 (아래 입력창에 가로, 세로, 높이, 카톤수를 적어주시면 즉시 부피중량과 CBM이 계산됩니다)"""
