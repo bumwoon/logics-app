@@ -979,7 +979,13 @@ def generate_integrated_backup_bytes():
   supplier_rates = st.session_state.get("supplier_rates", {})
   supplier_infos = st.session_state.get("supplier_infos", {})
   ledger_data = st.session_state.get("expense_data_list", [])
-  df_bl = pd.DataFrame(bl_data) if bl_data else pd.DataFrame()
+  meeting_data = st.session_state.get("meeting_data_list", [])
+  note_data = st.session_state.get("note_data_list", [])
+  
+  if bl_data:
+    df_bl = pd.DataFrame(bl_data)
+  else:
+    df_bl = pd.DataFrame([{"안내": "등록된 B/L 물류 내역이 없습니다. 시스템 설정 및 단가/장부 데이터가 복원용으로 보관됩니다."}])
 
   meta_dict = {
       "client_list": client_list,
@@ -989,6 +995,8 @@ def generate_integrated_backup_bytes():
       "supplier_rates": supplier_rates,
       "supplier_infos": supplier_infos,
       "ledger_data": ledger_data,
+      "meeting_data": meeting_data,
+      "note_data": note_data,
   }
   meta_json_str = json.dumps(meta_dict, ensure_ascii=False)
   df_bl["__SYSTEM_META__"] = meta_json_str
