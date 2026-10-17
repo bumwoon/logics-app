@@ -9,8 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
     # ==========================================
     # [여기 10번과 11번 줄 사이에 아래 코드를 통째로 붙여넣으세요]
-    import json
-
+import json
     auto_backup_path = "범운해운항공_전체데이터_통합백업_2026-10-16.xlsx"
     if os.path.exists(auto_backup_path):
       try:
