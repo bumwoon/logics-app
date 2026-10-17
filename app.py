@@ -7,7 +7,6 @@ import re
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
-9   import streamlit.components.v1 as components
     # ==========================================
     # [여기 10번과 11번 줄 사이에 아래 코드를 통째로 붙여넣으세요]
     import json
