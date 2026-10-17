@@ -1389,24 +1389,23 @@ st.markdown(header_html, unsafe_allow_html=True)
 # ==========================================
 if selected_menu == "📦 수출입 B/L 등록":
     st.markdown(
-        """<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>🚢 수출입 B/L 및 Profit 등록 관리</h3>""",
+        """<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📦 수출입 B/L 및 Profit 등록 관리</h3>""",
         unsafe_allow_html=True,
     )
 
-        # 🫱 F9 버튼 토글 코드  
-  if st.button("🔲 [F9] 매입 거래처/단가 퀵 관리", key="btn_quick_f9_bl_top"):
-      st.session_state.show_supplier_f9 = not st.session_state.show_supplier_f9
-      st.rerun()
-    
+    # 📦 F9 버튼 토글 코드
+    if st.button("🔲 [F9] 매입 거래처/단가 퀵 관리", key="btn_quick_f9_bl_top"):
+        st.session_state.show_supplier_f9 = not st.session_state.show_supplier_f9
+        st.rerun()
 
-     st.markdown(
+    st.markdown(
         """##### 📦 박스 규격 및 카톤수 입력 (아래 입력창에 가로, 세로, 높이, 카톤수를 적어주시면 즉시 부피중량과 CBM이 계산됩니다)"""
-    )   
+    )
 
     if "box_input_df" not in st.session_state:
         st.session_state.box_input_df = pd.DataFrame(
             [{"가로(cm)": 100.0, "세로(cm)": 100.0, "높이(cm)": 100.0, "카톤수(개)": 1}]
-        )   
+        )
 
   edited_box_df = st.data_editor(
       st.session_state.box_input_df,
