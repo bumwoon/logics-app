@@ -1601,12 +1601,9 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
             total_unpaid_all = total_sales_all - total_collected_all
             
             kpi1, kpi2, kpi3 = st.columns(3)
-            with kpi1:
-                st.metric("📦 전체 누적 청구 매출", f"{total_sales_all:,.0f} 원")
-            with kpi2:
-                st.metric("✅ 전체 수금 완료 금액", f"{total_collected_all:,.0f} 원")
-            with kpi3:
-                st.metric("🚨 전체 미수금 잔액", f"{total_unpaid_all:,.0f} 원", delta=f"-{total_unpaid_all:,.0f} 원" if total_unpaid_all > 0 else "0 원", delta_color="inverse")
+            with kpi1: st.metric("📦 전체 누적 청구 매출", f"{total_sales_all:,.0f} 원")
+            with kpi2: st.metric("✅ 전체 수금 완료 금액", f"{total_collected_all:,.0f} 원")
+            with kpi3: st.metric("🚨 전체 미수금 잔액", f"{total_unpaid_all:,.0f} 원", delta=f"-{total_unpaid_all:,.0f} 원" if total_unpaid_all > 0 else "0 원", delta_color="inverse")
             
             st.markdown("---")
             
@@ -1640,8 +1637,8 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
                 sel_s = st.selectbox("조회할 화주 선택", df_bl["화주명(매출)"].unique(), key="sales_track_shipper")
             with col_s2:
                 available_months = ["전체 월 보기"] + sorted(df_bl["연도월"].unique().tolist(), reverse=True)
-                sel_month = st.selectbox("조회할 월(Month) 선택", options=available_messages if 'available_messages' in locals() else available_months, key="sales_track_month")
-            
+                sel_month = st.selectbox("조회할 월(Month) 선택", options=available_months, key="sales_track_month")
+                
             shipper_detail = df_bl[df_bl["화주명(매출)"] == sel_s]
             if sel_month != "전체 월 보기":
                 shipper_detail = shipper_detail[shipper_detail["연도월"] == sel_month]
