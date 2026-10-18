@@ -3061,7 +3061,19 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         pd.DataFrame(st.session_state.expense_data_list),
         use_container_width=True,
     )
-
+        # 📥 일계표 전용 엑셀 다운로드 버튼
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            pd.DataFrame(st.session_state.expense_data_list).to_excel(writer, index=False, sheet_name='Expense_Data')
+        excel_data = output.getvalue()
+        
+        st.download_button(
+            label="📥 현재 일계표 내역 엑셀 다운로드 (.xlsx)",
+            data=excel_data,
+            file_name=f"범운해운항공_일계표_{datetime.today().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 # ==========================================
 # [12] 업무용 일지
