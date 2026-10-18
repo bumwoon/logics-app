@@ -8,7 +8,33 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 import json
+import glob
 
+# ==========================================
+# 🔄 깃허브 백업 엑셀 파일 자동 복원 로직
+# ==========================================
+def auto_load_latest_backup():
+    if st.session_state.get("auto_backup_loaded", False):
+        return
+    backup_files = glob.glob("*.xlsx")
+    if not backup_files:
+        st.session_state["auto_backup_loaded"] = True
+        return
+    latest_backup = max(backup_files, key=os.path.getmtime)
+    try:
+        excel_data = pd.ExcelFile(latest_backup)
+        if "BL_Data" in excel_data.sheet_names:
+            df_bl = pd.read_excel(excel_data, sheet_name="BL_Data")
+            st.session_state.bl_data_list = df_bl.to_dict(orient="records")
+        if "Expense_Data" in excel_data.sheet_names:
+            df_exp = pd.read_excel(excel_data, sheet_name="Expense_Data")
+            st.session_state.expense_list = df_exp.to_dict(orient="records")
+        st.session_state["auto_backup_loaded"] = True
+        st.sidebar.success(f"📁 자동 복원 완료: {latest_backup}")
+    except Exception as e:
+        st.session_state["auto_backup_loaded"] = True
+
+auto_load_latest_backup()
 # ==========================================
 # [보안 및 계정 파일 저장소 시스템]
 # ==========================================
