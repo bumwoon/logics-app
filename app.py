@@ -3058,7 +3058,8 @@ elif selected_menu == "📋 일계표 및 입출금 장부":
             st.success("입출금 장부에 등록되었습니다!")
             st.rerun()
 
-    if st.session_state.expense_data_list:
+    # 안전하게 세션 키 존재 여부와 데이터를 함께 체크
+    if "expense_data_list" in st.session_state and st.session_state.expense_data_list:
         st.dataframe(
             pd.DataFrame(st.session_state.expense_data_list),
             use_container_width=True,
