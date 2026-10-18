@@ -11,7 +11,7 @@ import json
 import glob
 
 # ==========================================
-# 🔄 깃허브 백업 엑셀 파일 자동 복원 로직
+# 🔄 깃허브 백업 엑셀 파일 자동 복원 로직 (개선판)
 # ==========================================
 def auto_load_latest_backup():
     if st.session_state.get("auto_backup_loaded", False):
@@ -23,12 +23,15 @@ def auto_load_latest_backup():
     latest_backup = max(backup_files, key=os.path.getmtime)
     try:
         excel_data = pd.ExcelFile(latest_backup)
-        if "BL_Data" in excel_data.sheet_names:
-            df_bl = pd.read_excel(excel_data, sheet_name="BL_Data")
-            st.session_state.bl_data_list = df_bl.to_dict(orient="records")
+        # BL_Data 시트가 있으면 읽고, 없으면 엑셀의 첫 번째 시트를 자동으로 읽음
+        target_sheet = "BL_Data" if "BL_Data" in excel_data.sheet_names else excel_data.sheet_names[0]
+        df_bl = pd.read_excel(excel_data, sheet_name=target_sheet)
+        st.session_state.bl_data_list = df_bl.to_dict(orient="records")
+        
         if "Expense_Data" in excel_data.sheet_names:
             df_exp = pd.read_excel(excel_data, sheet_name="Expense_Data")
             st.session_state.expense_list = df_exp.to_dict(orient="records")
+            
         st.session_state["auto_backup_loaded"] = True
         st.sidebar.success(f"📁 자동 복원 완료: {latest_backup}")
     except Exception as e:
