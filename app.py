@@ -1077,6 +1077,13 @@ def generate_integrated_backup_bytes():
   with pd.ExcelWriter(output, engine="openpyxl") as writer:
     df_bl.to_excel(writer, index=False, sheet_name="Bumwoon_Integrated_Backup")
   return output.getvalue()
+  meta_json_str = json.dumps(meta_dict, ensure_ascii=False)
+  df_bl["__SYSTEM_META__"] = meta_json_str
+
+  output = io.BytesIO()
+  with pd.ExcelWriter(output, engine="openpyxl") as writer:
+    df_bl.to_excel(writer, index=False, sheet_name="Bumwoon_Integrated_Backup")
+  return output.getvalue()
 
 
 integrated_excel_bytes = generate_integrated_backup_bytes()
