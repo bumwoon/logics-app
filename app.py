@@ -3059,7 +3059,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
   if st.session_state.expense_data_list:
     st.markdown("#### 📊 등록된 장부 내역 (수정 및 삭제 가능)")
     
-    # 데이터 편집을 위한 복사본 생성 및 선택 체크박스 추가
     df_expense = pd.DataFrame(st.session_state.expense_data_list)
     if "선택" not in df_expense.columns:
       df_expense.insert(0, "선택", False)
@@ -3098,19 +3097,75 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 📥 일계표 전용 엑셀 다운로드 버튼
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-      pd.DataFrame(st.session_state.expense_data_list).to_excel(writer, index=False, sheet_name='Expense_Data')
-    excel_data = output.getvalue()
+    # 📥 엑셀 다운로드 및 🖨️ PDF 인쇄용 HTML 다운로드 버튼 배치
+    dl_col1, dl_col2 = st.columns(2)
     
-    st.download_button(
-        label="📥 현재 일계표 내역 엑셀 다운로드 (.xlsx)",
-        data=excel_data,
-        file_name=f"범운해운항공_일계표_{date.today()}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
-    )
+    with dl_col1:
+      output = io.BytesIO()
+      with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        pd.DataFrame(st.session_state.expense_data_list).to_excel(writer, index=False, sheet_name='Expense_Data')
+      excel_data = output.getvalue()
+      
+      st.download_button(
+          label="📥 엑셀 다운로드 (.xlsx)",
+          data=excel_data,
+          file_name=f"범운해운항공_일계표_{date.today()}.xlsx",
+          mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          use_container_width=True
+      )
+
+    with dl_col2:
+      # PDF 인쇄용 HTML 생성 로직
+      import html as _html
+      exp_print_df = pd.DataFrame(st.session_state.expense_data_list)
+      
+      # 합계 금액 계산
+      total_amt = pd.to_numeric(exp_print_df["금액(원)"].astype(str).str.replace(r"[^\d]", "", regex=True), errors="coerce").sum() if "금액(원)" in exp_print_df.columns else 0
+
+      table_head = "".join(f"<th>{_html.escape(str(col))}</th>" for col in exp_print_df.columns)
+      table_rows = []
+      for _, row in exp_print_df.iterrows():
+        cells = "".join(f"<td>{_html.escape('' if pd.isna(val) else str(val))}</td>" for val in row.tolist())
+        table_rows.append(f"<tr>{cells}</tr>")
+
+      expense_html = f"""<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>일계표 및 입출금 장부 - {date.today()}</title>
+<style>
+body{{font-family:Arial,sans-serif;margin:20px;color:#111}}
+h2{{margin-bottom:4px;color:#1e3a8a}}
+p{{margin-top:0;color:#555}}
+button{{padding:10px 16px;margin:10px 0;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer}}
+table{{border-collapse:collapse;width:100%;margin-top:15px;font-size:11px}}
+th,td{{border:1px solid #777;padding:8px;text-align:left}}
+th{{background:#0f172a;color:#fff}}
+.total-row{{background:#f1f5f9;font-weight:bold}}
+@media print{{.no-print{{display:none}}@page{{size:A4 landscape;margin:10mm}}}}
+</style></head>
+<body>
+<button class="no-print" onclick="window.print()">🖨 인쇄 및 PDF로 저장</button>
+<h2>(주)범운해운항공</h2>
+<p>일계표 및 입출금 장부 내역 (기준일: {date.today()})</p>
+<table>
+  <thead><tr>{table_head}</tr></thead>
+  <tbody>
+    {''.join(table_rows)}
+    <tr class="total-row">
+      <td colspan="3" style="text-align:right;"><b>합계 금액 (TOTAL):</b></td>
+      <td colspan="{max(1, len(exp_print_df.columns)-3)}"><b>{int(total_amt):,} 원</b></td>
+    </tr>
+  </tbody>
+</table>
+</body></html>"""
+
+      st.download_button(
+          label="🖨️ 일계표 PDF 인쇄용 파일 다운로드",
+          data=expense_html.encode("utf-8"),
+          file_name=f"범운해운항공_일계표_{date.today()}.html",
+          mime="text/html",
+          use_container_width=True
+      )
+    
+    st.caption("💡 PDF 저장 방법: 인쇄용 파일을 다운로드하여 열신 뒤, 화면 상단의 버튼을 눌러 인쇄 창에서 대상 프린터를 **'PDF로 저장'**으로 선택하시면 됩니다.")
   else:
     st.info("💡 등록된 일계표 내역이 없습니다. 위 양식을 통해 장부를 등록해 주세요.")
 # ==========================================
