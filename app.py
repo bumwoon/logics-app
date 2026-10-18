@@ -1667,51 +1667,72 @@ if selected_menu == "📊 수출입 B/L 등록":
         )
 
 
-# ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역
-# ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
-    if st.session_state.bl_data_list:
+    
+    if st.session_state.get("bl_data_list"):
         df_bl = pd.DataFrame(st.session_state.bl_data_list)
+        
+        # '선택' 체크박스 열이 없으면 맨 앞에 추가
         if "선택" not in df_bl.columns:
             df_bl.insert(0, "선택", False)
+            
+        st.info("💡 표에서 내용을 직접 수정하신 후, 아래의 **[수정된 B/L 내용 저장]** 버튼을 꼭 눌러주세요.")
         
-        edited_bl_table = st.data_editor(
+        # 데이터 에디터 출력
+        edited_df = st.data_editor(
             df_bl,
-            hide_index=True,
             use_container_width=True,
+            hide_index=True,
             column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-            key="edit_bl_profit_table"
+            key="bl_edit_grid_new"
         )
         
-        col_e1, col_e2 = st.columns(2)
-        with col_e1:
+        col_btn1, col_btn2 = st.columns(2)
+        
+        with col_btn1:
             if st.button("💾 수정된 B/L 내용 저장", type="primary", use_container_width=True):
-                updated_records = edited_bl_table.drop(columns=["선택"]).to_dict("records")
-                for r in updated_records:
-                    r["예상Profit(원)"] = int(r.get("매출액(원)", 0)) - int(r.get("매입액(원)", 0))
-                    r["최종수정자"] = current_user_name
-                st.session_state.bl_data_list = updated_records
-                save_bl_data(st.session_state.bl_data_list)
-                st.success("B/L 수정 내역이 성공적으로 저장되었습니다!")
+                # '선택' 열을 제외하고 순수 데이터만 추출
+                clean_df = edited_df.drop(columns=["선택"], errors="ignore")
+                updated_list = []
+                
+                for idx, row in clean_df.iterrows():
+                    row_dict = row.to_dict()
+                    # 매출액과 매입액을 숫자로 안전하게 변환하여 Profit 자동 계산
+                    try:
+                        sales_val = float(row_dict.get("매출액(원)", 0))
+                    except:
+                        sales_val = 0.0
+                    try:
+                        purchase_val = float(row_dict.get("매입액(원)", 0))
+                    except:
+                        purchase_val = 0.0
+                        
+                    row_dict["매출액(원)"] = sales_val
+                    row_dict["매입액(원)"] = purchase_val
+                    row_dict["예상Profit(원)"] = sales_val - purchase_val
+                    row_dict["최종수정자"] = st.session_state.get("user_role", "관리자")
+                    
+                    updated_list.append(row_dict)
+                    
+                st.session_state.bl_data_list = updated_list
+                st.success("✅ B/L 수정 내역이 성공적으로 저장되었습니다!")
                 st.rerun()
-        with col_e2:
+                
+        with col_btn2:
             if st.button("🚨 선택한 B/L 삭제", type="secondary", use_container_width=True):
-                selected_rows = edited_bl_table[edited_bl_table["선택"] == True]
+                # 체크된 항목만 골라내기
+                selected_rows = edited_df[edited_df["선택"] == True]
                 if not selected_rows.empty:
-                    indices_to_drop = selected_rows.index.tolist()
-                    st.session_state.bl_data_list = [
-                        item for idx, item in enumerate(st.session_state.bl_data_list) if idx not in indices_to_drop
-                    ]
-                    save_bl_data(st.session_state.bl_data_list)
-                    st.success("선택한 B/L 내역이 삭제되었습니다.")
+                    # 체크되지 않은 남은 행들만 다시 세션에 저장
+                    remaining_df = edited_df[edited_df["선택"] == False].drop(columns=["선택"], errors="ignore")
+                    st.session_state.bl_data_list = remaining_df.to_dict("records")
+                    st.success("🗑️ 선택한 B/L 내역이 삭제되었습니다.")
                     st.rerun()
                 else:
-                    st.warning("삭제할 B/L 행의 체크박스를 선택해주세요.")
+                    st.warning("⚠️ 삭제할 B/L 행의 체크박스를 먼저 선택해주세요.")
     else:
         st.info("등록된 B/L 데이터가 없습니다.")
-
 # ==========================================
 # [새로운 독립 트랙] 매출 관리 (화주별)
 # ==========================================
