@@ -3057,12 +3057,47 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
       st.rerun()
 
   if st.session_state.expense_data_list:
-    st.markdown("#### 📊 등록된 장부 내역")
-    st.dataframe(
-        pd.DataFrame(st.session_state.expense_data_list),
-        use_container_width=True,
-    )
+    st.markdown("#### 📊 등록된 장부 내역 (수정 및 삭제 가능)")
     
+    # 데이터 편집을 위한 복사본 생성 및 선택 체크박스 추가
+    df_expense = pd.DataFrame(st.session_state.expense_data_list)
+    if "선택" not in df_expense.columns:
+      df_expense.insert(0, "선택", False)
+
+    edited_expense_table = st.data_editor(
+        df_expense,
+        hide_index=True,
+        use_container_width=True,
+        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+        key="edit_expense_table"
+    )
+
+    exp_col1, exp_col2 = st.columns(2)
+    with exp_col1:
+      if st.button("💾 수정된 장부 내용 저장", type="primary", use_container_width=True):
+        updated_records = edited_expense_table.drop(columns=["선택"]).to_dict("records")
+        for r in updated_records:
+          r["금액(원)"] = int(r.get("금액(원)", 0))
+        st.session_state.expense_data_list = updated_records
+        save_expense_data(st.session_state.expense_data_list)
+        st.success("장부 수정 내역이 성공적으로 저장되었습니다!")
+        st.rerun()
+    with exp_col2:
+      if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True):
+        selected_exp_rows = edited_expense_table[edited_expense_table["선택"] == True]
+        if not selected_exp_rows.empty:
+          indices_to_drop = selected_exp_rows.index.tolist()
+          st.session_state.expense_data_list = [
+              item for idx, item in enumerate(st.session_state.expense_data_list) if idx not in indices_to_drop
+          ]
+          save_expense_data(st.session_state.expense_data_list)
+          st.success("선택한 장부 내역이 삭제되었습니다.")
+          st.rerun()
+        else:
+          st.warning("삭제할 장부 행의 체크박스를 선택해주세요.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # 📥 일계표 전용 엑셀 다운로드 버튼
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
