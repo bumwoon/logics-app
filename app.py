@@ -3029,22 +3029,26 @@ elif selected_menu == "📋 일계표 및 입출금 장부":
         unsafe_allow_html=True,
     )
 
+    # 세션 상태 초기화 (메모리 방 만들기)
+    if "expense_data_list" not in st.session_state:
+        st.session_state.expense_data_list = []
+
     with st.form("account_form"):
         ac_col1, ac_col2 = st.columns(2)
         with ac_col1:
             acc_date = st.date_input("거래 일자", value=date.today())
             acc_type = st.selectbox("입출금 구분", ["수입 (+)", "지출 (-)"], index=1)
         with ac_col2:
-            acc_category = st.selectbox(
-                "비용/수입 항목", EXPENSE_CATEGORIES + INCOME_CATEGORIES
-            )
+            # 항목 리스트가 없을 경우를 대비한 기본값 설정
+            cat_list = EXPENSE_CATEGORIES + INCOME_CATEGORIES if 'EXPENSE_CATEGORIES' in globals() and 'INCOME_CATEGORIES' in globals() else ["비용", "수입"]
+            acc_category = st.selectbox("비용/수입 항목", cat_list)
             acc_amount = st.number_input("금액 (원)", value=50000, step=1000)
 
         acc_desc = st.text_input("적요 및 메모", value="장부 메모")
 
         if st.form_submit_button("📥 장부 내역 등록하기", type="primary"):
-            if "expense_data_list" not in st.session_state:
-                st.session_state.expense_data_list = []
+            # 작성자 이름 기본값 처리
+            writer_name = current_user_name if 'current_user_name' in globals() else "관리자"
             
             st.session_state.expense_data_list.append({
                 "날짜": str(acc_date),
@@ -3052,14 +3056,14 @@ elif selected_menu == "📋 일계표 및 입출금 장부":
                 "항목": acc_category,
                 "금액": acc_amount,
                 "적요": acc_desc,
-                "작성자": current_user_name,
+                "작성자": writer_name,
             })
-            save_expense_data(st.session_state.expense_data_list)
             st.success("입출금 장부에 등록되었습니다!")
             st.rerun()
 
-    # 안전하게 세션 키 존재 여부와 데이터를 함께 체크
-    if "expense_data_list" in st.session_state and st.session_state.expense_data_list:
+    # 장부 데이터가 있을 때만 화면에 표와 엑셀 다운로드 버튼 표시
+    if st.session_state.expense_data_list:
+        st.markdown("#### 📊 등록된 장부 내역")
         st.dataframe(
             pd.DataFrame(st.session_state.expense_data_list),
             use_container_width=True,
@@ -3078,6 +3082,8 @@ elif selected_menu == "📋 일계표 및 입출금 장부":
             file_name=f"범운해운항공_일계표_{datetime.today().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+    else:
+        st.info("💡 등록된 일계표 내역이 없습니다. 위 양식을 통해 장부를 등록해 주세요.")
 # ==========================================
 # [12] 업무용 일지
 # ==========================================
