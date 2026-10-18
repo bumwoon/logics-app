@@ -3029,7 +3029,7 @@ elif selected_menu == "📋 일계표 및 입출금 장부":
         unsafe_allow_html=True,
     )
 
-    # 세션 상태 초기화 (메모리 방 만들기)
+    # 세션 상태 메모리 초기화
     if "expense_data_list" not in st.session_state:
         st.session_state.expense_data_list = []
 
@@ -3039,29 +3039,24 @@ elif selected_menu == "📋 일계표 및 입출금 장부":
             acc_date = st.date_input("거래 일자", value=date.today())
             acc_type = st.selectbox("입출금 구분", ["수입 (+)", "지출 (-)"], index=1)
         with ac_col2:
-            # 항목 리스트가 없을 경우를 대비한 기본값 설정
-            cat_list = EXPENSE_CATEGORIES + INCOME_CATEGORIES if 'EXPENSE_CATEGORIES' in globals() and 'INCOME_CATEGORIES' in globals() else ["비용", "수입"]
-            acc_category = st.selectbox("비용/수입 항목", cat_list)
+            acc_category = st.selectbox("비용/수입 항목", ["운송료", "통관비", "보관료", "하역료", "기타비용", "기타수입"])
             acc_amount = st.number_input("금액 (원)", value=50000, step=1000)
 
         acc_desc = st.text_input("적요 및 메모", value="장부 메모")
 
         if st.form_submit_button("📥 장부 내역 등록하기", type="primary"):
-            # 작성자 이름 기본값 처리
-            writer_name = current_user_name if 'current_user_name' in globals() else "관리자"
-            
             st.session_state.expense_data_list.append({
                 "날짜": str(acc_date),
                 "구분": acc_type,
                 "항목": acc_category,
                 "금액": acc_amount,
                 "적요": acc_desc,
-                "작성자": writer_name,
+                "작성자": "관리자",
             })
             st.success("입출금 장부에 등록되었습니다!")
             st.rerun()
 
-    # 장부 데이터가 있을 때만 화면에 표와 엑셀 다운로드 버튼 표시
+    # 등록된 데이터가 있을 때만 화면에 표와 다운로드 버튼 표시
     if st.session_state.expense_data_list:
         st.markdown("#### 📊 등록된 장부 내역")
         st.dataframe(
