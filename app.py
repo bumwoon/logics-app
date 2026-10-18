@@ -1667,30 +1667,69 @@ if selected_menu == "📊 수출입 B/L 등록":
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
+    
     if st.session_state.bl_data_list:
         df_bl = pd.DataFrame(st.session_state.bl_data_list)
+        
+        # '선택' 체크박스 열이 없으면 맨 앞에 추가
         if "선택" not in df_bl.columns:
             df_bl.insert(0, "선택", False)
+            
+        # 숫자 컬럼들이 텍스트로 인식되어 수정이 안 되는 현상을 막기 위해 강제 숫자형 변환
+        for num_col in ["매출액(원)", "매입액(원)", "예상Profit(원)", "매출청구중량(kg)", "매입청구중량(kg)"]:
+            if num_col in df_bl.columns:
+                df_bl[num_col] = pd.to_numeric(df_bl[num_col], errors="coerce").fillna(0)
+
+        st.info("💡 표 안의 내용을 마우스로 직접 클릭해서 수정하신 후, 아래의 [수정된 B/L 내용 저장] 버튼을 꼭 눌러주세요.")
         
+        # 각 컬럼별 편집 설정 (텍스트, 숫자, 체크박스 명시)
+        col_config = {
+            "선택": st.column_config.CheckboxColumn(required=True),
+            "Job 번호": st.column_config.TextColumn("Job 번호"),
+            "B/L 번호": st.column_config.TextColumn("B/L 번호"),
+            "국가": st.column_config.TextColumn("국가"),
+            "화주명(매출)": st.column_config.TextColumn("화주명(매출)"),
+            "해외수하인": st.column_config.TextColumn("해외수하인"),
+            "매입처": st.column_config.TextColumn("매입처"),
+            "품목": st.column_config.TextColumn("품목"),
+            "매출액(원)": st.column_config.NumberColumn("매출액(원)", format="%d 원"),
+            "매입액(원)": st.column_config.NumberColumn("매입액(원)", format="%d 원"),
+            "예상Profit(원)": st.column_config.NumberColumn("예상Profit(원)", format="%d 원"),
+        }
+
         edited_bl_table = st.data_editor(
             df_bl,
             hide_index=True,
             use_container_width=True,
-            column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-            key="edit_bl_profit_table"
+            column_config=col_config,
+            key="edit_bl_profit_table_v2",
+            height=450
         )
         
         col_e1, col_e2 = st.columns(2)
         with col_e1:
             if st.button("💾 수정된 B/L 내용 저장", type="primary", use_container_width=True):
-                updated_records = edited_bl_table.drop(columns=["선택"]).to_dict("records")
+                updated_records = edited_bl_table.drop(columns=["선택"], errors="ignore").to_dict("records")
                 for r in updated_records:
-                    r["예상Profit(원)"] = int(r.get("매출액(원)", 0)) - int(r.get("매입액(원)", 0))
+                    try:
+                        sales_v = float(r.get("매출액(원)", 0))
+                    except:
+                        sales_v = 0.0
+                    try:
+                        purchase_v = float(r.get("매입액(원)", 0))
+                    except:
+                        purchase_v = 0.0
+                        
+                    r["매출액(원)"] = sales_v
+                    r["매입액(원)"] = purchase_v
+                    r["예상Profit(원)"] = sales_v - purchase_v
                     r["최종수정자"] = current_user_name
+                    
                 st.session_state.bl_data_list = updated_records
                 save_bl_data(st.session_state.bl_data_list)
-                st.success("B/L 수정 내역이 성공적으로 저장되었습니다!")
+                st.success("✅ B/L 수정 내역이 성공적으로 저장되었습니다!")
                 st.rerun()
+                
         with col_e2:
             if st.button("🚨 선택한 B/L 삭제", type="secondary", use_container_width=True):
                 selected_rows = edited_bl_table[edited_bl_table["선택"] == True]
@@ -1700,12 +1739,12 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         item for idx, item in enumerate(st.session_state.bl_data_list) if idx not in indices_to_drop
                     ]
                     save_bl_data(st.session_state.bl_data_list)
-                    st.success("선택한 B/L 내역이 삭제되었습니다.")
+                    st.success("🗑️ 선택한 B/L 내역이 삭제되었습니다.")
                     st.rerun()
                 else:
-                    st.warning("삭제할 B/L 행의 체크박스를 선택해주세요.")
+                    st.warning("⚠️ 삭제할 B/L 행의 체크박스를 선택해주세요.")
     else:
-        st.info("등록된 B/L 데이터가 없습니다.")                
+        st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
 # [새로운 독립 트랙] 매출 관리 (화주별)
 # ==========================================
