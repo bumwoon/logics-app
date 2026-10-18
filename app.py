@@ -3020,61 +3020,63 @@ elif selected_menu == "💵 거래처 미수금관리":
         st.warning("수금완료 처리할 B/L 행의 체크박스를 선택해주세요.")
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
-# ==========================================
+# ----------------------------------------------------
 # [11] 일계표 및 입출금 장부
-# ==========================================
-elif selected_menu == "💳 일계표 및 입출금 장부":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>💳"
-      " 일계표 및 입출금 장부 (회계 관리)</h3>",
-      unsafe_allow_html=True,
-  )
-
-  with st.form("account_form"):
-    ac_col1, ac_col2 = st.columns(2)
-    with ac_col1:
-      acc_date = st.date_input("거래 일자", value=date.today())
-      acc_type = st.selectbox("입출금 구분", ["수입 (+)", "지출 (-)"], index=1)
-    with ac_col2:
-      acc_category = st.selectbox(
-          "비용/수입 항목", EXPENSE_CATEGORIES + INCOME_CATEGORIES
-      )
-      acc_amount = st.number_input("금액 (원)", value=50000, step=1000)
-
-    acc_desc = st.text_input("적요 및 메모", value="장부 메모")
-
-    if st.form_submit_button("💾 장부 내역 등록하기", type="primary"):
-      st.session_state.expense_data_list.append({
-          "날짜": str(acc_date),
-          "구분": acc_type,
-          "항목": acc_category,
-          "금액(원)": int(acc_amount),
-          "적요": acc_desc,
-          "작성자": current_user_name,
-      })
-      save_expense_data(st.session_state.expense_data_list)
-      st.success("입출금 장부에 등록되었습니다!")
-      st.rerun()
-
-  if st.session_state.expense_data_list:
-    st.dataframe(
-        pd.DataFrame(st.session_state.expense_data_list),
-        use_container_width=True,
+# ----------------------------------------------------
+elif selected_menu == "📋 일계표 및 입출금 장부":
+    st.markdown(
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 일계표 및 입출금 장부 (회계 관리)</h3>",
+        unsafe_allow_html=True,
     )
-    # 📥 일계표 전용 엑셀 다운로드 버튼
-    import io
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        pd.DataFrame(st.session_state.expense_data_list).to_excel(writer, index=False, sheet_name='Expense_Data')
-    excel_data = output.getvalue()
-    
+
+    with st.form("account_form"):
+        ac_col1, ac_col2 = st.columns(2)
+        with ac_col1:
+            acc_date = st.date_input("거래 일자", value=date.today())
+            acc_type = st.selectbox("입출금 구분", ["수입 (+)", "지출 (-)"], index=1)
+        with ac_col2:
+            acc_category = st.selectbox(
+                "비용/수입 항목", EXPENSE_CATEGORIES + INCOME_CATEGORIES
+            )
+            acc_amount = st.number_input("금액 (원)", value=50000, step=1000)
+
+        acc_desc = st.text_input("적요 및 메모", value="장부 메모")
+
+        if st.form_submit_button("📥 장부 내역 등록하기", type="primary"):
+            if "expense_data_list" not in st.session_state:
+                st.session_state.expense_data_list = []
+            
+            st.session_state.expense_data_list.append({
+                "날짜": str(acc_date),
+                "구분": acc_type,
+                "항목": acc_category,
+                "금액": acc_amount,
+                "적요": acc_desc,
+                "작성자": current_user_name,
+            })
+            save_expense_data(st.session_state.expense_data_list)
+            st.success("입출금 장부에 등록되었습니다!")
+            st.rerun()
+
+    if st.session_state.expense_data_list:
+        st.dataframe(
+            pd.DataFrame(st.session_state.expense_data_list),
+            use_container_width=True,
+        )
+        
+        # 📥 일계표 전용 엑셀 다운로드 버튼
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            pd.DataFrame(st.session_state.expense_data_list).to_excel(writer, index=False, sheet_name='Expense_Data')
+        excel_data = output.getvalue()
+        
         st.download_button(
             label="📥 현재 일계표 내역 엑셀 다운로드 (.xlsx)",
             data=excel_data,
             file_name=f"범운해운항공_일계표_{datetime.today().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )        
-
+        )
 # ==========================================
 # [12] 업무용 일지
 # ==========================================
