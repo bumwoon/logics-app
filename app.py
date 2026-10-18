@@ -9,7 +9,55 @@ import streamlit as st
 import streamlit.components.v1 as components
 import json
 import glob
+import os
+import shutil
 
+
+def simple_dual_backup():
+    """복잡한 인증 없이 내 컴퓨터와 구글 드라이브 양쪽에 최신 백업 파일을 동시에 자동 저장하는 이중 백업 함수"""
+    file_name = "범운해운항공_전체데이터_통합백업.xlsx"
+
+    try:
+        # 1. B/L 및 경비 데이터를 엑셀 파일로 생성
+        with pd.ExcelWriter(file_name, engine="openpyxl") as writer:
+            if st.session_state.get("bl_data_list"):
+                pd.DataFrame(st.session_state.bl_data_list).to_excel(
+                    writer, sheet_name="B_L데이터", index=False
+                )
+            if st.session_state.get("expense_list"):
+                pd.DataFrame(st.session_state.expense_list).to_excel(
+                    writer, sheet_name="지출내역", index=False
+                )
+
+        # 2. 내 컴퓨터의 구글 드라이브 동기화 폴더 탐색 및 복사
+        user_home = os.path.expanduser("~")
+        possible_gdrive_paths = [
+            os.path.join(user_home, "Google Drive"),
+            os.path.join(user_home, "GoogleDrive"),
+            os.path.join(user_home, "My Drive"),
+            "G:\\My Drive",
+            "G:\\내 드라이브",
+            "C:\\GoogleDrive",
+        ]
+
+        backup_copied = False
+        for gpath in possible_gdrive_paths:
+            if os.path.exists(gpath):
+                shutil.copy(file_name, os.path.join(gpath, file_name))
+                backup_copied = True
+                break
+
+        if backup_copied:
+            st.success(
+                "🎉 [성공] 내 컴퓨터와 구글 드라이브(클라우드) 두 곳 모두에 최신 백업이 완료되었습니다!"
+            )
+        else:
+            st.success(
+                "💾 [성공] 내 컴퓨터 폴더에 백업 파일이 안전하게 저장되었습니다!"
+            )
+
+    except Exception as e:
+        st.error(f"백업 저장 중 오류 발생: {e}")
 # ==========================================
 # 🔄 깃허브 백업 엑셀 파일 자동 복원 로직 (개선판)
 # ==========================================
