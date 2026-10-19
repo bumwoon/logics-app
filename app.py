@@ -2543,15 +2543,41 @@ elif selected_menu == "📋 금일발송 매니페스트":
         "예상Profit(원)": "프로핏"
     })
 
-    # CSV 다운로드
-    csv_bytes = manifest_print_df.to_csv(index=False).encode("utf-8-sig")
-    st.download_button(
-        "📥 매니페스트 엑셀용 CSV 다운로드 (부피 포함)",
-        data=csv_bytes,
-        file_name=f"범운해운항공_매니페스트_{target_date_str}.csv",
-        mime="text/csv",
-        key="manifest_csv_download",
-    )
+    # CSV 및 매입처 전송용 입고리스트 다운로드 버튼 배치
+    col_dl1, col_dl2 = st.columns(2)
+    with col_dl1:
+        csv_bytes = manifest_print_df.to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            "📥 전체 매니페스트 엑셀 다운로드 (CSV)",
+            data=csv_bytes,
+            file_name=f"범운해운항공_매니페스트_{target_date_str}.csv",
+            mime="text/csv",
+            key="manifest_csv_download",
+            use_container_width=True
+        )
+    with col_dl2:
+        # 매입처 전송용 입고 리스트 전용 DataFrame 생성 (NO, B/L번호, 실중량, 부피규격, 수하인, 주소, 전화번호)
+        vendor_rows = []
+        for idx_v, r_v in enumerate(date_shipments, start=1):
+            vendor_rows.append({
+                "NO": idx_v,
+                "B/L 번호": r_v.get("B/L 번호", "-"),
+                "실중량(kg)": r_v.get("매출청구중량(kg)", r_v.get("매입청구중량(kg)", "-")),
+                "부피규격(사이즈)": r_v.get("부피규격", "-"),
+                "수하인": r_v.get("해외수하인", "-"),
+                "수하인 주소": r_v.get("해외수하인주소", "-"),
+                "수하인 전화번호": r_v.get("해외수하인전화번호", "-"),
+            })
+        vendor_df = pd.DataFrame(vendor_rows)
+        vendor_csv_bytes = vendor_df.to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            "📦 [매입처 전송용] 입고 리스트 엑셀 다운로드 (NO, 중량, 부피, 주소, 전화번호)",
+            data=vendor_csv_bytes,
+            file_name=f"범운해운항공_매입처_입고리스트_{target_date_str}.csv",
+            mime="text/csv",
+            key="vendor_inbound_list_download",
+            use_container_width=True
+        )
 
     # 3. HTML 인쇄용 테이블 생성 (하단 TOTAL 합계 행 포함)
     import html as _html
