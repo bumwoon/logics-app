@@ -1719,7 +1719,6 @@ if selected_menu == "📊 수출입 B/L 등록":
                 st.warning(
                     "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
                 )
-
 # ==========================================
 # [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
@@ -1738,7 +1737,12 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
             df_bl,
             hide_index=True,
             use_container_width=True,
-            column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+            column_config={
+                "선택": st.column_config.CheckboxColumn(required=True),
+                "실중량(kg)": st.column_config.NumberColumn("실중량(kg)", format="%.2f"),
+                "매출실중량(kg)": st.column_config.NumberColumn("매출실중량(kg)", format="%.2f"),
+                "매입실중량(kg)": st.column_config.NumberColumn("매입실중량(kg)", format="%.2f"),
+            },
             key="edit_bl_profit_table_select",
             height=300
         )
@@ -1795,7 +1799,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
                 
                 st.markdown("---")
-                st.markdown("#### 📦 중량(실중량/청구중량), 규격 및 금액 상세 수정")
+                st.markdown("#### 📦 중량(실중량 소수점 유지 / 청구중량), 규격 및 금액 상세 수정")
                 
                 w_col1, w_col2, w_col3, w_col4 = st.columns(4)
                 with w_col1:
@@ -2499,7 +2503,6 @@ elif selected_menu == "🤝 거래처 미팅 노트":
         key="meeting_table_edit",
     )
 
-
 # ==========================================
 # [7] 금일발송 매니페스트
 # ==========================================
@@ -2524,21 +2527,18 @@ elif selected_menu == "📋 금일발송 매니페스트":
     if date_shipments:
         manifest_df = pd.DataFrame(date_shipments)
         
-        # --- 💡 실중량 컬럼이 데이터에 없을 경우 안전하게 추가 ---
         if "실중량(kg)" not in manifest_df.columns:
             if "매출실중량(kg)" in manifest_df.columns:
                 manifest_df["실중량(kg)"] = manifest_df["매출실중량(kg)"]
             else:
                 manifest_df["실중량(kg)"] = manifest_df.get("매출청구중량(kg)", 1.0)
                 
-        # 화면에 보기 좋게 컬럼 순서 재배치 (실중량이 청구중량 앞에 오도록 배치)
         base_cols = ["구분", "날짜", "Job 번호", "B/L 번호", "국가", "화주명(매출)", "해외수하인", "품목", "박스수", "부피규격", "실중량(kg)", "매출청구중량(kg)", "매입청구중량(kg)"]
         existing_cols = [c for c in base_cols if c in manifest_df.columns]
         other_cols = [c for c in manifest_df.columns if c not in existing_cols and c != "선택"]
         
         manifest_display_df = manifest_df[existing_cols + other_cols]
 
-        # 1. 화면 전체 컬럼 출력 (실중량 소수점 그대로 표기)
         st.dataframe(
             manifest_display_df,
             use_container_width=True,
@@ -2555,7 +2555,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
             },
         )
 
-        # 2. 다운로드용 버튼 영역
         col_dl1, col_dl2 = st.columns(2)
         
         with col_dl1:
@@ -2570,7 +2569,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
             )
             
         with col_dl2:
-            # 매입처 전송용 입고 LIST 전용 openpyxl 엑셀 생성
             vendor_rows = []
             for idx_v, r_v in enumerate(date_shipments, start=1):
                 gw_val = r_v.get("실중량(kg)", r_v.get("매출실중량(kg)", ""))
@@ -2578,7 +2576,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     gw_val = r_v.get("매출청구중량(kg)", "-")
                 
                 try:
-                    # 반올림하지 않고 소수점이 있으면 소수점 그대로, 정수면 정수로 세팅
                     if float(gw_val) != int(float(gw_val)):
                         gw_val = float(gw_val)
                     else:
@@ -2598,7 +2595,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 })
             vendor_df = pd.DataFrame(vendor_rows)
 
-            # openpyxl을 사용한 A4 양식 맞춤 엑셀 파일 생성
             excel_buffer = io.BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
                 vendor_df.to_excel(writer, index=False, sheet_name='입고 LIST', startrow=2)
