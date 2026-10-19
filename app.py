@@ -3350,18 +3350,58 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         if "선택" not in df_cash.columns:
             df_cash.insert(0, "선택", False)
 
+        # 수정 가능한 표: 체크박스 열만 잠그고 나머지 장부 항목은 직접 편집할 수 있게 합니다.
+        # 위젯 키를 새로 지정해 이전 버전의 표 상태가 남아 편집이 막히는 문제를 피합니다.
+        cash_column_config = {
+            "선택": st.column_config.CheckboxColumn(
+                "삭제 선택", help="삭제할 행만 체크하세요.", default=False
+            ),
+            "날짜": st.column_config.TextColumn("거래일자", help="예: 2026-10-19"),
+            "구분": st.column_config.SelectboxColumn(
+                "입출금 구분", options=["지출 (-)", "수입 (+)", "지출", "수입"]
+            ),
+            "항목": st.column_config.TextColumn("비용/수입 항목"),
+            "금액(원)": st.column_config.NumberColumn(
+                "금액(원)", min_value=0, step=1000, format="%d"
+            ),
+            "적요": st.column_config.TextColumn("적요 및 메모", width="large"),
+        }
         edited_cash_table = st.data_editor(
             df_cash,
             hide_index=True,
             use_container_width=True,
-            column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-            key="cashbook_table_editor",
-            height=300,
+            column_config=cash_column_config,
+            disabled=["선택"],
+            num_rows="fixed",
+            key="cashbook_table_editor_v2",
+            height=360,
         )
+        st.caption("✏️ 수정할 셀을 클릭해 내용을 바꾼 뒤, 아래의 ‘수정 내용 저장’을 눌러 저장하세요.")
 
+        # 표에서 수정한 값은 저장 버튼을 눌러야 실제 장부 파일에 반영됩니다.
         c_btn1, c_btn2 = st.columns(2)
         with c_btn1:
-            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True):
+            if st.button("💾 수정 내용 저장", type="primary", use_container_width=True, key="save_cashbook_edits"):
+                try:
+                    saved_df = edited_cash_table.drop(columns=["선택"], errors="ignore").copy()
+                    saved_records = saved_df.fillna("").to_dict(orient="records")
+                    # 금액은 합계 계산이 가능하도록 숫자로 정규화합니다.
+                    for row in saved_records:
+                        raw_amount = str(row.get("금액(원)", 0)).replace(",", "").replace("원", "").strip()
+                        try:
+                            row["금액(원)"] = float(raw_amount or 0)
+                            if row["금액(원)"].is_integer():
+                                row["금액(원)"] = int(row["금액(원)"])
+                        except (TypeError, ValueError):
+                            raise ValueError("금액(원) 열에는 숫자만 입력해 주세요.")
+                    st.session_state.cashbook_list = saved_records
+                    save_account_data(saved_records)
+                    st.success("일계표 수정 내용이 저장되었습니다.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"수정 내용을 저장하지 못했습니다: {e}")
+        with c_btn2:
+            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True, key="delete_cashbook_rows"):
                 selected_del = edited_cash_table[edited_cash_table["선택"] == True]
                 if not selected_del.empty:
                     indices_to_drop = selected_del.index.tolist()
