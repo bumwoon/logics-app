@@ -1473,7 +1473,7 @@ st.markdown(header_html, unsafe_allow_html=True)
 # ==========================================
 # [1] 수출입 B/L 등록
 # ==========================================
-elif selected_menu == "📊 수출입 B/L 등록":
+if selected_menu == "📊 수출입 B/L 등록":
     st.markdown(
         "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 수출입 B/L 및 Profit 등록 관리</h3>",
         unsafe_allow_html=True,
@@ -1696,9 +1696,9 @@ elif selected_menu == "📊 수출입 B/L 등록":
                     "품목": item_desc,
                     "박스수": piece_count,
                     "부피규격": volume_dim,
-                    "실중량(kg)": float(gross_weight_sales),          # 👈 실중량 저장 추가
-                    "매출실중량(kg)": float(gross_weight_sales),    # 👈 매출 실중량 저장 추가
-                    "매입실중량(kg)": float(gross_weight_purchase), # 👈 매입 실중량 저장 추가
+                    "실중량(kg)": float(gross_weight_sales),
+                    "매출실중량(kg)": float(gross_weight_sales),
+                    "매입실중량(kg)": float(gross_weight_purchase),
                     "매출청구중량(kg)": sales_chargeable_weight,
                     "매입청구중량(kg)": purchase_chargeable_weight,
                     "CBM": f"{total_cbm:.3f} CBM",
