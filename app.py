@@ -2534,6 +2534,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
             gw_val = r_v.get("매출실중량(kg)", r_v.get("실중량(kg)", r_v.get("매출청구중량(kg)", "-")))
             vendor_rows.append({
                 "NO": idx_v,
+                "입고날짜": str(r_v.get("날짜", target_date_str))[:10],
                 "B/L 번호": r_v.get("B/L 번호", "-"),
                 "실중량(kg)": gw_val,
                 "부피규격(사이즈)": r_v.get("부피규격", "-"),
@@ -2599,11 +2600,8 @@ elif selected_menu == "📋 금일발송 매니페스트":
             key="vendor_inbound_excel_download",
             use_container_width=True
         )
-
-    # 3. HTML 인쇄용 테이블
-    import html as _html
-    # (이하 기존 HTML 인쇄 로직 동일)
-
+  else:
+    st.info("선택하신 날짜로 등록된 선적 B/L 내역이 없습니다.")
 # ==========================================
 # [8] 매출 거래처(화주) 관리 (메인 메뉴 독립)
 # ==========================================
