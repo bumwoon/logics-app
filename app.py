@@ -3250,22 +3250,140 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         unsafe_allow_html=True,
     )
 
-    # 세션 데이터 초기화 및 백업파일 자동 연동 안전장치
+    # 장부는 account_ledger_data.csv에 저장해 앱 재실행 후에도 유지합니다.
+    CASHBOOK_COLUMNS = ["날짜", "구분", "항목", "금액(원)", "적요"]
+
+    def _cashbook_load():
+        if not os.path.exists(ACCOUNT_FILE):
+            return []
+        try:
+            df = pd.read_csv(ACCOUNT_FILE, encoding="utf-8-sig")
+            if df.empty:
+                return []
+            for col in CASHBOOK_COLUMNS:
+                if col not in df.columns:
+                    df[col] = "-" if col in ("항목", "적요") else (0 if col == "금액(원)" else "")
+            df = df[CASHBOOK_COLUMNS].fillna("")
+            df["금액(원)"] = pd.to_numeric(
+                df["금액(원)"].astype(str).str.replace(",", "", regex=False).str.replace("원", "", regex=False).str.strip(),
+                errors="coerce",
+            ).fillna(0)
+            return df.to_dict("records")
+        except Exception as exc:
+            st.warning(f"기존 일계표 파일을 읽지 못했습니다: {exc}")
+            return []
+
+    def _cashbook_save(rows):
+        # 빈 장부도 헤더를 유지해 파일 구조가 일관되게 저장되도록 합니다.
+        pd.DataFrame(rows, columns=CASHBOOK_COLUMNS).to_csv(
+            ACCOUNT_FILE, index=False, encoding="utf-8-sig"
+        )
+
     if "cashbook_list" not in st.session_state:
-        st.session_state.cashbook_list = []
+        st.session_state.cashbook_list = _cashbook_load()
+
+    # --- 1. 장부 파일 업로드 ---
+    st.markdown("#### 📤 일계표 엑셀/CSV 업로드")
+    st.caption(".xlsx, .xls 또는 .csv 파일을 올리면 기존 장부를 지우지 않고 새 내역만 추가합니다.")
+    uploaded_cashbook = st.file_uploader(
+        "일계표 파일 선택", type=["xlsx", "xls", "csv"], key="cashbook_upload_file"
+    )
+    if uploaded_cashbook is not None:
+        if st.button("📥 업로드 자료 장부에 반영", type="primary", key="cashbook_import_button"):
+            try:
+                if uploaded_cashbook.name.lower().endswith(".csv"):
+                    try:
+                        import_df = pd.read_csv(uploaded_cashbook, encoding="utf-8-sig")
+                    except UnicodeDecodeError:
+                        uploaded_cashbook.seek(0)
+                        import_df = pd.read_csv(uploaded_cashbook, encoding="cp949")
+                else:
+                    import_df = pd.read_excel(uploaded_cashbook)
+
+                # 흔히 쓰이는 일계표 열 이름을 표준 장부 열 이름으로 맞춥니다.
+                aliases = {
+                    "날짜": ["날짜", "거래일자", "일자", "거래 날짜", "거래일"],
+                    "구분": ["구분", "입출금구분", "입출금 구분", "수입/지출", "유형", "거래구분"],
+                    "항목": ["항목", "계정과목", "비용항목", "수입항목", "분류", "내역구분"],
+                    "금액(원)": ["금액(원)", "금액", "거래금액", "금액 원", "금액(￦)"],
+                    "적요": ["적요", "메모", "내용", "비고", "거래내용", "상세내역"],
+                }
+                normalized_columns = {}
+                for col in import_df.columns:
+                    clean_col = str(col).strip()
+                    for target, names in aliases.items():
+                        if clean_col in names:
+                            normalized_columns[col] = target
+                            break
+                import_df = import_df.rename(columns=normalized_columns)
+
+                # 입금액/출금액 형태의 파일도 지원합니다.
+                if "금액(원)" not in import_df.columns:
+                    if "입금액" in import_df.columns or "출금액" in import_df.columns:
+                        deposits = pd.to_numeric(import_df.get("입금액", 0).astype(str).str.replace(",", "", regex=False), errors="coerce").fillna(0) if isinstance(import_df.get("입금액", 0), pd.Series) else 0
+                        withdrawals = pd.to_numeric(import_df.get("출금액", 0).astype(str).str.replace(",", "", regex=False), errors="coerce").fillna(0) if isinstance(import_df.get("출금액", 0), pd.Series) else 0
+                        import_df["금액(원)"] = deposits.where(deposits > 0, withdrawals) if isinstance(deposits, pd.Series) else withdrawals
+                        if "구분" not in import_df.columns:
+                            import_df["구분"] = ["수입 (+)" if float(v or 0) > 0 else "지출 (-)" for v in (deposits if isinstance(deposits, pd.Series) else [0] * len(import_df))]
+
+                missing = [c for c in ("날짜", "금액(원)") if c not in import_df.columns]
+                if missing:
+                    st.error("업로드 파일에서 필수 열을 찾지 못했습니다: " + ", ".join(missing) + ". 날짜와 금액 열이 있는지 확인해주세요.")
+                else:
+                    if "구분" not in import_df.columns:
+                        import_df["구분"] = "수입 (+)"
+                    if "항목" not in import_df.columns:
+                        import_df["항목"] = "기타"
+                    if "적요" not in import_df.columns:
+                        import_df["적요"] = "-"
+                    import_df = import_df[CASHBOOK_COLUMNS].copy()
+                    import_df["날짜"] = pd.to_datetime(import_df["날짜"], errors="coerce").dt.strftime("%Y-%m-%d")
+                    import_df["금액(원)"] = pd.to_numeric(
+                        import_df["금액(원)"].astype(str).str.replace(",", "", regex=False).str.replace("원", "", regex=False).str.strip(),
+                        errors="coerce",
+                    )
+                    import_df = import_df.dropna(subset=["날짜", "금액(원)"])
+                    import_df = import_df[import_df["금액(원)"] > 0]
+                    import_df["금액(원)"] = import_df["금액(원)"].astype(int)
+                    for col in ("구분", "항목", "적요"):
+                        import_df[col] = import_df[col].fillna("-").astype(str).str.strip().replace("", "-")
+                    if import_df.empty:
+                        st.warning("가져올 수 있는 유효한 내역이 없습니다. 날짜와 금액 형식을 확인해주세요.")
+                    else:
+                        current = st.session_state.cashbook_list
+                        seen = {tuple(str(row.get(c, "")) for c in CASHBOOK_COLUMNS) for row in current}
+                        added = []
+                        for row in import_df.to_dict("records"):
+                            signature = tuple(str(row.get(c, "")) for c in CASHBOOK_COLUMNS)
+                            if signature not in seen:
+                                added.append(row)
+                                seen.add(signature)
+                        if added:
+                            st.session_state.cashbook_list.extend(added)
+                            _cashbook_save(st.session_state.cashbook_list)
+                            st.success(f"업로드 완료: {len(added)}건을 추가했습니다. 기존 장부는 유지했습니다.")
+                            st.rerun()
+                        else:
+                            st.info("업로드 자료가 기존 장부와 같아 새로 추가된 내역이 없습니다.")
+            except Exception as exc:
+                st.error(f"파일을 읽거나 반영하는 중 오류가 발생했습니다: {exc}")
 
     cashbook_data = st.session_state.cashbook_list
 
-    # --- 1. 💡 상단: 통장 잔액 및 수입/지출 총액 자동 계산 요약 카드 ---
+    # --- 2. 상단: 수입/지출 요약 ---
+    def _cashbook_amount(item):
+        try:
+            return float(str(item.get("금액(원)", 0)).replace(",", "").replace("원", "").strip() or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
     total_income = sum(
-        float(item.get("금액(원)", 0))
-        for item in cashbook_data
-        if "수입" in str(item.get("구분", ""))
+        _cashbook_amount(item) for item in cashbook_data
+        if "수입" in str(item.get("구분", "")) or "입금" in str(item.get("구분", ""))
     )
     total_expense = sum(
-        float(item.get("금액(원)", 0))
-        for item in cashbook_data
-        if "지출" in str(item.get("구분", ""))
+        _cashbook_amount(item) for item in cashbook_data
+        if "지출" in str(item.get("구분", "")) or "출금" in str(item.get("구분", ""))
     )
     current_balance = total_income - total_expense
 
@@ -3278,85 +3396,66 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         st.metric(label="💰 현재 통장 잔액 (자동계산)", value=f"{int(current_balance):,} 원")
 
     st.markdown("---")
-
-    # --- 2. 💡 중단: 등록된 장부 내역 (잔액 및 최근 지출/수입 우선 확인) ---
     st.markdown("#### 📋 등록된 장부 내역 (잔액 및 최근 지출/수입 확인)")
 
     if cashbook_data:
         df_cash = pd.DataFrame(cashbook_data)
-        if "선택" not in df_cash.columns:
-            df_cash.insert(0, "선택", False)
-
+        for col in CASHBOOK_COLUMNS:
+            if col not in df_cash.columns:
+                df_cash[col] = "-" if col in ("항목", "적요") else (0 if col == "금액(원)" else "")
+        df_cash = df_cash[CASHBOOK_COLUMNS]
+        df_cash.insert(0, "선택", False)
         edited_cash_table = st.data_editor(
-            df_cash,
-            hide_index=True,
-            use_container_width=True,
+            df_cash, hide_index=True, use_container_width=True,
             column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-            key="cashbook_table_editor",
-            height=300,
+            key="cashbook_table_editor", height=300,
         )
-
         c_btn1, c_btn2 = st.columns(2)
         with c_btn1:
-            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True):
+            if st.button("💾 장부 수정 내용 저장", use_container_width=True, key="cashbook_save_edits"):
+                edited_records = edited_cash_table.drop(columns=["선택"], errors="ignore")[CASHBOOK_COLUMNS].to_dict("records")
+                st.session_state.cashbook_list = edited_records
+                _cashbook_save(edited_records)
+                st.success("장부 수정 내용을 저장했습니다.")
+                st.rerun()
+        with c_btn2:
+            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True, key="cashbook_delete_selected"):
                 selected_del = edited_cash_table[edited_cash_table["선택"] == True]
                 if not selected_del.empty:
-                    indices_to_drop = selected_del.index.tolist()
-                    st.session_state.cashbook_list = [
-                        item
-                        for idx, item in enumerate(st.session_state.cashbook_list)
-                        if idx not in indices_to_drop
-                    ]
-                    st.success("🗑️ 선택한 장부 내역이 삭제되었습니다.")
+                    indices_to_drop = set(selected_del.index.tolist())
+                    st.session_state.cashbook_list = [item for idx, item in enumerate(st.session_state.cashbook_list) if idx not in indices_to_drop]
+                    _cashbook_save(st.session_state.cashbook_list)
+                    st.success("선택한 장부 내역이 삭제되었습니다.")
                     st.rerun()
                 else:
-                    st.warning("⚠️ 삭제할 행의 체크박스를 선택해주세요.")
+                    st.warning("삭제할 행의 체크박스를 선택해주세요.")
     else:
-        st.info("등록된 장부 내역이 없습니다. 아래에서 수입/지출 내역을 입력 후 등록해주시거나 백업파일을 업로드해주세요.")
+        st.info("등록된 장부 내역이 없습니다. 아래에서 직접 입력하거나 위에서 백업 파일을 업로드해주세요.")
 
     st.markdown("---")
-
-    # --- 3. 💡 하단: 새로운 수입 / 지출 등록 폼 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
-
     with st.form("cashbook_register_form"):
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
             io_gb = st.selectbox("입출금 구분", ["지출 (-)", "수입 (+)"])
         with f_col2:
-            cat_options = [
-                "접대비",
-                "주유비(차량유지비)",
-                "통신비",
-                "소모품비",
-                "기타 잡비",
-                "기타 영업수입",
-                "운송료수입",
-            ]
+            cat_options = ["접대비", "주유비(차량유지비)", "통신비", "소모품비", "기타 잡비", "기타 영업수입", "운송료수입"]
             category = st.selectbox("비용/수입 항목", cat_options)
             amount = st.number_input("금액 (원)", min_value=0, step=1000, format="%d")
-
-        memo = st.text_input(
-            "적요 및 메모", placeholder="예: 남양김태호 저녁식대 / 통장 잔액 등"
-        )
-
-        submitted_cash = st.form_submit_button(
-            "➕ 장부 내역 등록하기", type="primary", use_container_width=True
-        )
+        memo = st.text_input("적요 및 메모", placeholder="예: 거래처 식대 / 통장 잔액 등")
+        submitted_cash = st.form_submit_button("➕ 장부 내역 등록하기", type="primary", use_container_width=True)
         if submitted_cash:
             if amount > 0:
                 st.session_state.cashbook_list.append({
-                    "날짜": str(reg_date),
-                    "구분": io_gb,
-                    "항목": category,
-                    "금액(원)": int(amount),
-                    "적요": memo if memo else "-",
+                    "날짜": str(reg_date), "구분": io_gb, "항목": category,
+                    "금액(원)": int(amount), "적요": memo if memo else "-",
                 })
-                st.success("✅ 장부 내역이 등록되었습니다! 상단 잔액 카드와 목록에 즉시 계산되어 연동됩니다.")
+                _cashbook_save(st.session_state.cashbook_list)
+                st.success("장부 내역이 등록되고 파일에 저장되었습니다.")
                 st.rerun()
             else:
-                st.warning("⚠️ 금액은 0원보다 커야 합니다.")
+                st.warning("금액은 0원보다 커야 합니다.")
 # ==========================================
 # [12] 업무용 일지
 # ==========================================
