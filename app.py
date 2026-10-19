@@ -3242,9 +3242,9 @@ elif selected_menu == "💵 거래처 미수금관리":
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [일계표 및 입출금 장부] 메뉴
+# [일계표 및 입출금 장부] 메뉴 (이모지 포함 매칭)
 # ==========================================
-elif selected_menu == "일계표 및 입출금 장부":
+elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
         "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📊 일계표 및 입출금 장부</h3>",
         unsafe_allow_html=True,
@@ -3271,7 +3271,7 @@ elif selected_menu == "일계표 및 입출금 장부":
 
     st.markdown("---")
 
-    # --- 2. 💡 중단: 등록된 장부 내역 (가장 먼저 확인할 수 있도록 상단 배치) ---
+    # --- 2. 💡 중단: 등록된 장부 내역 (잔액 및 최근 지출/수입 우선 확인) ---
     st.markdown("#### 📋 등록된 장부 내역 (잔액 및 최근 지출/수입 확인)")
 
     if cashbook_data:
