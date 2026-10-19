@@ -3242,153 +3242,99 @@ elif selected_menu == "💵 거래처 미수금관리":
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [11] 일계표 및 입출금 장부
+# [일계표 및 입금출 장부] 메뉴
 # ==========================================
-elif selected_menu == "💳 일계표 및 입출금 장부":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>💳"
-      " 일계표 및 입출금 장부 (회계 관리)</h3>",
-      unsafe_allow_html=True,
-  )
-
-  with st.form("account_form"):
-    ac_col1, ac_col2 = st.columns(2)
-    with ac_col1:
-      acc_date = st.date_input("거래 일자", value=date.today())
-      acc_type = st.selectbox("입출금 구분", ["수입 (+)", "지출 (-)"], index=1)
-    with ac_col2:
-      acc_category = st.selectbox(
-          "비용/수입 항목", EXPENSE_CATEGORIES + INCOME_CATEGORIES
-      )
-      acc_amount = st.number_input("금액 (원)", value=50000, step=1000)
-
-    acc_desc = st.text_input("적요 및 메모", value="장부 메모")
-
-    if st.form_submit_button("💾 장부 내역 등록하기", type="primary"):
-      st.session_state.expense_data_list.append({
-          "날짜": str(acc_date),
-          "구분": acc_type,
-          "항목": acc_category,
-          "금액(원)": int(acc_amount),
-          "적요": acc_desc,
-          "작성자": current_user_name,
-      })
-      save_expense_data(st.session_state.expense_data_list)
-      st.success("입출금 장부에 등록되었습니다!")
-      st.rerun()
-
-  if st.session_state.expense_data_list:
-    st.markdown("#### 📊 등록된 장부 내역 (수정 및 삭제 가능)")
-    
-    df_expense = pd.DataFrame(st.session_state.expense_data_list)
-    if "선택" not in df_expense.columns:
-      df_expense.insert(0, "선택", False)
-
-    edited_expense_table = st.data_editor(
-        df_expense,
-        hide_index=True,
-        use_container_width=True,
-        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-        key="edit_expense_table"
+elif selected_menu == "일계표 및 입금출 장부":
+    st.markdown(
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📊 일계표 및 입출금 장부</h3>",
+        unsafe_allow_html=True,
     )
 
-    exp_col1, exp_col2 = st.columns(2)
-    with exp_col1:
-      if st.button("💾 수정된 장부 내용 저장", type="primary", use_container_width=True):
-        updated_records = edited_expense_table.drop(columns=["선택"]).to_dict("records")
-        for r in updated_records:
-          r["금액(원)"] = int(r.get("금액(원)", 0))
-        st.session_state.expense_data_list = updated_records
-        save_expense_data(st.session_state.expense_data_list)
-        st.success("장부 수정 내역이 성공적으로 저장되었습니다!")
-        st.rerun()
-    with exp_col2:
-      if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True):
-        selected_exp_rows = edited_expense_table[edited_expense_table["선택"] == True]
-        if not selected_exp_rows.empty:
-          indices_to_drop = selected_exp_rows.index.tolist()
-          st.session_state.expense_data_list = [
-              item for idx, item in enumerate(st.session_state.expense_data_list) if idx not in indices_to_drop
-          ]
-          save_expense_data(st.session_state.expense_data_list)
-          st.success("선택한 장부 내역이 삭제되었습니다.")
-          st.rerun()
-        else:
-          st.warning("삭제할 장부 행의 체크박스를 선택해주세요.")
+    # 데이터 초기화 안전장치
+    if "cashbook_list" not in st.session_state:
+        st.session_state.cashbook_list = []
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    cashbook_data = st.session_state.cashbook_list
 
-    # 📥 엑셀 다운로드 및 🖨️ PDF 인쇄용 HTML 다운로드 버튼 배치
-    dl_col1, dl_col2 = st.columns(2)
-    
-    with dl_col1:
-      output = io.BytesIO()
-      with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        pd.DataFrame(st.session_state.expense_data_list).to_excel(writer, index=False, sheet_name='Expense_Data')
-      excel_data = output.getvalue()
-      
-      st.download_button(
-          label="📥 엑셀 다운로드 (.xlsx)",
-          data=excel_data,
-          file_name=f"범운해운항공_일계표_{date.today()}.xlsx",
-          mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          use_container_width=True
-      )
+    # --- 1. 💡 상단: 통장 잔액 및 수입/지출 총액 자동 계산 요약 카드 ---
+    total_income = sum(float(item.get("금액(원)", 0)) for item in cashbook_data if "수입" in str(item.get("구분", "")))
+    total_expense = sum(float(item.get("금액(원)", 0)) for item in cashbook_data if "지출" in str(item.get("구분", "")))
+    current_balance = total_income - total_expense
 
-    with dl_col2:
-      # PDF 인쇄용 HTML 생성 로직
-      import html as _html
-      exp_print_df = pd.DataFrame(st.session_state.expense_data_list)
-      
-      # 합계 금액 계산
-      total_amt = pd.to_numeric(exp_print_df["금액(원)"].astype(str).str.replace(r"[^\d]", "", regex=True), errors="coerce").sum() if "금액(원)" in exp_print_df.columns else 0
+    m_col1, m_col2, m_col3 = st.columns(3)
+    with m_col1:
+        st.metric(label="📥 총 수입 금액", value=f"{int(total_income):,원}")
+    with m_col2:
+        st.metric(label="📤 총 지출 금액", value=f"{int(total_expense):,원}")
+    with m_col3:
+        st.metric(label="💰 현재 통장 잔액 (자동계산)", value=f"{int(current_balance):,원}")
 
-      table_head = "".join(f"<th>{_html.escape(str(col))}</th>" for col in exp_print_df.columns)
-      table_rows = []
-      for _, row in exp_print_df.iterrows():
-        cells = "".join(f"<td>{_html.escape('' if pd.isna(val) else str(val))}</td>" for val in row.tolist())
-        table_rows.append(f"<tr>{cells}</tr>")
+    st.markdown("---")
 
-      expense_html = f"""<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><title>일계표 및 입출금 장부 - {date.today()}</title>
-<style>
-body{{font-family:Arial,sans-serif;margin:20px;color:#111}}
-h2{{margin-bottom:4px;color:#1e3a8a}}
-p{{margin-top:0;color:#555}}
-button{{padding:10px 16px;margin:10px 0;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer}}
-table{{border-collapse:collapse;width:100%;margin-top:15px;font-size:11px}}
-th,td{{border:1px solid #777;padding:8px;text-align:left}}
-th{{background:#0f172a;color:#fff}}
-.total-row{{background:#f1f5f9;font-weight:bold}}
-@media print{{.no-print{{display:none}}@page{{size:A4 landscape;margin:10mm}}}}
-</style></head>
-<body>
-<button class="no-print" onclick="window.print()">🖨 인쇄 및 PDF로 저장</button>
-<h2>(주)범운해운항공</h2>
-<p>일계표 및 입출금 장부 내역 (기준일: {date.today()})</p>
-<table>
-  <thead><tr>{table_head}</tr></thead>
-  <tbody>
-    {''.join(table_rows)}
-    <tr class="total-row">
-      <td colspan="3" style="text-align:right;"><b>합계 금액 (TOTAL):</b></td>
-      <td colspan="{max(1, len(exp_print_df.columns)-3)}"><b>{int(total_amt):,} 원</b></td>
-    </tr>
-  </tbody>
-</table>
-</body></html>"""
+    # --- 2. 💡 중단: 등록된 장부 내역 (가장 먼저 확인할 수 있도록 상단 배치) ---
+    st.markdown("#### 📋 등록된 장부 내역 (잔액 및 최근 지출/수입 확인)")
 
-      st.download_button(
-          label="🖨️ 일계표 PDF 인쇄용 파일 다운로드",
-          data=expense_html.encode("utf-8"),
-          file_name=f"범운해운항공_일계표_{date.today()}.html",
-          mime="text/html",
-          use_container_width=True
-      )
-    
-    st.caption("💡 PDF 저장 방법: 인쇄용 파일을 다운로드하여 열신 뒤, 화면 상단의 버튼을 눌러 인쇄 창에서 대상 프린터를 **'PDF로 저장'**으로 선택하시면 됩니다.")
-  else:
-    st.info("💡 등록된 일계표 내역이 없습니다. 위 양식을 통해 장부를 등록해 주세요.")
+    if cashbook_data:
+        df_cash = pd.DataFrame(cashbook_data)
+        if "선택" not in df_cash.columns:
+            df_cash.insert(0, "선택", False)
+
+        edited_cash_table = st.data_editor(
+            df_cash,
+            hide_index=True,
+            use_container_width=True,
+            column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+            key="cashbook_table_editor",
+            height=300
+        )
+
+        c_btn1, c_btn2 = st.columns(2)
+        with c_btn1:
+            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True):
+                selected_del = edited_cash_table[edited_cash_table["선택"] == True]
+                if not selected_del.empty:
+                    indices_to_drop = selected_del.index.tolist()
+                    st.session_state.cashbook_list = [
+                        item for idx, item in enumerate(st.session_state.cashbook_list) if idx not in indices_to_drop
+                    ]
+                    st.success("🗑️ 선택한 장부 내역이 삭제되었습니다.")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ 삭제할 행의 체크박스를 선택해주세요.")
+    else:
+        st.info("등록된 장부 내역이 없습니다. 아래에서 수입/지출 내역을 등록해주세요.")
+
+    st.markdown("---")
+
+    # --- 3. 💡 하단: 새로운 수입 / 지출 등록 폼 ---
+    st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
+
+    with st.form("cashbook_register_form"):
+        f_col1, f_col2 = st.columns(2)
+        with f_col1:
+            reg_date = st.date_input("거래 일자", value=date.today())
+            io_gb = st.selectbox("입출금 구분", ["지출 (-)", "수입 (+)"])
+        with f_col2:
+            cat_options = ["접대비", "주유비(차량유지비)", "통신비", "소모품비", "기타 잡비", "기타 영업수입", "운송료수입"]
+            category = st.selectbox("비용/수입 항목", cat_options)
+            amount = st.number_input("금액 (원)", min_value=0, step=1000, format="%d")
+
+        memo = st.text_input("적요 및 메모", placeholder="예: 남양김태호 저녁식대 / 통장 잔액 등")
+
+        submitted_cash = st.form_submit_button("➕ 장부 내역 등록하기", type="primary", use_container_width=True)
+        if submitted_cash:
+            if amount > 0:
+                st.session_state.cashbook_list.append({
+                    "날짜": str(reg_date),
+                    "구분": io_gb,
+                    "항목": category,
+                    "금액(원)": int(amount),
+                    "적요": memo if memo else "-"
+                })
+                st.success("✅ 장부 내역이 성공적으로 등록되었습니다! 상단 잔액과 내역에 즉시 반영됩니다.")
+                st.rerun()
+            else:
+                st.warning("⚠️ 금액은 0원보다 커야 합니다.")
 # ==========================================
 # [12] 업무용 일지
 # ==========================================
