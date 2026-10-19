@@ -868,6 +868,7 @@ else:
 
           consignee_n = clean_v(row.get("해외수하인"))
           consignee_addr = clean_v(row.get("해외수하인주소"), "-")
+          consignee_tel = clean_v(row.get("해외수하인전화번호"), "-")
           dest_c = clean_v(row.get("국가"))
           origin_p = clean_v(row.get("출발지"), "대한민국 (KOREA)")
           ship_date = clean_v(row.get("날짜"), str(date.today()))
@@ -980,7 +981,7 @@ else:
                                     </td>
                                     <td style="width: 50%;">
                                         <div class="s-hdr">TO (CONSIGNEE / 수하인)</div>
-                                        <b>수하인:</b> <span style="color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br><b>주소:</b> {consignee_addr}<br>
+                                        <b>수하인:</b> <span style="color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br><b>주소:</b> {consignee_addr}<br><b>연락처:</b> {consignee_tel}<br>
                                         <b>도착 국가:</b> {dest_c}<br>
                                         <b>출발지:</b> {origin_p}
                                     </td>
@@ -1590,6 +1591,7 @@ if selected_menu == "📊 수출입 B/L 등록":
             )
             consignee_name = st.text_input("해외 수하인")
             consignee_addr = st.text_input("해외 수하인 주소", placeholder="예: 123 Main St, New York, NY 10001")
+            consignee_tel = st.text_input("해외 수하인 전화번호", placeholder="예: +1-212-555-0199")
             transport_type = st.selectbox(
                 "운송 형태", options=["항공(Air)", "해상(LCL)", "에어카고"]
             )
@@ -1687,6 +1689,7 @@ if selected_menu == "📊 수출입 B/L 등록":
                     "화주명(매출)": shipper_name,
                     "해외수하인": consignee_name,
                     "해외수하인주소": consignee_addr,
+                    "해외수하인전화번호": consignee_tel,
                     "매입처": purchase_vendor,
                     "운송형태": transport_type,
                     "서비스옵션": service_option,
@@ -1785,6 +1788,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     e_shipper = st.text_input("화주명(매출)", value=str(target_item.get("화주명(매출)", "")))
                     e_consignee = st.text_input("해외수하인", value=str(target_item.get("해외수하인", "")))
                     e_consignee_addr = st.text_input("해외수하인주소", value=str(target_item.get("해외수하인주소", "")))
+                    e_consignee_tel = st.text_input("해외수하인전화번호", value=str(target_item.get("해외수하인전화번호", "")))
                 with d_col3:
                     e_vendor = st.text_input("매입처", value=str(target_item.get("매입처", "")))
                     e_item = st.text_input("품목", value=str(target_item.get("품목", "")))
@@ -1841,6 +1845,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         "화주명(매출)": e_shipper,
                         "해외수하인": e_consignee,
                         "해외수하인주소": e_consignee_addr,
+                        "해외수하인전화번호": e_consignee_tel,
                         "매입처": e_vendor,
                         "품목": e_item,
                         "박스수": e_box,
@@ -2047,6 +2052,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
 
       consignee_n = clean_val(target_bl_data.get("해외수하인"))
       consignee_addr = clean_val(target_bl_data.get("해외수하인주소"), "-")
+      consignee_tel = clean_val(target_bl_data.get("해외수하인전화번호"), "-")
       dest_c = clean_val(target_bl_data.get("국가"))
       origin_p = clean_val(target_bl_data.get("출발지"), "대한민국 (KOREA)")
       ship_date = clean_val(target_bl_data.get("날짜"), str(date.today()))
@@ -2125,7 +2131,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
                             </td>
                             <td style="width: 50%;">
                                 <div class="section-header">TO (CONSIGNEE / 수하인)</div>
-                                <b>수하인명:</b> <span style="font-size: 10.5pt; color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br><b>주소:</b> {consignee_addr}<br>
+                                <b>수하인명:</b> <span style="font-size: 10.5pt; color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br><b>주소:</b> {consignee_addr}<br><b>연락처:</b> {consignee_tel}<br>
                                 <b>도착 국가:</b> {dest_c}<br>
                                 <b>출발지:</b> {origin_p}
                             </td>
