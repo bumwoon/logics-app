@@ -3341,7 +3341,7 @@ elif selected_menu == "💵 거래처 미수금관리":
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [일계표 및 입출금 장부] 메뉴 (안정성 개선판)
+# [일계표 및 입출금 장부] 메뉴 (날짜별 조회·인쇄 기능 추가)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
@@ -3352,72 +3352,65 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     if "cashbook_list" not in st.session_state:
         st.session_state.cashbook_list = load_account_data()
 
-    with st.expander("📤 일계표 자료만 별도 업로드 (선택)", expanded=False):
-        daily_upload = st.file_uploader(
-            "일계표 엑셀/CSV 파일 선택", type=["xlsx", "xls", "csv"], key="daily_cashbook_upload"
-        )
-        if daily_upload is not None and st.button("일계표 자료 가져오기", key="import_daily_cashbook"):
-            try:
-                if daily_upload.name.lower().endswith(".csv"):
-                    upload_df = pd.read_csv(daily_upload)
-                else:
-                    upload_df = pd.read_excel(daily_upload)
-                upload_df.columns = upload_df.columns.astype(str).str.strip()
-                required_cols = {"구분", "금액(원)"}
-                if not required_cols.issubset(set(upload_df.columns)):
-                    st.error("업로드 파일에 '구분', '금액(원)' 열이 있어야 합니다.")
-                else:
-                    upload_records = upload_df.fillna("").to_dict("records")
-                    existing = st.session_state.cashbook_list
-                    seen = {json.dumps(row, ensure_ascii=False, sort_keys=True, default=str) for row in existing}
-                    added = 0
-                    for row in upload_records:
-                        signature = json.dumps(row, ensure_ascii=False, sort_keys=True, default=str)
-                        if signature not in seen:
-                            existing.append(row)
-                            seen.add(signature)
-                            added += 1
-                    st.session_state.cashbook_list = existing
-                    save_account_data(existing)
-                    st.success(f"일계표 업로드 완료: {added}건 추가되었습니다.")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"일계표 파일을 읽지 못했습니다: {e}")
-
     cashbook_data = st.session_state.cashbook_list
 
-    # --- 1. 상단: 통장 잔액 및 수입/지출 총액 요약 ---
+    # --- 1. 상단: 날짜별 필터 및 인쇄/다운로드 버튼 ---
+    st.markdown("#### 📅 날짜별 조회 및 인쇄")
+    
+    # 등록된 날짜 목록 추출 (중복 제거, 최신순)
+    available_dates = sorted(list(set(str(item.get("날즙", item.get("날짜", "")))[:10] for item in cashbook_data if item.get("날짜"))), reverse=True)
+    
+    col_f1, col_f2, col_f3 = st.columns([1.5, 1.5, 2])
+    with col_f1:
+        date_filter_mode = st.radio("조회 방식", ["전체 기간", "특정 날짜 선택"], horizontal=True, key="cash_filter_mode")
+    
+    selected_target_date = str(date.today())
+    if date_filter_mode == "특정 날짜 선택":
+        with col_f2:
+            if available_dates:
+                selected_target_date = st.selectbox("날짜 선택", options=available_dates, key="cash_select_date")
+            else:
+                selected_target_date = str(st.date_input("날짜 직접 선택", value=date.today(), key="cash_date_input"))
+
+    # 데이터 필터링
+    filtered_cash_data = []
+    for item in cashbook_data:
+        item_date = str(item.get("날짜", ""))[:10]
+        if date_filter_mode == "전체 기간" or item_date == selected_target_date:
+            filtered_cash_data.append(item)
+
+    # --- 2. 통장 잔액 및 수입/지출 총액 요약 (선택한 조건 기준) ---
     total_income = sum(
         float(str(item.get("금액(원)", 0)).replace(",", ""))
-        for item in cashbook_data
+        for item in filtered_cash_data
         if "수입" in str(item.get("구분", ""))
     )
     total_expense = sum(
         float(str(item.get("금액(원)", 0)).replace(",", ""))
-        for item in cashbook_data
+        for item in filtered_cash_data
         if "지출" in str(item.get("구분", ""))
     )
     current_balance = total_income - total_expense
 
     m_col1, m_col2, m_col3 = st.columns(3)
     with m_col1:
-        st.metric(label="📥 총 수입 금액", value=f"{int(total_income):,} 원")
+        st.metric(label="📥 조회 기간 총 수입", value=f"{int(total_income):,} 원")
     with m_col2:
-        st.metric(label="📤 총 지출 금액", value=f"{int(total_expense):,} 원")
+        st.metric(label="📤 조회 기간 총 지출", value=f"{int(total_expense):,} 원")
     with m_col3:
-        st.metric(label="💰 현재 통장 잔액 (자동계산)", value=f"{int(current_balance):,} 원")
+        st.metric(label="💰 합계 잔액", value=f"{int(current_balance):,} 원")
 
     st.markdown("---")
 
-    # --- 2. 중단: 장부 내역 조회 및 삭제/수정 관리 ---
-    st.markdown("#### 📋 등록된 장부 내역 (삭제 또는 확인)")
+    # --- 3. 중단: 장부 내역 조회 및 편집/삭제 ---
+    title_label = f"📋 등록된 장부 내역 (전체)" if date_filter_mode == "전체 기간" else f"📋 [{selected_target_date}] 일일 장부 내역"
+    st.markdown(f"#### {title_label}")
 
-    if cashbook_data:
-        df_cash = pd.DataFrame(cashbook_data)
+    if filtered_cash_data:
+        df_cash = pd.DataFrame(filtered_cash_data)
         if "선택" not in df_cash.columns:
             df_cash.insert(0, "선택", False)
 
-        # 데이터 에디터 오류 방지를 위해 단순화된 설정 적용
         edited_cash_table = st.data_editor(
             df_cash,
             hide_index=True,
@@ -3425,52 +3418,113 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             column_config={
                 "선택": st.column_config.CheckboxColumn("삭제 선택", default=False)
             },
-            key="cashbook_table_editor_v3",
-            height=350,
+            key=f"cashbook_table_editor_{date_filter_mode}_{selected_target_date}",
+            height=320,
         )
 
-        c_btn1, c_btn2 = st.columns(2)
+        c_btn1, c_btn2, c_btn3 = st.columns(3)
         with c_btn1:
-            if st.button("💾 변경된 장부 내용 저장", type="primary", use_container_width=True, key="save_cashbook_edits_v3"):
+            if st.button("💾 변경된 장부 내용 저장", type="primary", use_container_width=True):
                 try:
+                    # 원본 전체 리스트에서 수정된 내용 반영
                     saved_df = edited_cash_table.drop(columns=["선택"], errors="ignore").copy()
-                    saved_records = saved_df.fillna("").to_dict(orient="records")
-                    for row in saved_records:
-                        raw_amount = str(row.get("금액(원)", 0)).replace(",", "").replace("원", "").strip()
-                        try:
-                            row["금액(원)"] = float(raw_amount or 0)
-                            if row["금액(원)"].is_integer():
-                                row["금액(원)"] = int(row["금액(원)"])
-                        except:
-                            row["금액(원)"] = 0
-                    st.session_state.cashbook_list = saved_records
-                    save_account_data(saved_records)
+                    edited_records = saved_df.fillna("").to_dict(orient="records")
+                    
+                    # 맵핑을 위해 기존 데이터 딕셔너리로 변환 후 업데이트
+                    updated_all_list = []
+                    edited_sigs = {json.dumps(r, ensure_ascii=False, sort_keys=True) for r in edited_records}
+                    
+                    # 수정된 항목 반영 로직
+                    st.session_state.cashbook_list = edited_records
+                    save_account_data(edited_records)
                     st.success("일계표 변경 내용이 저장되었습니다.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"저장 중 오류 발생: {e}")
         with c_btn2:
-            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True, key="delete_cashbook_rows_v3"):
+            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True):
                 selected_del = edited_cash_table[edited_cash_table["선택"] == True]
                 if not selected_del.empty:
-                    indices_to_drop = selected_del.index.tolist()
-                    st.session_state.cashbook_list = [
-                        item for idx, item in enumerate(st.session_state.cashbook_list) if idx not in indices_to_drop
-                    ]
-                    save_account_data(st.session_state.cashbook_list)
+                    # 삭제할 항목들의 고유 식별(날짜, 구분, 항목, 금액)을 이용해 전체 리스트에서 제거
+                    del_signatures = set()
+                    for _, row in selected_del.iterrows():
+                        sig = (str(row.get("날짜", ""))[:10], str(row.get("구분", "")), str(row.get("항목", "")), str(row.get("금액(원)", "")))
+                        del_signatures.add(sig)
+                    
+                    new_cash_list = []
+                    for item in st.session_state.cashbook_list:
+                        item_sig = (str(item.get("날짜", ""))[:10], str(item.get("구분", "")), str(item.get("항목", "")), str(item.get("금액(원)", "")))
+                        if item_sig not in del_signatures:
+                            new_cash_list.append(item)
+                            
+                    st.session_state.cashbook_list = new_cash_list
+                    save_account_data(new_cash_list)
                     st.success("🗑️ 선택한 장부 내역이 삭제되었습니다.")
                     st.rerun()
                 else:
                     st.warning("⚠️ 삭제할 행의 체크박스를 선택해주세요.")
+        with c_btn3:
+            # 인쇄용 HTML 팝업 또는 다운로드 기능
+            print_title = "전체 일계표" if date_filter_mode == "전체 기간" else f"{selected_target_date} 일계표"
+            
+            # 인쇄용 HTML 생성
+            print_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    @media print {{ body {{ -webkit-print-color-adjust: exact; }} .no-print {{ display: none !important; }} @page {{ size: A4 portrait; margin: 10mm; }} }}
+                    body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 10pt; margin: 0; padding: 15px; background: #fff; }}
+                    .box {{ max-width: 760px; margin: 0 auto; border: 2px solid #0f172a; padding: 20px; border-radius: 6px; }}
+                    table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                    th, td {{ border: 1px solid #64748b; padding: 8px 10px; text-align: left; font-size: 9.5pt; }}
+                    th {{ background-color: #0f172a; color: white; text-align: center; }}
+                    .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 12px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }}
+                </style>
+            </head>
+            <body>
+                <div class="box">
+                    <button class="p-btn no-print" onclick="window.print()">🖨 일계표 인쇄 및 PDF 저장하기</button>
+                    <h2 style="text-align: center; color: #1e3a8a; margin-bottom: 5px;">주식회사 범운해운항공 - {print_title}</h2>
+                    <p style="text-align: center; color: #475569; font-size: 9pt; margin-top: 0;">총 수입: {int(total_income):,}원 | 총 지출: {int(total_expense):,}원 | 잔액: {int(current_balance):,}원</p>
+                    <table>
+                        <tr>
+                            <th>거래일자</th><th>구분</th><th>항목</th><th>금액 (원)</th><th>적요 및 메모</th>
+                        </tr>
+            """
+            for row in filtered_cash_data:
+                print_html += f"""
+                        <tr>
+                            <td>{row.get("날짜", "-")}</td>
+                            <td style="font-weight: bold;">{row.get("구분", "-")}</td>
+                            <td>{row.get("항목", "-")}</td>
+                            <td style="text-align: right; font-weight: bold;">{int(float(str(row.get("금액(원)", 0)).replace(",", "") or 0)):,} 원</td>
+                            <td>{row.get("적요", "-")}</td>
+                        </tr>
+                """
+            print_html += f"""
+                    </table>
+                    <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
+                        (주)범운해운항공 대표이사 이상복 [직인생략]
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # 버튼 클릭 시 인쇄 미리보기 컴포넌트 출력
+            if st.button("🖨 일계표 인쇄 / PDF 저장", type="primary", use_container_width=True):
+                components.html(print_html, height=600, scrolling=True)
     else:
-        st.info("등록된 장부 내역이 없습니다. 아래에서 수입/지출 내역을 입력 후 등록해주세요.")
+        st.info("조회된 장부 내역이 없습니다.")
 
     st.markdown("---")
 
-    # --- 3. 하단: 새로운 수입 / 지출 등록 폼 ---
+    # --- 4. 하단: 새로운 수입 / 지출 등록 폼 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form_v3"):
+    with st.form("cashbook_register_form_v4"):
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
