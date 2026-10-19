@@ -1113,52 +1113,66 @@ st.sidebar.subheader("💾 전체 데이터 통합 백업 및 복원")
 
 
 def generate_integrated_backup_bytes():
-  bl_data = st.session_state.get("bl_data_list", [])
-  client_list = st.session_state.get("client_list", [])
-  client_rates = st.session_state.get("client_rates", {})
-  client_infos = st.session_state.get("client_infos", {})
-  supplier_list = st.session_state.get("supplier_list", [])
-  supplier_rates = st.session_state.get("supplier_rates", {})
-  supplier_infos = st.session_state.get("supplier_infos", {})
-  # 일계표 화면에서 사용하는 실제 장부 데이터를 별도 백업합니다.
-  ledger_data = st.session_state.get("cashbook_list")
-  if ledger_data is None:
-    ledger_data = load_account_data()
-  expense_data = st.session_state.get("expense_data_list", [])
-  meeting_data = st.session_state.get("meeting_data_list", [])
-  note_data = st.session_state.get("note_data_list", [])
-  
-  if bl_data:
-    df_bl = pd.DataFrame(bl_data)
-  else:
-    df_bl = pd.DataFrame([{"안내": "등록된 B/L 물류 내역이 없습니다. 시스템 설정 및 단가/장부 데이터가 복원용으로 보관됩니다."}])
+    """B/L 및 모든 관리 자료를 하나의 엑셀 통합 백업 파일로 생성합니다."""
+    bl_data = st.session_state.get("bl_data_list", [])
+    client_list = st.session_state.get("client_list", [])
+    client_rates = st.session_state.get("client_rates", {})
+    client_infos = st.session_state.get("client_infos", {})
+    supplier_list = st.session_state.get("supplier_list", [])
+    supplier_rates = st.session_state.get("supplier_rates", {})
+    supplier_infos = st.session_state.get("supplier_infos", {})
 
-  meta_dict = {
-      "client_list": client_list,
-      "client_rates": client_rates,
-      "client_infos": client_infos,
-      "supplier_list": supplier_list,
-      "supplier_rates": supplier_rates,
-      "supplier_infos": supplier_infos,
-      "ledger_data": ledger_data,
-      "expense_data": expense_data,
-      "meeting_data": meeting_data,
-      "note_data": note_data,
-  }
-  meta_json_str = json.dumps(meta_dict, ensure_ascii=False)
-  df_bl["__SYSTEM_META__"] = meta_json_str
+    # 일계표 화면이 실제로 사용하는 cashbook_list를 백업합니다.
+    ledger_data = st.session_state.get("cashbook_list")
+    if ledger_data is None:
+        ledger_data = load_account_data()
+    expense_data = st.session_state.get("expense_data_list", [])
+    meeting_data = st.session_state.get("meeting_data_list", [])
+    note_data = st.session_state.get("note_data_list", [])
 
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    df_bl.to_excel(writer, index=False, sheet_name="Bumwoon_Integrated_Backup")
-  return output.getvalue()
-  meta_json_str = json.dumps(meta_dict, ensure_ascii=False)
-  df_bl["__SYSTEM_META__"] = meta_json_str
+    meta_dict = {
+        "backup_version": 2,
+        "client_list": client_list,
+        "client_rates": client_rates,
+        "client_infos": client_infos,
+        "supplier_list": supplier_list,
+        "supplier_rates": supplier_rates,
+        "supplier_infos": supplier_infos,
+        "ledger_data": ledger_data or [],
+        "expense_data": expense_data or [],
+        "meeting_data": meeting_data or [],
+        "note_data": note_data or [],
+    }
 
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    df_bl.to_excel(writer, index=False, sheet_name="Bumwoon_Integrated_Backup")
-  return output.getvalue()
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        # B/L 데이터
+        pd.DataFrame(bl_data).to_excel(
+            writer, index=False, sheet_name="B_L데이터"
+        ) if bl_data else pd.DataFrame(
+            columns=["B/L 번호"]
+        ).to_excel(writer, index=False, sheet_name="B_L데이터")
+
+        # 일계표를 별도 시트에도 명시적으로 저장합니다.
+        pd.DataFrame(ledger_data or []).to_excel(
+            writer, index=False, sheet_name="일계표_입출금장부"
+        )
+        pd.DataFrame(expense_data or []).to_excel(
+            writer, index=False, sheet_name="경비_지출내역"
+        )
+        pd.DataFrame(meeting_data or []).to_excel(
+            writer, index=False, sheet_name="거래처미팅노트"
+        )
+        pd.DataFrame(note_data or []).to_excel(
+            writer, index=False, sheet_name="업무용일지"
+        )
+
+        # 기존 거래처/요율 구조 등은 메타 시트에 보관해 손실 없이 복원합니다.
+        pd.DataFrame([{
+            "__SYSTEM_META__": json.dumps(meta_dict, ensure_ascii=False)
+        }]).to_excel(writer, index=False, sheet_name="시스템설정")
+
+    return output.getvalue()
 
 
 integrated_excel_bytes = generate_integrated_backup_bytes()
@@ -1175,86 +1189,141 @@ st.sidebar.markdown("---")
 uploaded_integrated_file = st.sidebar.file_uploader(
     "📤 통합 백업파일 일괄 복원 업로드 (.xlsx)",
     type=["xlsx", "xls", "csv"],
-    help="매출처, 매입처, 요율, 미수금, 장부 및 B/L 물류 내역이 한 번에 복원됩니다.",
+    help="B/L, 거래처/요율, 일계표 입출금 장부, 경비, 미팅 노트 및 업무일지를 함께 복원합니다.",
+    key="integrated_backup_uploader",
 )
 
 if uploaded_integrated_file is not None:
-  try:
-    file_extension = uploaded_integrated_file.name.split(".")[-1].lower()
-    if file_extension == "csv":
-      df_in = pd.read_csv(uploaded_integrated_file)
-    else:
-      df_in = pd.read_excel(uploaded_integrated_file, sheet_name=0)
+    # 같은 업로드 파일이 Streamlit 재실행 때마다 반복 복원되는 것을 방지합니다.
+    upload_signature = (
+        uploaded_integrated_file.name,
+        uploaded_integrated_file.size,
+    )
+    if st.session_state.get("_last_integrated_upload_signature") != upload_signature:
+        try:
+            file_extension = uploaded_integrated_file.name.rsplit(".", 1)[-1].lower()
+            parsed_meta = {}
+            sheets = {}
 
-    if not df_in.empty:
-      df_in.columns = df_in.columns.astype(str).str.strip()
+            if file_extension == "csv":
+                sheets["CSV"] = pd.read_csv(uploaded_integrated_file)
+            else:
+                xls = pd.ExcelFile(uploaded_integrated_file)
+                for sheet_name in xls.sheet_names:
+                    sheets[sheet_name] = pd.read_excel(xls, sheet_name=sheet_name)
 
-      if "__SYSTEM_META__" in df_in.columns:
-        meta_val = df_in["__SYSTEM_META__"].iloc[0]
-        if pd.notna(meta_val) and str(meta_val).strip():
-          try:
-            parsed_meta = json.loads(str(meta_val))
-            st.session_state.client_list = parsed_meta.get(
-                "client_list", st.session_state.client_list
-            )
-            st.session_state.client_rates = parsed_meta.get(
-                "client_rates", st.session_state.client_rates
-            )
-            st.session_state.client_infos = parsed_meta.get(
-                "client_infos", st.session_state.client_infos
-            )
-            st.session_state.supplier_list = parsed_meta.get(
-                "supplier_list", st.session_state.supplier_list
-            )
-            st.session_state.supplier_rates = parsed_meta.get(
-                "supplier_rates", st.session_state.supplier_rates
-            )
-            st.session_state.supplier_infos = parsed_meta.get(
-                "supplier_infos", st.session_state.supplier_infos
-            )
+            # 새 통합 백업 및 이전 버전의 __SYSTEM_META__ 형식을 모두 읽습니다.
+            for df_meta in sheets.values():
+                if "__SYSTEM_META__" in df_meta.columns and not df_meta.empty:
+                    meta_val = df_meta["__SYSTEM_META__"].iloc[0]
+                    if pd.notna(meta_val) and str(meta_val).strip():
+                        try:
+                            parsed_meta = json.loads(str(meta_val))
+                            break
+                        except (json.JSONDecodeError, TypeError, ValueError):
+                            pass
+
+            if parsed_meta:
+                st.session_state.client_list = parsed_meta.get(
+                    "client_list", st.session_state.get("client_list", [])
+                )
+                st.session_state.client_rates = parsed_meta.get(
+                    "client_rates", st.session_state.get("client_rates", {})
+                )
+                st.session_state.client_infos = parsed_meta.get(
+                    "client_infos", st.session_state.get("client_infos", {})
+                )
+                st.session_state.supplier_list = parsed_meta.get(
+                    "supplier_list", st.session_state.get("supplier_list", [])
+                )
+                st.session_state.supplier_rates = parsed_meta.get(
+                    "supplier_rates", st.session_state.get("supplier_rates", {})
+                )
+                st.session_state.supplier_infos = parsed_meta.get(
+                    "supplier_infos", st.session_state.get("supplier_infos", {})
+                )
+
+            # 일계표는 메타 데이터 우선, 없으면 별도 시트, 마지막으로 구버전 파일을 확인합니다.
+            ledger_restored = False
             if "ledger_data" in parsed_meta:
-              # 통합 백업의 ledger_data는 일계표 전용 데이터입니다.
-              st.session_state.cashbook_list = parsed_meta.get("ledger_data", []) or []
-              save_account_data(st.session_state.cashbook_list)
-            # 구버전 백업과의 호환: 별도 경비 데이터가 있으면 기존 파일에도 복원합니다.
+                st.session_state.cashbook_list = parsed_meta.get("ledger_data") or []
+                ledger_restored = True
+            if not ledger_restored:
+                for sheet_name in ("일계표_입출금장부", "일계표", "입출금장부", "계정장부"):
+                    if sheet_name in sheets:
+                        df_ledger = sheets[sheet_name].copy()
+                        df_ledger = df_ledger.drop(
+                            columns=["__SYSTEM_META__"], errors="ignore"
+                        )
+                        st.session_state.cashbook_list = (
+                            df_ledger.fillna("").to_dict("records")
+                            if not df_ledger.empty else []
+                        )
+                        ledger_restored = True
+                        break
+            if ledger_restored:
+                save_account_data(st.session_state.cashbook_list)
+
             if "expense_data" in parsed_meta:
-              st.session_state.expense_data_list = parsed_meta.get("expense_data", []) or []
-              save_expense_data(st.session_state.expense_data_list)
+                st.session_state.expense_data_list = parsed_meta.get("expense_data") or []
+            elif "경비_지출내역" in sheets:
+                st.session_state.expense_data_list = sheets["경비_지출내역"].fillna("").to_dict("records")
+            elif "지출내역" in sheets:
+                st.session_state.expense_data_list = sheets["지출내역"].fillna("").to_dict("records")
+            if "expense_data_list" in st.session_state:
+                save_expense_data(st.session_state.expense_data_list)
 
-            save_client_data(
-                st.session_state.client_list,
-                st.session_state.client_rates,
-                st.session_state.client_infos,
-            )
-            save_supplier_data(
-                st.session_state.supplier_list,
-                st.session_state.supplier_rates,
-                st.session_state.supplier_infos,
-            )
             if "meeting_data" in parsed_meta:
-              st.session_state.meeting_data_list = parsed_meta["meeting_data"]
-              save_meeting_data(st.session_state.meeting_data_list)
+                st.session_state.meeting_data_list = parsed_meta.get("meeting_data") or []
+            elif "거래처미팅노트" in sheets:
+                st.session_state.meeting_data_list = sheets["거래처미팅노트"].fillna("").to_dict("records")
+            if "meeting_data_list" in st.session_state:
+                save_meeting_data(st.session_state.meeting_data_list)
+
             if "note_data" in parsed_meta:
-              st.session_state.note_data_list = parsed_meta["note_data"]
-              save_note_data(st.session_state.note_data_list)     
-          except Exception as me:
-            print(f"Meta parse error: {me}")
-        df_in = df_in.drop(columns=["__SYSTEM_META__"])
+                st.session_state.note_data_list = parsed_meta.get("note_data") or []
+            elif "업무용일지" in sheets:
+                st.session_state.note_data_list = sheets["업무용일지"].fillna("").to_dict("records")
+            if "note_data_list" in st.session_state:
+                save_note_data(st.session_state.note_data_list)
 
-      if "B/L 번호" in df_in.columns:
-        st.session_state.bl_data_list = df_in.to_dict("records")
-        save_bl_data(st.session_state.bl_data_list)
+            # 구버전 단일 시트 및 새 버전 B/L 시트를 모두 지원합니다.
+            bl_df = None
+            for sheet_name in ("B_L데이터", "Bumwoon_Integrated_Backup", "BL_Data", "BL_History"):
+                if sheet_name in sheets and "B/L 번호" in sheets[sheet_name].columns:
+                    bl_df = sheets[sheet_name].copy()
+                    break
+            if bl_df is None:
+                for df_candidate in sheets.values():
+                    if "B/L 번호" in df_candidate.columns:
+                        bl_df = df_candidate.copy()
+                        break
+            if bl_df is not None:
+                bl_df = bl_df.drop(columns=["__SYSTEM_META__"], errors="ignore")
+                bl_df = bl_df[bl_df["B/L 번호"].notna()]
+                st.session_state.bl_data_list = bl_df.fillna("").to_dict("records")
+                save_bl_data(st.session_state.bl_data_list)
 
-      if "refresh_key" not in st.session_state:
-        st.session_state.refresh_key = 0
-      st.session_state.refresh_key += 1
+            if parsed_meta:
+                save_client_data(
+                    st.session_state.client_list,
+                    st.session_state.client_rates,
+                    st.session_state.client_infos,
+                )
+                save_supplier_data(
+                    st.session_state.supplier_list,
+                    st.session_state.supplier_rates,
+                    st.session_state.supplier_infos,
+                )
 
-      st.sidebar.success(
-          "🎉 거래처, 요율, 미수금, 장부 및 물류 데이터 전체가 완벽하게 복원되었습니다!"
-      )
-      st.rerun()
-  except Exception as e:
-    st.sidebar.error(f"통합 데이터 복원 중 오류가 발생했습니다: {e}")
+            st.session_state["_last_integrated_upload_signature"] = upload_signature
+            st.sidebar.success(
+                f"복원 완료: B/L {len(st.session_state.get('bl_data_list', []))}건, "
+                f"일계표 {len(st.session_state.get('cashbook_list', []))}건을 확인했습니다."
+            )
+            st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"통합 데이터 복원 중 오류가 발생했습니다: {e}")
 
 
 # ==========================================
