@@ -3341,7 +3341,7 @@ elif selected_menu == "💵 거래처 미수금관리":
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [일계표 및 입출금 장부] 메뉴
+# [일계표 및 입출금 장부] 메뉴 (안정성 개선판)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
@@ -3349,7 +3349,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         unsafe_allow_html=True,
     )
 
-    # 일계표는 전용 ACCOUNT_FILE에서 초기화되며, 전체 백업 복원 시에도 같은 위치에 저장됩니다.
     if "cashbook_list" not in st.session_state:
         st.session_state.cashbook_list = load_account_data()
 
@@ -3370,7 +3369,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 else:
                     upload_records = upload_df.fillna("").to_dict("records")
                     existing = st.session_state.cashbook_list
-                    # 중복 방지: 모든 열 값이 동일한 행은 다시 추가하지 않습니다.
                     seen = {json.dumps(row, ensure_ascii=False, sort_keys=True, default=str) for row in existing}
                     added = 0
                     for row in upload_records:
@@ -3381,21 +3379,21 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                             added += 1
                     st.session_state.cashbook_list = existing
                     save_account_data(existing)
-                    st.success(f"일계표 업로드 완료: {added}건 추가, 중복 항목은 제외했습니다.")
+                    st.success(f"일계표 업로드 완료: {added}건 추가되었습니다.")
                     st.rerun()
             except Exception as e:
                 st.error(f"일계표 파일을 읽지 못했습니다: {e}")
 
     cashbook_data = st.session_state.cashbook_list
 
-    # --- 1. 💡 상단: 통장 잔액 및 수입/지출 총액 자동 계산 요약 카드 ---
+    # --- 1. 상단: 통장 잔액 및 수입/지출 총액 요약 ---
     total_income = sum(
-        float(item.get("금액(원)", 0))
+        float(str(item.get("금액(원)", 0)).replace(",", ""))
         for item in cashbook_data
         if "수입" in str(item.get("구분", ""))
     )
     total_expense = sum(
-        float(item.get("금액(원)", 0))
+        float(str(item.get("금액(원)", 0)).replace(",", ""))
         for item in cashbook_data
         if "지출" in str(item.get("구분", ""))
     )
@@ -3411,73 +3409,53 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     st.markdown("---")
 
-    # --- 2. 💡 중단: 등록된 장부 내역 (잔액 및 최근 지출/수입 우선 확인) ---
-    st.markdown("#### 📋 등록된 장부 내역 (잔액 및 최근 지출/수입 확인)")
+    # --- 2. 중단: 장부 내역 조회 및 삭제/수정 관리 ---
+    st.markdown("#### 📋 등록된 장부 내역 (삭제 또는 확인)")
 
     if cashbook_data:
         df_cash = pd.DataFrame(cashbook_data)
         if "선택" not in df_cash.columns:
             df_cash.insert(0, "선택", False)
 
-        # 수정 가능한 표: 체크박스 열만 잠그고 나머지 장부 항목은 직접 편집할 수 있게 합니다.
-        # 위젯 키를 새로 지정해 이전 버전의 표 상태가 남아 편집이 막히는 문제를 피합니다.
-        cash_column_config = {
-            "선택": st.column_config.CheckboxColumn(
-                "삭제 선택", help="삭제할 행만 체크하세요.", default=False
-            ),
-            "날짜": st.column_config.TextColumn("거래일자", help="예: 2026-10-19"),
-            "구분": st.column_config.SelectboxColumn(
-                "입출금 구분", options=["지출 (-)", "수입 (+)", "지출", "수입"]
-            ),
-            "항목": st.column_config.TextColumn("비용/수입 항목"),
-            "금액(원)": st.column_config.NumberColumn(
-                "금액(원)", min_value=0, step=1000, format="%d"
-            ),
-            "적요": st.column_config.TextColumn("적요 및 메모", width="large"),
-        }
+        # 데이터 에디터 오류 방지를 위해 단순화된 설정 적용
         edited_cash_table = st.data_editor(
             df_cash,
             hide_index=True,
             use_container_width=True,
-            column_config=cash_column_config,
-            disabled=["선택"],
-            num_rows="fixed",
-            key="cashbook_table_editor_v2",
-            height=360,
+            column_config={
+                "선택": st.column_config.CheckboxColumn("삭제 선택", default=False)
+            },
+            key="cashbook_table_editor_v3",
+            height=350,
         )
-        st.caption("✏️ 수정할 셀을 클릭해 내용을 바꾼 뒤, 아래의 ‘수정 내용 저장’을 눌러 저장하세요.")
 
-        # 표에서 수정한 값은 저장 버튼을 눌러야 실제 장부 파일에 반영됩니다.
         c_btn1, c_btn2 = st.columns(2)
         with c_btn1:
-            if st.button("💾 수정 내용 저장", type="primary", use_container_width=True, key="save_cashbook_edits"):
+            if st.button("💾 변경된 장부 내용 저장", type="primary", use_container_width=True, key="save_cashbook_edits_v3"):
                 try:
                     saved_df = edited_cash_table.drop(columns=["선택"], errors="ignore").copy()
                     saved_records = saved_df.fillna("").to_dict(orient="records")
-                    # 금액은 합계 계산이 가능하도록 숫자로 정규화합니다.
                     for row in saved_records:
                         raw_amount = str(row.get("금액(원)", 0)).replace(",", "").replace("원", "").strip()
                         try:
                             row["금액(원)"] = float(raw_amount or 0)
                             if row["금액(원)"].is_integer():
                                 row["금액(원)"] = int(row["금액(원)"])
-                        except (TypeError, ValueError):
-                            raise ValueError("금액(원) 열에는 숫자만 입력해 주세요.")
+                        except:
+                            row["금액(원)"] = 0
                     st.session_state.cashbook_list = saved_records
                     save_account_data(saved_records)
-                    st.success("일계표 수정 내용이 저장되었습니다.")
+                    st.success("일계표 변경 내용이 저장되었습니다.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"수정 내용을 저장하지 못했습니다: {e}")
+                    st.error(f"저장 중 오류 발생: {e}")
         with c_btn2:
-            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True, key="delete_cashbook_rows"):
+            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True, key="delete_cashbook_rows_v3"):
                 selected_del = edited_cash_table[edited_cash_table["선택"] == True]
                 if not selected_del.empty:
                     indices_to_drop = selected_del.index.tolist()
                     st.session_state.cashbook_list = [
-                        item
-                        for idx, item in enumerate(st.session_state.cashbook_list)
-                        if idx not in indices_to_drop
+                        item for idx, item in enumerate(st.session_state.cashbook_list) if idx not in indices_to_drop
                     ]
                     save_account_data(st.session_state.cashbook_list)
                     st.success("🗑️ 선택한 장부 내역이 삭제되었습니다.")
@@ -3485,14 +3463,14 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 else:
                     st.warning("⚠️ 삭제할 행의 체크박스를 선택해주세요.")
     else:
-        st.info("등록된 장부 내역이 없습니다. 아래에서 수입/지출 내역을 입력 후 등록해주시거나 백업파일을 업로드해주세요.")
+        st.info("등록된 장부 내역이 없습니다. 아래에서 수입/지출 내역을 입력 후 등록해주세요.")
 
     st.markdown("---")
 
-    # --- 3. 💡 하단: 새로운 수입 / 지출 등록 폼 ---
+    # --- 3. 하단: 새로운 수입 / 지출 등록 폼 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form"):
+    with st.form("cashbook_register_form_v3"):
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
@@ -3511,7 +3489,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             amount = st.number_input("금액 (원)", min_value=0, step=1000, format="%d")
 
         memo = st.text_input(
-            "적요 및 메모", placeholder="예: 남양김태호 저녁식대 / 통장 잔액 등"
+            "적요 및 메모", placeholder="예: 사무실 소모품 구입 등"
         )
 
         submitted_cash = st.form_submit_button(
@@ -3527,7 +3505,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                     "적요": memo if memo else "-",
                 })
                 save_account_data(st.session_state.cashbook_list)
-                st.success("✅ 장부 내역이 등록되고 파일에 저장되었습니다.")
+                st.success("✅ 장부 내역이 등록되었습니다.")
                 st.rerun()
             else:
                 st.warning("⚠️ 금액은 0원보다 커야 합니다.")
