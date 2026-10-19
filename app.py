@@ -3242,7 +3242,7 @@ elif selected_menu == "💵 거래처 미수금관리":
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [일계표 및 입출금 장부] 메뉴 (이모지 포함 매칭)
+# [일계표 및 입출금 장부] 메뉴
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
@@ -3250,15 +3250,23 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         unsafe_allow_html=True,
     )
 
-    # 데이터 초기화 안전장치
+    # 세션 데이터 초기화 및 백업파일 자동 연동 안전장치
     if "cashbook_list" not in st.session_state:
         st.session_state.cashbook_list = []
 
     cashbook_data = st.session_state.cashbook_list
 
     # --- 1. 💡 상단: 통장 잔액 및 수입/지출 총액 자동 계산 요약 카드 ---
-    total_income = sum(float(item.get("금액(원)", 0)) for item in cashbook_data if "수입" in str(item.get("구분", "")))
-    total_expense = sum(float(item.get("금액(원)", 0)) for item in cashbook_data if "지출" in str(item.get("구분", "")))
+    total_income = sum(
+        float(item.get("금액(원)", 0))
+        for item in cashbook_data
+        if "수입" in str(item.get("구분", ""))
+    )
+    total_expense = sum(
+        float(item.get("금액(원)", 0))
+        for item in cashbook_data
+        if "지출" in str(item.get("구분", ""))
+    )
     current_balance = total_income - total_expense
 
     m_col1, m_col2, m_col3 = st.columns(3)
@@ -3285,7 +3293,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             use_container_width=True,
             column_config={"선택": st.column_config.CheckboxColumn(required=True)},
             key="cashbook_table_editor",
-            height=300
+            height=300,
         )
 
         c_btn1, c_btn2 = st.columns(2)
@@ -3295,14 +3303,16 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 if not selected_del.empty:
                     indices_to_drop = selected_del.index.tolist()
                     st.session_state.cashbook_list = [
-                        item for idx, item in enumerate(st.session_state.cashbook_list) if idx not in indices_to_drop
+                        item
+                        for idx, item in enumerate(st.session_state.cashbook_list)
+                        if idx not in indices_to_drop
                     ]
                     st.success("🗑️ 선택한 장부 내역이 삭제되었습니다.")
                     st.rerun()
                 else:
                     st.warning("⚠️ 삭제할 행의 체크박스를 선택해주세요.")
     else:
-        st.info("등록된 장부 내역이 없습니다. 아래에서 수입/지출 내역을 등록해주세요.")
+        st.info("등록된 장부 내역이 없습니다. 아래에서 수입/지출 내역을 입력 후 등록해주시거나 백업파일을 업로드해주세요.")
 
     st.markdown("---")
 
@@ -3315,13 +3325,25 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             reg_date = st.date_input("거래 일자", value=date.today())
             io_gb = st.selectbox("입출금 구분", ["지출 (-)", "수입 (+)"])
         with f_col2:
-            cat_options = ["접대비", "주유비(차량유지비)", "통신비", "소모품비", "기타 잡비", "기타 영업수입", "운송료수입"]
+            cat_options = [
+                "접대비",
+                "주유비(차량유지비)",
+                "통신비",
+                "소모품비",
+                "기타 잡비",
+                "기타 영업수입",
+                "운송료수입",
+            ]
             category = st.selectbox("비용/수입 항목", cat_options)
             amount = st.number_input("금액 (원)", min_value=0, step=1000, format="%d")
 
-        memo = st.text_input("적요 및 메모", placeholder="예: 남양김태호 저녁식대 / 통장 잔액 등")
+        memo = st.text_input(
+            "적요 및 메모", placeholder="예: 남양김태호 저녁식대 / 통장 잔액 등"
+        )
 
-        submitted_cash = st.form_submit_button("➕ 장부 내역 등록하기", type="primary", use_container_width=True)
+        submitted_cash = st.form_submit_button(
+            "➕ 장부 내역 등록하기", type="primary", use_container_width=True
+        )
         if submitted_cash:
             if amount > 0:
                 st.session_state.cashbook_list.append({
@@ -3329,9 +3351,9 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                     "구분": io_gb,
                     "항목": category,
                     "금액(원)": int(amount),
-                    "적요": memo if memo else "-"
+                    "적요": memo if memo else "-",
                 })
-                st.success("✅ 장부 내역이 성공적으로 등록되었습니다! 상단 잔액과 내역에 즉시 반영됩니다.")
+                st.success("✅ 장부 내역이 등록되었습니다! 상단 잔액 카드와 목록에 즉시 계산되어 연동됩니다.")
                 st.rerun()
             else:
                 st.warning("⚠️ 금액은 0원보다 커야 합니다.")
