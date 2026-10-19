@@ -3430,7 +3430,7 @@ elif selected_menu == "💵 거래처 미수금관리":
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [일계표 및 입출금 장부] 메뉴 (고급 보고서 양식 및 인쇄 포함)
+# [일계표 및 입출금 장부] 메뉴 (달력 선택 방식 적용)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
@@ -3443,23 +3443,19 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     cashbook_data = st.session_state.cashbook_list
 
-    # --- 1. 상단: 날짜별 필터 및 인쇄/다운로드 버튼 ---
+    # --- 1. 상단: 날짜별 필터 (달력 위젯 표시) 및 인쇄/다운로드 버튼 ---
     st.markdown("#### 📅 날짜별 조회 및 인쇄")
     
-    # 등록된 날짜 목록 추출 (중복 제거, 최신순)
-    available_dates = sorted(list(set(str(item.get("날짜", ""))[:10] for item in cashbook_data if item.get("날짜"))), reverse=True)
-    
-    col_f1, col_f2, col_f3 = st.columns([1.5, 1.5, 2])
+    col_f1, col_f2 = st.columns([1.5, 2])
     with col_f1:
         date_filter_mode = st.radio("조회 방식", ["전체 기간", "특정 날짜 선택"], horizontal=True, key="cash_filter_mode")
     
     selected_target_date = str(date.today())
     if date_filter_mode == "특정 날짜 선택":
         with col_f2:
-            if available_dates:
-                selected_target_date = st.selectbox("날짜 선택", options=available_dates, key="cash_select_date")
-            else:
-                selected_target_date = str(st.date_input("날짜 직접 선택", value=date.today(), key="cash_date_input"))
+            # 📅 클릭하여 날짜를 고를 수 있는 달력 위젯 적용
+            picked_date = st.date_input("📅 조회할 날짜 선택 (달력)", value=date.today(), key="cash_date_picker_calendar")
+            selected_target_date = str(picked_date)
 
     # 데이터 필터링
     filtered_cash_data = []
@@ -3579,7 +3575,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                     .approval-table th {{ background-color: #f1f5f9; color: #334155; }}
                     .approval-sign {{ height: 40px; }}
 
-                    .summary-container {{ display: flex; gap: 12px; margin-bottom: 20px; }}
                     .summary-card {{ flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; text-align: center; }}
                     .summary-card.income {{ border-left: 4px solid #2563eb; }}
                     .summary-card.expense {{ border-left: 4px solid #dc2626; }}
@@ -3681,7 +3676,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     # --- 4. 하단: 새로운 수입 / 지출 등록 폼 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form_v5"):
+    with st.form("cashbook_register_form_v6"):
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
