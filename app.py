@@ -1473,7 +1473,7 @@ st.markdown(header_html, unsafe_allow_html=True)
 # ==========================================
 # [1] 수출입 B/L 등록
 # ==========================================
-if selected_menu == "📊 수출입 B/L 등록":
+elif selected_menu == "📊 수출입 B/L 등록":
     st.markdown(
         "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 수출입 B/L 및 Profit 등록 관리</h3>",
         unsafe_allow_html=True,
@@ -1630,7 +1630,7 @@ if selected_menu == "📊 수출입 B/L 등록":
             st.markdown("#### 📦 화물 및 매출 정보")
             piece_count = st.text_input("총 박스 수 (Piece)", value=piece_count_val)
             gross_weight_sales = st.number_input(
-                "매출 실중량(kg)", value=float(gw), min_value=0.0
+                "매출 실중량(kg)", value=float(gw), min_value=0.0, step=0.1
             )
             sales_chargeable_weight = st.number_input(
                 "매출 청구중량(kg) [자동 계산]",
@@ -1654,7 +1654,7 @@ if selected_menu == "📊 수출입 B/L 등록":
             st.markdown("#### 💰 매입 정보")
             volume_dim = st.text_input("부피 규격 (Volume)", value=volume_str_result)
             gross_weight_purchase = st.number_input(
-                "매입 실중량(kg)", value=float(gw), min_value=0.0
+                "매입 실중량(kg)", value=float(gw), min_value=0.0, step=0.1
             )
             purchase_chargeable_weight = st.number_input(
                 "매입 청구중량(kg) [자동 계산]",
@@ -1696,6 +1696,9 @@ if selected_menu == "📊 수출입 B/L 등록":
                     "품목": item_desc,
                     "박스수": piece_count,
                     "부피규격": volume_dim,
+                    "실중량(kg)": float(gross_weight_sales),          # 👈 실중량 저장 추가
+                    "매출실중량(kg)": float(gross_weight_sales),    # 👈 매출 실중량 저장 추가
+                    "매입실중량(kg)": float(gross_weight_purchase), # 👈 매입 실중량 저장 추가
                     "매출청구중량(kg)": sales_chargeable_weight,
                     "매입청구중량(kg)": purchase_chargeable_weight,
                     "CBM": f"{total_cbm:.3f} CBM",
@@ -1710,13 +1713,12 @@ if selected_menu == "📊 수출입 B/L 등록":
                 })
                 save_bl_data(st.session_state.bl_data_list)
                 st.success(
-                    f"🎉 [성공] B/L 및 Job 번호({job_no})가 [{current_user_name}]님의 이름으로 등록되었습니다!"
+                    f"🎉 [성공] B/L 및 Job 번호({job_no})가 실중량 포함하여 [{current_user_name}]님의 이름으로 등록되었습니다!"
                 )
             else:
                 st.warning(
                     "⚠️ [경고] 'Job 번호'와 '화주명'은 반드시 입력하셔야 등록됩니다."
                 )
-# ==========================================
 # [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
