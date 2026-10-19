@@ -3430,7 +3430,7 @@ elif selected_menu == "💵 거래처 미수금관리":
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [일계표 및 입출금 장부] 메뉴 (날짜별 조회·인쇄 기능 추가)
+# [일계표 및 입출금 장부] 메뉴 (고급 보고서 양식 및 인쇄 포함)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
@@ -3447,7 +3447,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown("#### 📅 날짜별 조회 및 인쇄")
     
     # 등록된 날짜 목록 추출 (중복 제거, 최신순)
-    available_dates = sorted(list(set(str(item.get("날즙", item.get("날짜", "")))[:10] for item in cashbook_data if item.get("날짜"))), reverse=True)
+    available_dates = sorted(list(set(str(item.get("날짜", ""))[:10] for item in cashbook_data if item.get("날짜"))), reverse=True)
     
     col_f1, col_f2, col_f3 = st.columns([1.5, 1.5, 2])
     with col_f1:
@@ -3492,6 +3492,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown("---")
 
     # --- 3. 중단: 장부 내역 조회 및 편집/삭제 ---
+    print_title = "전체 일계표" if date_filter_mode == "전체 기간" else f"{selected_target_date} 일계표"
     title_label = f"📋 등록된 장부 내역 (전체)" if date_filter_mode == "전체 기간" else f"📋 [{selected_target_date}] 일일 장부 내역"
     st.markdown(f"#### {title_label}")
 
@@ -3515,15 +3516,18 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         with c_btn1:
             if st.button("💾 변경된 장부 내용 저장", type="primary", use_container_width=True):
                 try:
-                    # 원본 전체 리스트에서 수정된 내용 반영
                     saved_df = edited_cash_table.drop(columns=["선택"], errors="ignore").copy()
                     edited_records = saved_df.fillna("").to_dict(orient="records")
                     
-                    # 맵핑을 위해 기존 데이터 딕셔너리로 변환 후 업데이트
-                    updated_all_list = []
-                    edited_sigs = {json.dumps(r, ensure_ascii=False, sort_keys=True) for r in edited_records}
-                    
-                    # 수정된 항목 반영 로직
+                    for row in edited_records:
+                        raw_amount = str(row.get("금액(원)", 0)).replace(",", "").replace("원", "").strip()
+                        try:
+                            row["금액(원)"] = float(raw_amount or 0)
+                            if row["금액(원)"].is_integer():
+                                row["금액(원)"] = int(row["금액(원)"])
+                        except:
+                            row["금액(원)"] = 0
+
                     st.session_state.cashbook_list = edited_records
                     save_account_data(edited_records)
                     st.success("일계표 변경 내용이 저장되었습니다.")
@@ -3534,7 +3538,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True):
                 selected_del = edited_cash_table[edited_cash_table["선택"] == True]
                 if not selected_del.empty:
-                    # 삭제할 항목들의 고유 식별(날짜, 구분, 항목, 금액)을 이용해 전체 리스트에서 제거
                     del_signatures = set()
                     for _, row in selected_del.iterrows():
                         sig = (str(row.get("날짜", ""))[:10], str(row.get("구분", "")), str(row.get("항목", "")), str(row.get("금액(원)", "")))
@@ -3553,58 +3556,123 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 else:
                     st.warning("⚠️ 삭제할 행의 체크박스를 선택해주세요.")
         with c_btn3:
-            # 인쇄용 HTML 팝업 또는 다운로드 기능
-            print_title = "전체 일계표" if date_filter_mode == "전체 기간" else f"{selected_target_date} 일계표"
-            
-            # 인쇄용 HTML 생성
+            # 회사 보고용 격식 있는 고급 일계표 HTML 양식 생성
             print_html = f"""
             <!DOCTYPE html>
             <html>
             <head>
                 <meta charset="utf-8">
                 <style>
-                    @media print {{ body {{ -webkit-print-color-adjust: exact; }} .no-print {{ display: none !important; }} @page {{ size: A4 portrait; margin: 10mm; }} }}
-                    body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 10pt; margin: 0; padding: 15px; background: #fff; }}
-                    .box {{ max-width: 760px; margin: 0 auto; border: 2px solid #0f172a; padding: 20px; border-radius: 6px; }}
-                    table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
-                    th, td {{ border: 1px solid #64748b; padding: 8px 10px; text-align: left; font-size: 9.5pt; }}
-                    th {{ background-color: #0f172a; color: white; text-align: center; }}
+                    @media print {{
+                        body {{ -webkit-print-color-adjust: exact; }}
+                        .no-print {{ display: none !important; }}
+                        @page {{ size: A4 portrait; margin: 12mm; }}
+                    }}
+                    body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9.5pt; margin: 0; padding: 15px; background: #fff; }}
+                    .report-box {{ max-width: 780px; margin: 0 auto; border: 1.5px solid #cbd5e1; padding: 25px; border-radius: 8px; background: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }}
+                    
+                    .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+                    .header-table td {{ border: none; vertical-align: middle; }}
+                    
+                    .approval-table {{ border-collapse: collapse; float: right; }}
+                    .approval-table th, .approval-table td {{ border: 1px solid #64748b; font-size: 8pt; text-align: center; padding: 4px 8px; }}
+                    .approval-table th {{ background-color: #f1f5f9; color: #334155; }}
+                    .approval-sign {{ height: 40px; }}
+
+                    .summary-container {{ display: flex; gap: 12px; margin-bottom: 20px; }}
+                    .summary-card {{ flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; text-align: center; }}
+                    .summary-card.income {{ border-left: 4px solid #2563eb; }}
+                    .summary-card.expense {{ border-left: 4px solid #dc2626; }}
+                    .summary-card.balance {{ border-left: 4px solid #0f172a; background: #f1f5f9; }}
+                    .card-title {{ font-size: 8pt; color: #64748b; font-weight: bold; margin-bottom: 4px; }}
+                    .card-val {{ font-size: 11pt; font-weight: bold; color: #0f172a; }}
+
+                    .data-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+                    .data-table th, .data-table td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: center; font-size: 9pt; }}
+                    .data-table th {{ background-color: #0f172a; color: white; font-weight: 600; font-size: 9.5pt; }}
+                    .data-table tr:nth-child(even) {{ background-color: #f8fafc; }}
+                    
                     .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 12px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }}
                 </style>
             </head>
             <body>
-                <div class="box">
-                    <button class="p-btn no-print" onclick="window.print()">🖨 일계표 인쇄 및 PDF 저장하기</button>
-                    <h2 style="text-align: center; color: #1e3a8a; margin-bottom: 5px;">주식회사 범운해운항공 - {print_title}</h2>
-                    <p style="text-align: center; color: #475569; font-size: 9pt; margin-top: 0;">총 수입: {int(total_income):,}원 | 총 지출: {int(total_expense):,}원 | 잔액: {int(current_balance):,}원</p>
-                    <table>
+                <div class="report-box">
+                    <button class="p-btn no-print" onclick="window.print()">🖨 격식 있는 일계표 보고서 인쇄 / PDF 저장</button>
+                    
+                    <table class="header-table">
                         <tr>
-                            <th>거래일자</th><th>구분</th><th>항목</th><th>금액 (원)</th><th>적요 및 메모</th>
+                            <td>
+                                <div style="font-size: 11pt; font-weight: bold; color: #2563eb; margin-bottom: 3px;">(주)범운해운항공</div>
+                                <div style="font-size: 18pt; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">일일 자금 수지 및 일계표</div>
+                                <div style="font-size: 8.5pt; color: #64748b; margin-top: 4px;">조회 기준: <b>{print_title}</b> | 발행일자: {date.today()}</div>
+                            </td>
+                            <td style="width: 180px;">
+                                <table class="approval-table">
+                                    <tr><th rowspan="2" style="width: 20px; background:#f8fafc;">결<br>재</th><th>담당</th><th>대표이사</th></tr>
+                                    <tr><td class="approval-sign"></td><td class="approval-sign"></td></tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: none;">
+                        <tr>
+                            <td style="border: none; padding: 0 6px 0 0; width: 33%;">
+                                <div class="summary-card income">
+                                    <div class="card-title">총 수입 금액</div>
+                                    <div class="card-val" style="color: #2563eb;">+{int(total_income):,} 원</div>
+                                </div>
+                            </td>
+                            <td style="border: none; padding: 0 6px; width: 33%;">
+                                <div class="summary-card expense">
+                                    <div class="card-title">총 지출 금액</div>
+                                    <div class="card-val" style="color: #dc2626;">-{int(total_expense):,} 원</div>
+                                </div>
+                            </td>
+                            <td style="border: none; padding: 0 0 0 6px; width: 34%;">
+                                <div class="summary-card balance">
+                                    <div class="card-title">마감 잔액 (통장 잔액)</div>
+                                    <div class="card-val">{int(current_balance):,} 원</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="data-table">
+                        <tr>
+                            <th style="width: 15%;">거래일자</th>
+                            <th style="width: 15%;">구분</th>
+                            <th style="width: 20%;">항목</th>
+                            <th style="width: 20%;">금액 (원)</th>
+                            <th style="width: 30%;">적요 및 메모</th>
                         </tr>
             """
             for row in filtered_cash_data:
+                io_gubun = str(row.get("구분", "-"))
+                gubun_color = "#2563eb" if "수입" in io_gubun else "#dc2626"
                 print_html += f"""
                         <tr>
                             <td>{row.get("날짜", "-")}</td>
-                            <td style="font-weight: bold;">{row.get("구분", "-")}</td>
+                            <td style="font-weight: bold; color: {gubun_color};">{io_gubun}</td>
                             <td>{row.get("항목", "-")}</td>
                             <td style="text-align: right; font-weight: bold;">{int(float(str(row.get("금액(원)", 0)).replace(",", "") or 0)):,} 원</td>
-                            <td>{row.get("적요", "-")}</td>
+                            <td style="text-align: left; padding-left: 10px;">{row.get("적요", "-")}</td>
                         </tr>
                 """
             print_html += f"""
                     </table>
-                    <div style="margin-top: 30px; text-align: center; font-weight: bold; font-size: 11pt;">
-                        (주)범운해운항공 대표이사 이상복 [직인생략]
+                    
+                    <div style="margin-top: 35px; text-align: center; font-size: 10pt; color: #475569;">
+                        상기와 같이 자금 입출금 내역을 보고합니다.<br><br>
+                        <b style="font-size: 11pt; color: #0f172a;">주식회사 범운해운항공 대표이사 이상복 [직인생략]</b>
                     </div>
                 </div>
             </body>
             </html>
             """
             
-            # 버튼 클릭 시 인쇄 미리보기 컴포넌트 출력
-            if st.button("🖨 일계표 인쇄 / PDF 저장", type="primary", use_container_width=True):
-                components.html(print_html, height=600, scrolling=True)
+            if st.button("🖨 정식 일계표 보고서 인쇄 / PDF", type="primary", use_container_width=True):
+                components.html(print_html, height=700, scrolling=True)
     else:
         st.info("조회된 장부 내역이 없습니다.")
 
@@ -3613,7 +3681,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     # --- 4. 하단: 새로운 수입 / 지출 등록 폼 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form_v4"):
+    with st.form("cashbook_register_form_v5"):
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
