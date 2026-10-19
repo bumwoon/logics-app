@@ -1766,6 +1766,15 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 d_col1, d_col2, d_col3 = st.columns(3)
                 with d_col1:
                     e_type = st.selectbox("구분", ["수출 (Export)", "수입 (Import)"], index=0 if "수출" in str(target_item.get("구분", "")) else 1)
+                    
+                    # --- [날짜 수정 입력칸 추가] ---
+                    raw_date = str(target_item.get("날짜", str(date.today())))
+                    try:
+                        parsed_date = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
+                    except:
+                        parsed_date = date.today()
+                    e_date = st.date_input("선적 날짜", value=parsed_date)
+                    
                     e_job = st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")))
                     e_bl = st.text_input("B/L 번호", value=str(target_item.get("B/L 번호", "")))
                 with d_col2:
@@ -1821,6 +1830,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 if submitted_update:
                     st.session_state.bl_data_list[target_idx].update({
                         "구분": e_type,
+                        "날짜": str(e_date),  # --- [선적 날짜 저장 반영] ---
                         "Job 번호": e_job,
                         "B/L 번호": e_bl,
                         "국가": e_country,
@@ -1842,7 +1852,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         "최종수정자": current_user_name
                     })
                     save_bl_data(st.session_state.bl_data_list)
-                    st.success("✅ 선택하신 B/L의 중량 및 내용이 성공적으로 수정 저장되었습니다!")
+                    st.success("✅ 선택하신 B/L의 날짜, 중량 및 내용이 성공적으로 수정 저장되었습니다!")
                     st.rerun()
         elif len(selected_rows) > 1:
             st.warning("⚠️ 상세 수정은 **1개씩만** 선택해서 진행해주세요.")
