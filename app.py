@@ -2530,11 +2530,22 @@ elif selected_menu == "📋 금일발송 매니페스트":
         # 매입처 전송용 입고 LIST 전용 openpyxl 엑셀 생성
         vendor_rows = []
         for idx_v, r_v in enumerate(date_shipments, start=1):
-            # 실중량 데이터를 정확하게 가져오도록 수정 (실중량 우선, 없으면 청구중량)
-            gw_val = r_v.get("실중량(kg)", r_v.get("매출실중량(kg)", r_v.get("매출청구중량(kg)", "-")))
-            if gw_val == "-" or gw_val is None or str(gw_val).strip() == "":
-                gw_val = r_v.get("매출청구중량(kg)", "-")
-                
+            # 화면(Profit 등)에 영향 주지 않고, 오직 매입처 입고 리스트 전송용으로만 원래 실중량 추출
+            # (등록 시 입력된 실중량 항목이나 박스 입력 무게를 최우선으로 가져옵니다)
+            gw_val = r_v.get("실중량(kg)", r_v.get("매출실중량(kg)", ""))
+            if gw_val == "" or gw_val is None or str(gw_val) == "-":
+                # 저장된 실중량이 없을 경우에만 청구중량 대신 기본값 또는 원본 값 매칭
+                gw_val = r_v.get("매출실중량(kg)", r_v.get("매출청구중량(kg)", "-"))
+            
+            # 소수점 무게가 문자열이거나 숫자일 때 그대로 유지 (예: 1.76)
+            try:
+                if float(gw_val) != int(float(gw_val)):
+                    gw_val = round(float(gw_val), 2)
+                else:
+                    gw_val = int(float(gw_val))
+            except:
+                pass
+
             vendor_rows.append({
                 "NO": idx_v,
                 "입고날짜": str(r_v.get("날짜", target_date_str))[:10],
