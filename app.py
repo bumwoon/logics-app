@@ -2622,7 +2622,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [7] 금일발송 매니페스트 (지정 항목 및 PDF 인쇄 기능 추가)
+# [7] 금일발송 매니페스트 (PDF 인쇄 + 매입처 전송용 엑셀 다운로드 복구)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
@@ -2643,7 +2643,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
     ]
 
     if date_shipments:
-        # 요청하신 항목만 추출하여 표 구성
+        # 1. 화면 표시용 데이터프레임 구성
         manifest_rows = []
         for r_m in date_shipments:
             try:
@@ -2772,18 +2772,83 @@ elif selected_menu == "📋 금일발송 매니페스트":
         </html>
         """
 
+        # 2. 매입처 전송용 입고 LIST 엑셀 데이터 생성
+        vendor_rows = []
+        for idx_v, r_v in enumerate(date_shipments, start=1):
+            gw_val = r_v.get("실중량(kg)", r_v.get("매출실중량(kg)", ""))
+            if gw_val == "" or gw_val is None or str(gw_val) == "-":
+                gw_val = r_v.get("매출청구중량(kg)", "-")
+            try:
+                if float(gw_val) != int(float(gw_val)):
+                    gw_val = float(gw_val)
+                else:
+                    gw_val = int(float(gw_val))
+            except:
+                pass
+
+            vendor_rows.append({
+                "NO": idx_v,
+                "입고날짜": str(r_v.get("날짜", target_date_str))[:10],
+                "B/L 번호": r_v.get("B/L 번호", "-"),
+                "실중량(kg)": gw_val,
+                "부피규격(사이즈)": r_v.get("부피규격", "-"),
+                "수하인": r_v.get("해외수하인", "-"),
+                "수하인 주소": r_v.get("해외수하인주소", "-"),
+                "수하인 전화번호": r_v.get("해외수하인전화번호", "-"),
+            })
+        vendor_df = pd.DataFrame(vendor_rows)
+
+        excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            vendor_df.to_excel(writer, index=False, sheet_name='입고 LIST', startrow=2)
+            workbook = writer.book
+            worksheet = writer.sheets['입고 LIST']
+            
+            worksheet.cell(row=1, column=1, value="입고 LIST").font = openpyxl.styles.Font(size=16, bold=True, color="1E3A8A")
+            worksheet.page_setup.orientation = worksheet.ORIENTATION_LANDSCAPE
+            worksheet.page_setup.paperSize = worksheet.PAPERSIZE_A4
+            worksheet.sheet_properties.pageSetUpPr.fitToPage = True
+            worksheet.page_setup.fitToWidth = 1
+            worksheet.page_setup.fitToHeight = 0
+            
+            header_fill = openpyxl.styles.PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+            header_font = openpyxl.styles.Font(color="FFFFFF", bold=True)
+            thin_border = openpyxl.styles.Border(
+                left=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                right=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                top=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                bottom=openpyxl.styles.Side(style='thin', color='CBD5E1')
+            )
+            
+            for col_num in range(1, len(vendor_df.columns) + 1):
+                cell = worksheet.cell(row=3, column=col_num)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
+            
+            for row in worksheet.iter_rows(min_row=3, max_row=len(vendor_df) + 3, min_col=1, max_col=len(vendor_df.columns)):
+                for cell in row:
+                    cell.border = thin_border
+                    if cell.row > 3:
+                        cell.alignment = openpyxl.styles.Alignment(vertical="center")
+
+            for col in worksheet.columns:
+                max_len = max(len(str(cell.value or '')) for cell in col)
+                col_letter = openpyxl.utils.get_column_letter(col[0].column)
+                worksheet.column_dimensions[col_letter].width = max(max_len + 5, 12)
+
+        # 3. 버튼 배치 (PDF 인쇄 버튼 & 매입처 전송용 엑셀 다운로드 버튼 나란히 배치)
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
             if st.button("🖨 매니페스트 정식 인쇄 / PDF 저장", type="primary", use_container_width=True):
                 components.html(print_manifest_html, height=650, scrolling=True)
         with col_dl2:
-            csv_bytes = manifest_display_df.to_csv(index=False).encode("utf-8-sig")
             st.download_button(
-                "📥 매니페스트 다운로드 (CSV)",
-                data=csv_bytes,
-                file_name=f"범운해운항공_매니페스트_{target_date_str}.csv",
-                mime="text/csv",
-                key="manifest_csv_download",
+                "📦 [매입처 전송용] 입고 LIST 엑셀 다운로드 (.xlsx)",
+                data=excel_buffer.getvalue(),
+                file_name=f"입고LIST_{target_date_str}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="vendor_inbound_excel_download",
                 use_container_width=True
             )
     else:
