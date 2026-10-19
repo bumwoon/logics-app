@@ -2680,7 +2680,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
     if date_shipments:
         manifest_df = pd.DataFrame(date_shipments)
         
-        # --- 💡 실중량 컬럼이 데이터에 없을 경우 안전하게 추가 및 정렬 ---
+        # --- 💡 실중량 컬럼이 데이터에 없을 경우 안전하게 추가 ---
         if "실중량(kg)" not in manifest_df.columns:
             if "매출실중량(kg)" in manifest_df.columns:
                 manifest_df["실중량(kg)"] = manifest_df["매출실중량(kg)"]
@@ -2694,8 +2694,22 @@ elif selected_menu == "📋 금일발송 매니페스트":
         
         manifest_display_df = manifest_df[existing_cols + other_cols]
 
-        # 1. 화면 전체 컬럼 출력 (실중량 포함)
-        st.dataframe(manifest_display_df, use_container_width=True)
+        # 1. 화면 전체 컬럼 출력 (실중량 소수점 그대로 표기)
+        st.dataframe(
+            manifest_display_df,
+            use_container_width=True,
+            column_config={
+                "실중량(kg)": st.column_config.NumberColumn(
+                    "실중량(kg)", format="%.2f"
+                ),
+                "매출청구중량(kg)": st.column_config.NumberColumn(
+                    "매출청구중량(kg)", format="%.1f"
+                ),
+                "매입청구중량(kg)": st.column_config.NumberColumn(
+                    "매입청구중량(kg)", format="%.1f"
+                ),
+            },
+        )
 
         # 2. 다운로드용 버튼 영역
         col_dl1, col_dl2 = st.columns(2)
@@ -2720,8 +2734,9 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     gw_val = r_v.get("매출청구중량(kg)", "-")
                 
                 try:
+                    # 반올림하지 않고 소수점이 있으면 소수점 그대로, 정수면 정수로 세팅
                     if float(gw_val) != int(float(gw_val)):
-                        gw_val = round(float(gw_val), 2)
+                        gw_val = float(gw_val)
                     else:
                         gw_val = int(float(gw_val))
                 except:
