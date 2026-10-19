@@ -1473,7 +1473,7 @@ st.markdown(header_html, unsafe_allow_html=True)
 # ==========================================
 # [1] 수출입 B/L 등록
 # ==========================================
-if selected_menu == "📊 수출입 B/L 등록":
+elif selected_menu == "📊 수출입 B/L 등록":
     st.markdown(
         "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 수출입 B/L 및 Profit 등록 관리</h3>",
         unsafe_allow_html=True,
@@ -1537,6 +1537,7 @@ if selected_menu == "📊 수출입 B/L 등록":
 
             vol_str_list.append(f"{int(w)}×{int(l)}×{int(h)}cm({ctn}CTN)")
 
+    # --- 💡 청구중량은 실중량 vs 부피중량 중 큰 값을 구한 뒤 kg당 무조건 올림(ceil) 처리 ---
     calc_sales_cw = float(math.ceil(max(gw, total_vol_wt_sales)))
     calc_purchase_cw = float(math.ceil(max(gw, total_vol_wt_purchase)))
     volume_str_result = " / ".join(vol_str_list) if vol_str_list else "-"
@@ -1629,11 +1630,19 @@ if selected_menu == "📊 수출입 B/L 등록":
         with col3:
             st.markdown("#### 📦 화물 및 매출 정보")
             piece_count = st.text_input("총 박스 수 (Piece)", value=piece_count_val)
-            gross_weight_sales = st.number_input(
-                "매출 실중량(kg)", value=float(gw), min_value=0.0, step=0.01, format="%.2f"
+            
+            # 실중량은 소수점 그대로 입력 받음
+            gross_weight_sales_str = st.text_input(
+                "매출 실중량(kg)", value=str(gw), placeholder="예: 1.5", key="sales_gw_input"
             )
+            try:
+                gross_weight_sales = float(gross_weight_sales_str)
+            except ValueError:
+                gross_weight_sales = float(gw)
+
+            # 청구중량은 자동 계산된 올림값 또는 수동 입력 가능
             sales_chargeable_weight = st.number_input(
-                "매출 청구중량(kg) [자동 계산]",
+                "매출 청구중량(kg) [자동 올림 계산]",
                 value=float(calc_sales_cw),
                 min_value=0.0,
                 step=1.0,
@@ -1653,11 +1662,17 @@ if selected_menu == "📊 수출입 B/L 등록":
         with col4:
             st.markdown("#### 💰 매입 정보")
             volume_dim = st.text_input("부피 규격 (Volume)", value=volume_str_result)
-            gross_weight_purchase = st.number_input(
-                "매입 실중량(kg)", value=float(gw), min_value=0.0, step=0.01, format="%.2f"
+            
+            gross_weight_purchase_str = st.text_input(
+                "매입 실중량(kg)", value=str(gw), placeholder="예: 1.5", key="purchase_gw_input"
             )
+            try:
+                gross_weight_purchase = float(gross_weight_purchase_str)
+            except ValueError:
+                gross_weight_purchase = float(gw)
+
             purchase_chargeable_weight = st.number_input(
-                "매입 청구중량(kg) [자동 계산]",
+                "매입 청구중량(kg) [자동 올림 계산]",
                 value=float(calc_purchase_cw),
                 min_value=0.0,
                 step=1.0,
@@ -1699,8 +1714,8 @@ if selected_menu == "📊 수출입 B/L 등록":
                     "실중량(kg)": float(gross_weight_sales),
                     "매출실중량(kg)": float(gross_weight_sales),
                     "매입실중량(kg)": float(gross_weight_purchase),
-                    "매출청구중량(kg)": sales_chargeable_weight,
-                    "매입청구중량(kg)": purchase_chargeable_weight,
+                    "매출청구중량(kg)": float(sales_chargeable_weight),
+                    "매입청구중량(kg)": float(purchase_chargeable_weight),
                     "CBM": f"{total_cbm:.3f} CBM",
                     "현재 상태": tracking_status,
                     "수금상태": payment_status_input,
@@ -1713,7 +1728,7 @@ if selected_menu == "📊 수출입 B/L 등록":
                 })
                 save_bl_data(st.session_state.bl_data_list)
                 st.success(
-                    f"🎉 [성공] B/L 및 Job 번호({job_no})가 실중량 포함하여 [{current_user_name}]님의 이름으로 등록되었습니다!"
+                    f"🎉 [성공] B/L 및 Job 번호({job_no})가 실중량 소수점 유지 및 청구중량 올림 반영으로 등록되었습니다!"
                 )
             else:
                 st.warning(
@@ -1728,6 +1743,10 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
     if st.session_state.bl_data_list:
         df_bl = pd.DataFrame(st.session_state.bl_data_list)
         
+        for col_name in ["실중량(kg)", "매출실중량(kg)", "매입실중량(kg)"]:
+            if col_name in df_bl.columns:
+                df_bl[col_name] = pd.to_numeric(df_bl[col_name], errors="coerce").fillna(0.0).apply(lambda x: f"{x:.2f}")
+
         if "선택" not in df_bl.columns:
             df_bl.insert(0, "선택", False)
             
@@ -1799,7 +1818,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
                 
                 st.markdown("---")
-                st.markdown("#### 📦 중량(실중량 소수점 유지 / 청구중량), 규격 및 금액 상세 수정")
+                st.markdown("#### 📦 중량(실중량 소수점 유지 / 청구중량 올림), 규격 및 금액 상세 수정")
                 
                 w_col1, w_col2, w_col3, w_col4 = st.columns(4)
                 with w_col1:
@@ -1813,25 +1832,26 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         def_gw = float(target_item.get("실중량(kg)", target_item.get("매출실중량(kg)", 1.0)))
                     except:
                         def_gw = 1.0
-                    e_sales_gw = st.number_input("실중량 (kg)", value=def_gw, min_value=0.0, step=0.01, format="%.2f")
+                    e_sales_gw = st.number_input("실중량 (kg) [소수점 유지]", value=def_gw, min_value=0.0, step=0.01, format="%.2f")
                     
                     try:
                         def_scw = float(target_item.get("매출청구중량(kg)", 1.0))
                     except:
                         def_scw = 1.0
-                    e_sales_cw = st.number_input("매출 청구중량(kg)", value=def_scw, min_value=0.0, step=1.0)
+                    # 청구중량은 올림(ceil) 정수 단위 유지
+                    e_sales_cw = st.number_input("매출 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_scw)), min_value=0.0, step=1.0)
                 with w_col4:
                     try:
                         def_pgw = float(target_item.get("매입실중량(kg)", def_gw))
                     except:
                         def_pgw = 1.0
-                    e_purchase_gw = st.number_input("매입 실중량(kg)", value=def_pgw, min_value=0.0, step=0.01, format="%.2f")
+                    e_purchase_gw = st.number_input("매입 실중량(kg) [소수점 유지]", value=def_pgw, min_value=0.0, step=0.01, format="%.2f")
                     
                     try:
                         def_pcw = float(target_item.get("매입청구중량(kg)", 1.0))
                     except:
                         def_pcw = 1.0
-                    e_purchase_cw = st.number_input("매입 청구중량(kg)", value=def_pcw, min_value=0.0, step=1.0)
+                    e_purchase_cw = st.number_input("매입 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_pcw)), min_value=0.0, step=1.0)
                 
                 st.markdown("---")
                 d_col4, d_col5 = st.columns(2)
@@ -1871,8 +1891,8 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         "실중량(kg)": float(e_sales_gw),
                         "매출실중량(kg)": float(e_sales_gw),
                         "매입실중량(kg)": float(e_purchase_gw),
-                        "매출청구중량(kg)": float(e_sales_cw),
-                        "매입청구중량(kg)": float(e_purchase_cw),
+                        "매출청구중량(kg)": float(math.ceil(e_sales_cw)),
+                        "매입청구중량(kg)": float(math.ceil(e_purchase_cw)),
                         "수금상태": e_status,
                         "매출액(원)": float(e_sales),
                         "매입액(원)": float(e_purchase),
@@ -1881,7 +1901,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         "최종수정자": current_user_name
                     })
                     save_bl_data(st.session_state.bl_data_list)
-                    st.success("✅ 선택하신 B/L의 실중량 및 수정 내용이 성공적으로 저장되었습니다!")
+                    st.success("✅ 선택하신 B/L의 실중량(소수점 유지) 및 청구중량(올림)이 성공적으로 수정 저장되었습니다!")
                     st.rerun()
         elif len(selected_rows) > 1:
             st.warning("⚠️ 상세 수정은 **1개씩만** 선택해서 진행해주세요.")
