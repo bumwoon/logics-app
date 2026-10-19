@@ -2530,8 +2530,11 @@ elif selected_menu == "📋 금일발송 매니페스트":
         # 매입처 전송용 입고 LIST 전용 openpyxl 엑셀 생성
         vendor_rows = []
         for idx_v, r_v in enumerate(date_shipments, start=1):
-            # 실중량 우선 추출
-            gw_val = r_v.get("매출실중량(kg)", r_v.get("실중량(kg)", r_v.get("매출청구중량(kg)", "-")))
+            # 실중량 데이터를 정확하게 가져오도록 수정 (실중량 우선, 없으면 청구중량)
+            gw_val = r_v.get("실중량(kg)", r_v.get("매출실중량(kg)", r_v.get("매출청구중량(kg)", "-")))
+            if gw_val == "-" or gw_val is None or str(gw_val).strip() == "":
+                gw_val = r_v.get("매출청구중량(kg)", "-")
+                
             vendor_rows.append({
                 "NO": idx_v,
                 "입고날짜": str(r_v.get("날짜", target_date_str))[:10],
