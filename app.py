@@ -11,7 +11,7 @@ import json
 import glob
 import os
 import shutil
-
+import openpyxl 
 
 def simple_dual_backup():
     """복잡한 인증 없이 내 컴퓨터와 구글 드라이브 양쪽에 최신 백업 파일을 동시에 자동 저장하는 이중 백업 함수"""
