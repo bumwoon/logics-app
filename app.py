@@ -1793,7 +1793,7 @@ if selected_menu == "📊 수출입 B/L 등록":
                 )
 
 # ==========================================
-# [등록 B/L 수정 및 Profit 내역] 전체 완성 코드
+# [등록 B/L 수정 및 Profit 내역] 최종 점검 및 완성 코드
 # ==========================================
 elif selected_menu == "🚨 등록 B/L 수정 및 Profit 내역":
     st.markdown(
@@ -1801,86 +1801,86 @@ elif selected_menu == "🚨 등록 B/L 수정 및 Profit 내역":
         unsafe_allow_html=True,
     )
 
-    if not st.session_state.bl_data_list:
-        st.info("등록된 B/L 데이터가 없습니다.")
+    if not st.session_state.get("bl_data_list"):
+        st.info("등록된 B/L 데이터가 없습니다. 먼저 B/L을 등록해 주세요.")
     else:
         df_bl_all = pd.DataFrame(st.session_state.bl_data_list)
         
-        # B/L 선택 필터
         st.markdown("#### 🔍 수정할 B/L 번호 선택")
         all_bl_nos = df_bl_all["B/L 번호"].dropna().astype(str).tolist() if "B/L 번호" in df_bl_all.columns else []
         
         if not all_bl_nos:
             st.warning("선택할 수 있는 B/L 번호가 존재하지 않습니다.")
         else:
-            selected_bl_no = st.selectbox("B/L 번호 조회 및 선택", options=all_bl_nos, key="select_bl_for_edit_full")
+            selected_bl_no = st.selectbox("B/L 번호 조회 및 선택", options=all_bl_nos, key="select_bl_for_edit_safe")
             
-            # 선택된 B/L 데이터 가져오기
-            target_item = next((item for item in st.session_state.bl_data_list if str(item.get("B/L 번호", "")) == selected_bl_no), None)
+            # 선택된 B/L 데이터 안전하게 가져오기
+            target_item = next((item for item in st.session_state.bl_data_list if str(item.get("B/L 번호", "")) == str(selected_bl_no)), None)
             
-            if target_item:
+            if not target_item:
+                st.warning(f"선택하신 B/L 번호 ({selected_bl_no})에 대한 상세 데이터를 찾을 수 없습니다.")
+            else:
                 st.markdown("---")
                 st.markdown(f"### 📦 B/L 번호: **{selected_bl_no}** 상세 정보 및 수정")
                 
-                # 기본 정보 표시 영역
+                # 기본 정보 표시 영역 (읽기 전용)
                 info_c1, info_c2, info_c3, info_c4 = st.columns(4)
                 with info_c1:
-                    st.text_input("수출(Export)", value=str(target_item.get("수출입구분", "수출")), disabled=True, key="edit_io_type")
+                    st.text_input("수출(Export)", value=str(target_item.get("수출입구분", "수출")), disabled=True, key="safe_io_type")
                 with info_c2:
-                    st.text_input("목적국", value=str(target_item.get("목적국", "")), disabled=True, key="edit_dest_country")
+                    st.text_input("목적국", value=str(target_item.get("목적국", "")), disabled=True, key="safe_dest_country")
                 with info_c3:
-                    st.text_input("선적 날짜", value=str(target_item.get("날짜", ""))[:10], disabled=True, key="edit_date")
+                    st.text_input("선적 날짜", value=str(target_item.get("날짜", ""))[:10], disabled=True, key="safe_date")
                 with info_c4:
-                    st.text_input("매입처", value=str(target_item.get("매입처", "")), disabled=True, key="edit_vendor_disp")
+                    st.text_input("매입처", value=str(target_item.get("매입처", "")), disabled=True, key="safe_vendor_disp")
 
                 info_c5, info_c6, info_c7, info_c8 = st.columns(4)
                 with info_c5:
-                    st.text_input("화주명(매출)", value=str(target_item.get("화주명(매출)", "")), disabled=True, key="edit_shipper")
+                    st.text_input("화주명(매출)", value=str(target_item.get("화주명(매출)", "")), disabled=True, key="safe_shipper")
                 with info_c6:
-                    st.text_input("품목", value=str(target_item.get("품목", "")), disabled=True, key="edit_item_name")
+                    st.text_input("품목", value=str(target_item.get("품목", "")), disabled=True, key="safe_item_name")
                 with info_c7:
-                    st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")), disabled=True, key="edit_job_no")
+                    st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")), disabled=True, key="safe_job_no")
                 with info_c8:
-                    st.text_input("수금 상태", value=str(target_item.get("수금상태", "미수")), disabled=True, key="edit_pay_status")
+                    st.text_input("수금 상태", value=str(target_item.get("수금상태", "미수")), disabled=True, key="safe_pay_status")
 
                 st.markdown("#### 📦 중량, 규격 및 금액 상세 수정")
                 
                 # 수정 입력 필드 구성
                 edit_c1, edit_c2, edit_c3 = st.columns(3)
                 with edit_c1:
-                    piece_count_str = st.text_input("박스수", value=str(target_item.get("박스수", "1 박스 (CTN)")))
+                    piece_count_str = st.text_input("박스수", value=str(target_item.get("박스수", "1 박스 (CTN)")), key="safe_pcount")
                 with edit_c2:
                     cbm_val = target_item.get("CBM", "0.000 CBM")
-                    st.text_input("CBM", value=str(cbm_val), disabled=True)
+                    st.text_input("CBM", value=str(cbm_val), disabled=True, key="safe_cbm")
                 with edit_c3:
-                    gross_weight_sales_str = st.text_input("실중량 (kg) [소수점 유지]", value=str(target_item.get("실중량(kg)", "0.0")))
+                    gross_weight_sales_str = st.text_input("실중량 (kg) [소수점 유지]", value=str(target_item.get("실중량(kg)", "0.0")), key="safe_gw_sales")
 
                 edit_c4, edit_c5, edit_c6 = st.columns(3)
                 with edit_c4:
-                    volume_str_result = st.text_input("부피 규격", value=str(target_item.get("부피규격", "")))
+                    volume_str_result = st.text_input("부피 규격", value=str(target_item.get("부피규격", "")), key="safe_vol_spec")
                 with edit_c5:
-                    shipping_mode = st.selectbox("운송 형태", options=["항공(Air)", "해상(Ocean)", "특송(Express)"], index=0)
+                    shipping_mode = st.selectbox("운송 형태", options=["항공(Air)", "해상(Ocean)", "특송(Express)"], index=0, key="safe_ship_mode")
                 with edit_c6:
-                    charge_weight_sales_str = st.text_input("매출 청구중량 (kg) [kg당 올림]", value=str(target_item.get("매출청구중량(kg)", "0.0")))
+                    charge_weight_sales_str = st.text_input("매출 청구중량 (kg) [kg당 올림]", value=str(target_item.get("매출청구중량(kg)", "0.0")), key="safe_cw_sales")
 
-                # 매입 관련 중량 입력
                 edit_c7, edit_c8 = st.columns(2)
                 with edit_c7:
-                    gross_weight_purchase_str = st.text_input("매입 실중량 (kg)", value=str(target_item.get("매입실중량(kg)", "0.0")))
+                    gross_weight_purchase_str = st.text_input("매입 실중량 (kg)", value=str(target_item.get("매입실중량(kg)", "0.0")), key="safe_gw_purch")
                 with edit_c8:
-                    charge_weight_purchase_str = st.text_input("매입 청구중량 (kg)", value=str(target_item.get("매입청구중량(kg)", "0.0")))
+                    charge_weight_purchase_str = st.text_input("매입 청구중량 (kg)", value=str(target_item.get("매입청구중량(kg)", "0.0")), key="safe_cw_purch")
 
                 st.markdown("---")
                 
-                # 💾 하단 저장 및 취소 버튼 영역 (스크롤 하단 고정 형태)
-                col_save1, col_save2, col_save3 = st.columns([2, 2, 2])
+                # 💾 하단 저장 및 새로고침 버튼 영역
+                col_save1, col_save2 = st.columns(2)
                 
                 with col_save1:
-                    if st.button("💾 B/L 수정 사항 저장하기", type="primary", use_container_width=True, key="btn_save_bl_edit_final"):
+                    if st.button("💾 B/L 수정 사항 저장하기", type="primary", use_container_width=True, key="btn_save_bl_edit_safe_final"):
                         try:
-                            # 1. 데이터 업데이트
+                            # 데이터 업데이트 수행
                             for item in st.session_state.bl_data_list:
-                                if str(item.get("B/L 번호", "")) == selected_bl_no:
+                                if str(item.get("B/L 번호", "")) == str(selected_bl_no):
                                     item["박스수"] = piece_count_str
                                     item["실중량(kg)"] = gross_weight_sales_str
                                     item["매입실중량(kg)"] = gross_weight_purchase_str
@@ -1888,10 +1888,13 @@ elif selected_menu == "🚨 등록 B/L 수정 및 Profit 내역":
                                     item["매입청구중량(kg)"] = charge_weight_purchase_str
                                     item["부피규격"] = volume_str_result
                                     item["운송형태"] = shipping_mode
-                                    item["최종수정자"] = current_user_name
+                                    try:
+                                        item["최종수정자"] = current_user_name
+                                    except NameError:
+                                        item["최종수정자"] = "관리자"
                                     item["최종수정일시"] = str(datetime.now())[:19]
                             
-                            # 2. 파일 및 세션 저장 실행
+                            # 파일 및 세션 저장 실행
                             save_bl_data(st.session_state.bl_data_list)
                             st.success(f"✅ B/L [{selected_bl_no}] 수정 사항이 성공적으로 저장되었습니다!")
                             st.rerun()
@@ -1899,7 +1902,7 @@ elif selected_menu == "🚨 등록 B/L 수정 및 Profit 내역":
                             st.error(f"❌ 저장 중 오류가 발생했습니다: {e}")
                             
                 with col_save2:
-                    if st.button("🔄 새로고침 / 초기화", use_container_width=True, key="btn_cancel_bl_edit"):
+                    if st.button("🔄 새로고침 / 초기화", use_container_width=True, key="btn_refresh_bl_edit_safe"):
                         st.rerun()
 # ==========================================
 # [새로운 독립 트랙] 매출 관리 (화주별)
