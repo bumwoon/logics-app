@@ -1793,7 +1793,7 @@ if selected_menu == "📊 수출입 B/L 등록":
                 )
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역
+# [2] 등록 B/L 수정 및 Profit 내역 (수정 및 저장 완성본)
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
@@ -1909,7 +1909,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         def_scw = float(target_item.get("매출청구중량(kg)", 1.0))
                     except:
                         def_scw = 1.0
-                    e_sales_cw = st.number_input("매출 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_scw)), min_value=0.0, step=1.0)
+                    e_sales_cw = st.number_input("매출 청구중량(kg)", value=float(math.ceil(def_scw)), min_value=0.0, step=1.0)
                 with w_col4:
                     try:
                         def_pgw = float(target_item.get("매입실중량(kg)", def_gw))
@@ -1921,7 +1921,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         def_pcw = float(target_item.get("매입청구중량(kg)", 1.0))
                     except:
                         def_pcw = 1.0
-                    e_purchase_cw = st.number_input("매입 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_pcw)), min_value=0.0, step=1.0)
+                    e_purchase_cw = st.number_input("매입 청구중량(kg)", value=float(math.ceil(def_pcw)), min_value=0.0, step=1.0)
                 
                 st.markdown("---")
                 d_col4, d_col5 = st.columns(2)
@@ -1929,7 +1929,60 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     try:
                         def_sales = int(target_item.get("매출액(원)", 0))
                     except:
-                        def_sales
+                        def_sales = 0
+                    e_sales = st.number_input("총 매출액 (원)", value=def_sales, min_value=0, step=1000, format="%d")
+                with d_col5:
+                    try:
+                        def_purchase = int(target_item.get("매입액(원)", 0))
+                    except:
+                        def_purchase = 0
+                    e_purchase = st.number_input("총 매입액 (원)", value=def_purchase, min_value=0, step=1000, format="%d")
+
+                e_remarks = st.text_area("비고 수정", value=str(target_item.get("비고", "")))
+
+                # 💡 수정 내용 저장 버튼 및 반영 로직
+                if st.form_submit_button("💾 수정된 B/L 내용 저장하기", type="primary", use_container_width=True):
+                    preview_profit = int(e_sales) - int(e_purchase)
+                    
+                    st.session_state.bl_data_list[target_idx] = {
+                        "구분": e_type,
+                        "날짜": str(e_date),
+                        "Job 번호": e_job,
+                        "B/L 번호": e_bl,
+                        "국가": e_country,
+                        "출발지": target_item.get("출발지", "대한민국 (KOREA)"),
+                        "화주명(매출)": e_shipper,
+                        "해외수하인": e_consignee,
+                        "해외수하인주소": e_consignee_addr,
+                        "해외수하인전화번호": e_consignee_tel,
+                        "매입처": e_vendor,
+                        "운송형태": e_trans,
+                        "서비스옵션": target_item.get("서비스옵션", "Door To Door"),
+                        "품목": e_item,
+                        "박스수": e_box,
+                        "부피규격": e_dim,
+                        "실중량(kg)": float(e_sales_gw),
+                        "매출실중량(kg)": float(e_sales_gw),
+                        "매입실중량(kg)": float(e_purchase_gw),
+                        "매출청구중량(kg)": float(e_sales_cw),
+                        "매입청구중량(kg)": float(e_purchase_cw),
+                        "CBM": e_cbm,
+                        "현재 상태": target_item.get("현재 상태", "운송 중"),
+                        "수금상태": e_status,
+                        "매출액(원)": int(e_sales),
+                        "매입액(원)": int(e_purchase),
+                        "예상Profit(원)": preview_profit,
+                        "비고": e_remarks,
+                        "최종작성자": target_item.get("최종작성자", current_user_name),
+                        "최종수정자": current_user_name,
+                    }
+                    save_bl_data(st.session_state.bl_data_list)
+                    st.success(f"🎉 B/L 번호({e_bl}) 수정 내용이 성공적으로 저장되었습니다!")
+                    st.rerun()
+        elif len(selected_rows) > 1:
+            st.warning("⚠️ 상세 수정은 1개의 B/L만 선택하여 진행해주세요.")
+    else:
+        st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
 # [새로운 독립 트랙] 매출 관리 (화주별)
 # ==========================================
