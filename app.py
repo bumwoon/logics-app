@@ -1793,117 +1793,143 @@ if selected_menu == "📊 수출입 B/L 등록":
                 )
 
 # ==========================================
-# [등록 B/L 수정 및 Profit 내역] 최종 점검 및 완성 코드
+# [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
-elif selected_menu == "🚨 등록 B/L 수정 및 Profit 내역":
-    st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>🚨 등록 B/L 수정 및 Profit 내역 관리</h3>",
-        unsafe_allow_html=True,
-    )
+elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
+    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
+    
+    if st.session_state.bl_data_list:
+        df_bl = pd.DataFrame(st.session_state.bl_data_list)
+        
+        for col_name in ["실중량(kg)", "매출실중량(kg)", "매입실중량(kg)"]:
+            if col_name in df_bl.columns:
+                df_bl[col_name] = pd.to_numeric(df_bl[col_name], errors="coerce").fillna(0.0).apply(lambda x: f"{x:.2f}")
 
-    if not st.session_state.get("bl_data_list"):
-        st.info("등록된 B/L 데이터가 없습니다. 먼저 B/L을 등록해 주세요.")
-    else:
-        df_bl_all = pd.DataFrame(st.session_state.bl_data_list)
-        
-        st.markdown("#### 🔍 수정할 B/L 번호 선택")
-        all_bl_nos = df_bl_all["B/L 번호"].dropna().astype(str).tolist() if "B/L 번호" in df_bl_all.columns else []
-        
-        if not all_bl_nos:
-            st.warning("선택할 수 있는 B/L 번호가 존재하지 않습니다.")
-        else:
-            selected_bl_no = st.selectbox("B/L 번호 조회 및 선택", options=all_bl_nos, key="select_bl_for_edit_safe")
+        if "선택" not in df_bl.columns:
+            df_bl.insert(0, "선택", False)
             
-            # 선택된 B/L 데이터 안전하게 가져오기
-            target_item = next((item for item in st.session_state.bl_data_list if str(item.get("B/L 번호", "")) == str(selected_bl_no)), None)
+        st.info("💡 수정할 B/L 행의 **[선택] 체크박스**를 체크하시면, 아래쪽에 내용을 상세히 수정할 수 있는 **[B/L 개별 수정 입력칸]**이 나타납니다.")
+        
+        edited_bl_table = st.data_editor(
+            df_bl,
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "선택": st.column_config.CheckboxColumn(required=True),
+                "실중량(kg)": st.column_config.NumberColumn("실중량(kg)", format="%.2f"),
+                "매출실중량(kg)": st.column_config.NumberColumn("매출실중량(kg)", format="%.2f"),
+                "매입실중량(kg)": st.column_config.NumberColumn("매입실중량(kg)", format="%.2f"),
+            },
+            key="edit_bl_profit_table_select",
+            height=300
+        )
+        
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            delete_clicked = st.button("🚨 선택한 B/L 삭제", type="secondary", use_container_width=True)
+            if delete_clicked:
+                selected_rows_del = edited_bl_table[edited_bl_table["선택"] == True]
+                if not selected_rows_del.empty:
+                    indices_to_drop = selected_rows_del.index.tolist()
+                    st.session_state.bl_data_list = [
+                        item for idx, item in enumerate(st.session_state.bl_data_list) if idx not in indices_to_drop
+                    ]
+                    save_bl_data(st.session_state.bl_data_list)
+                    st.success("🗑️ 선택한 B/L 내역이 삭제되었습니다.")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ 삭제할 B/L 행의 체크박스를 선택해주세요.")
+                    
+        st.markdown("---")
+        
+        selected_rows = edited_bl_table[edited_bl_table["선택"] == True]
+        
+        if len(selected_rows) == 1:
+            target_idx = selected_rows.index[0]
+            target_item = st.session_state.bl_data_list[target_idx]
             
-            if not target_item:
-                st.warning(f"선택하신 B/L 번호 ({selected_bl_no})에 대한 상세 데이터를 찾을 수 없습니다.")
-            else:
-                st.markdown("---")
-                st.markdown(f"### 📦 B/L 번호: **{selected_bl_no}** 상세 정보 및 수정")
+            st.markdown(f"### 📝 선택한 B/L 상세 수정 칸 (Job: **{target_item.get('Job 번호', '')}** / B/L: **{target_item.get('B/L 번호', '')}**)")
+            
+            with st.form("detail_bl_edit_form"):
+                d_col1, d_col2, d_col3 = st.columns(3)
+                with d_col1:
+                    e_type = st.selectbox("구분", ["수출 (Export)", "수입 (Import)"], index=0 if "수출" in str(target_item.get("구분", "")) else 1)
+                    
+                    raw_date = str(target_item.get("날짜", str(date.today())))
+                    try:
+                        parsed_date = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
+                    except:
+                        parsed_date = date.today()
+                    e_date = st.date_input("선적 날짜", value=parsed_date)
+                    
+                    e_job = st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")))
+                    e_bl = st.text_input("B/L 번호", value=str(target_item.get("B/L 번호", "")))
+                with d_col2:
+                    e_country = st.selectbox("국가", options=COUNTRY_LIST, index=COUNTRY_LIST.index(target_item.get("국가", "미국")) if target_item.get("국가") in COUNTRY_LIST else 0)
+                    
+                    client_opts = [""] + st.session_state.get("client_list", [])
+                    cur_shipper = str(target_item.get("화주명(매출)", ""))
+                    shipper_idx = client_opts.index(cur_shipper) if cur_shipper in client_opts else 0
+                    e_shipper = st.selectbox("화주명(매출)", options=client_opts, index=shipper_idx)
+                    
+                    e_consignee = st.text_input("해외수하인", value=str(target_item.get("해외수하인", "")))
+                    e_consignee_addr = st.text_input("해외수하인주소", value=str(target_item.get("해외수하인주소", "")))
+                    e_consignee_tel = st.text_input("해외수하인전화번호", value=str(target_item.get("해외수하인전화번호", "")))
+                with d_col3:
+                    supplier_opts = [""] + st.session_state.get("supplier_list", [])
+                    cur_vendor = str(target_item.get("매입처", ""))
+                    vendor_idx = supplier_opts.index(cur_vendor) if cur_vendor in supplier_opts else 0
+                    e_vendor = st.selectbox("매입처", options=supplier_opts, index=vendor_idx)
+                    
+                    item_opts = ["보톡스", "필러", "화장품", "특가품목", "기타"]
+                    cur_item = str(target_item.get("품목", ""))
+                    item_idx = item_opts.index(cur_item) if cur_item in item_opts else 0
+                    e_item = st.selectbox("품목", options=item_opts, index=item_idx)
+                    
+                    e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
                 
-                # 기본 정보 표시 영역 (읽기 전용)
-                info_c1, info_c2, info_c3, info_c4 = st.columns(4)
-                with info_c1:
-                    st.text_input("수출(Export)", value=str(target_item.get("수출입구분", "수출")), disabled=True, key="safe_io_type")
-                with info_c2:
-                    st.text_input("목적국", value=str(target_item.get("목적국", "")), disabled=True, key="safe_dest_country")
-                with info_c3:
-                    st.text_input("선적 날짜", value=str(target_item.get("날짜", ""))[:10], disabled=True, key="safe_date")
-                with info_c4:
-                    st.text_input("매입처", value=str(target_item.get("매입처", "")), disabled=True, key="safe_vendor_disp")
-
-                info_c5, info_c6, info_c7, info_c8 = st.columns(4)
-                with info_c5:
-                    st.text_input("화주명(매출)", value=str(target_item.get("화주명(매출)", "")), disabled=True, key="safe_shipper")
-                with info_c6:
-                    st.text_input("품목", value=str(target_item.get("품목", "")), disabled=True, key="safe_item_name")
-                with info_c7:
-                    st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")), disabled=True, key="safe_job_no")
-                with info_c8:
-                    st.text_input("수금 상태", value=str(target_item.get("수금상태", "미수")), disabled=True, key="safe_pay_status")
-
+                st.markdown("---")
                 st.markdown("#### 📦 중량, 규격 및 금액 상세 수정")
                 
-                # 수정 입력 필드 구성
-                edit_c1, edit_c2, edit_c3 = st.columns(3)
-                with edit_c1:
-                    piece_count_str = st.text_input("박스수", value=str(target_item.get("박스수", "1 박스 (CTN)")), key="safe_pcount")
-                with edit_c2:
-                    cbm_val = target_item.get("CBM", "0.000 CBM")
-                    st.text_input("CBM", value=str(cbm_val), disabled=True, key="safe_cbm")
-                with edit_c3:
-                    gross_weight_sales_str = st.text_input("실중량 (kg) [소수점 유지]", value=str(target_item.get("실중량(kg)", "0.0")), key="safe_gw_sales")
-
-                edit_c4, edit_c5, edit_c6 = st.columns(3)
-                with edit_c4:
-                    volume_str_result = st.text_input("부피 규격", value=str(target_item.get("부피규격", "")), key="safe_vol_spec")
-                with edit_c5:
-                    shipping_mode = st.selectbox("운송 형태", options=["항공(Air)", "해상(Ocean)", "특송(Express)"], index=0, key="safe_ship_mode")
-                with edit_c6:
-                    charge_weight_sales_str = st.text_input("매출 청구중량 (kg) [kg당 올림]", value=str(target_item.get("매출청구중량(kg)", "0.0")), key="safe_cw_sales")
-
-                edit_c7, edit_c8 = st.columns(2)
-                with edit_c7:
-                    gross_weight_purchase_str = st.text_input("매입 실중량 (kg)", value=str(target_item.get("매입실중량(kg)", "0.0")), key="safe_gw_purch")
-                with edit_c8:
-                    charge_weight_purchase_str = st.text_input("매입 청구중량 (kg)", value=str(target_item.get("매입청구중량(kg)", "0.0")), key="safe_cw_purch")
-
+                w_col1, w_col2, w_col3, w_col4 = st.columns(4)
+                with w_col1:
+                    e_box = st.text_input("박스수", value=str(target_item.get("박스수", "1 박스")))
+                    e_dim = st.text_input("부피 규격", value=str(target_item.get("부피규격", "-")))
+                with w_col2:
+                    e_cbm = st.text_input("CBM", value=str(target_item.get("CBM", "0.0 CBM")))
+                    e_trans = st.selectbox("운송형태", options=["항공(Air)", "해상(LCL)", "에어카고"], index=0 if "항공" in str(target_item.get("운송형태", "")) else (1 if "해상" in str(target_item.get("운송형태", "")) else 2))
+                with w_col3:
+                    try:
+                        def_gw = float(target_item.get("실중량(kg)", target_item.get("매출실중량(kg)", 1.0)))
+                    except:
+                        def_gw = 1.0
+                    e_sales_gw = st.number_input("실중량 (kg) [소수점 유지]", value=def_gw, min_value=0.0, step=0.01, format="%.2f")
+                    
+                    try:
+                        def_scw = float(target_item.get("매출청구중량(kg)", 1.0))
+                    except:
+                        def_scw = 1.0
+                    e_sales_cw = st.number_input("매출 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_scw)), min_value=0.0, step=1.0)
+                with w_col4:
+                    try:
+                        def_pgw = float(target_item.get("매입실중량(kg)", def_gw))
+                    except:
+                        def_pgw = 1.0
+                    e_purchase_gw = st.number_input("매입 실중량(kg) [소수점 유지]", value=def_pgw, min_value=0.0, step=0.01, format="%.2f")
+                    
+                    try:
+                        def_pcw = float(target_item.get("매입청구중량(kg)", 1.0))
+                    except:
+                        def_pcw = 1.0
+                    e_purchase_cw = st.number_input("매입 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_pcw)), min_value=0.0, step=1.0)
+                
                 st.markdown("---")
-                
-                # 💾 하단 저장 및 새로고침 버튼 영역
-                col_save1, col_save2 = st.columns(2)
-                
-                with col_save1:
-                    if st.button("💾 B/L 수정 사항 저장하기", type="primary", use_container_width=True, key="btn_save_bl_edit_safe_final"):
-                        try:
-                            # 데이터 업데이트 수행
-                            for item in st.session_state.bl_data_list:
-                                if str(item.get("B/L 번호", "")) == str(selected_bl_no):
-                                    item["박스수"] = piece_count_str
-                                    item["실중량(kg)"] = gross_weight_sales_str
-                                    item["매입실중량(kg)"] = gross_weight_purchase_str
-                                    item["매출청구중량(kg)"] = charge_weight_sales_str
-                                    item["매입청구중량(kg)"] = charge_weight_purchase_str
-                                    item["부피규격"] = volume_str_result
-                                    item["운송형태"] = shipping_mode
-                                    try:
-                                        item["최종수정자"] = current_user_name
-                                    except NameError:
-                                        item["최종수정자"] = "관리자"
-                                    item["최종수정일시"] = str(datetime.now())[:19]
-                            
-                            # 파일 및 세션 저장 실행
-                            save_bl_data(st.session_state.bl_data_list)
-                            st.success(f"✅ B/L [{selected_bl_no}] 수정 사항이 성공적으로 저장되었습니다!")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ 저장 중 오류가 발생했습니다: {e}")
-                            
-                with col_save2:
-                    if st.button("🔄 새로고침 / 초기화", use_container_width=True, key="btn_refresh_bl_edit_safe"):
-                        st.rerun()
+                d_col4, d_col5 = st.columns(2)
+                with d_col4:
+                    try:
+                        def_sales = int(target_item.get("매출액(원)", 0))
+                    except:
+                        def_sales
 # ==========================================
 # [새로운 독립 트랙] 매출 관리 (화주별)
 # ==========================================
@@ -2519,11 +2545,11 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [금일발송 매니페스트] 매입처별 자동 분리 및 화물 입고 리스트 A4 출력
+# [금일발송 매니페스트] 매입처 드롭다운 열림 보장 버전
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 매입처별 화물 입고 리스트 및 매니페스트</h3>",
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 날짜별 발송 화물 매니페스트 및 Profit 정산</h3>",
         unsafe_allow_html=True,
     )
 
@@ -2541,19 +2567,24 @@ elif selected_menu == "📋 금일발송 매니페스트":
             if "선택" not in target_df.columns:
                 target_df.insert(0, "선택", False)
                 
-            st.markdown(f"#### 📦 [{selected_manifest_date}] 전체 발송 화물 목록 (매입처 수정 가능)")
+            st.markdown(f"#### 📦 [{selected_manifest_date}] 발송 화물 목록 (매입처 직접 변경 가능)")
             st.info("💡 아래 표의 **[매입처]** 칸을 클릭하시면 등록된 협력사 목록이 드롭다운으로 나타납니다.")
 
-            base_suppliers = st.session_state.get("supplier_list", ["(주)카스익스프레스", "주식회사 비에프티", "윤세형", "ESI"])
+            # 1. 시스템 등록 매입처 + 기존 데이터 매입처를 합쳐서 드롭다운 옵션 생성
+            base_suppliers = st.session_state.get("supplier_list", ["(주)카고익스프레스", "주식회사 비에프티", "윤세행"])
             existing_vendors = target_df["매입처"].fillna("").astype(str).unique().tolist() if "매입처" in target_df.columns else []
+            
+            # None, nan, 빈값 제외 후 순수 옵션 정리
             combined_suppliers = sorted(list(set([""] + base_suppliers + [v for v in existing_vendors if v and v != "None" and v != "nan"])))
 
+            # 매입처 열의 None/nan 값을 빈 문자열로 정리
             if "매입처" in target_df.columns:
                 target_df["매입처"] = target_df["매입처"].fillna("").astype(str).replace({"None": "", "nan": ""})
             else:
                 target_df["매입처"] = ""
 
-            cols_order = ["선택", "날짜", "B/L 번호", "화주명(매출)", "매입처", "해외수하인", "해외수하인주소", "해외수하인전화번호", "박스수", "부피규격", "실중량(kg)"]
+            # '매입처' 열을 화주명 바로 옆에 위치하도록 컬럼 순서 정렬
+            cols_order = ["선택", "날짜", "B/L 번호", "화주명(매출)", "매입처", "해외수하인", "박스수", "부피규격", "매출청구중량(kg)", "매출액(원)", "매입액(원)", "예상Profit(원)"]
             existing_cols = [c for c in cols_order if c in target_df.columns] + [c for c in target_df.columns if c not in cols_order]
             target_df = target_df[existing_cols]
 
@@ -2564,178 +2595,30 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 column_config={
                     "선택": st.column_config.CheckboxColumn("선택", default=False),
                     "매입처": st.column_config.SelectboxColumn("매입처(협력사 선택)", options=combined_suppliers, required=False),
+                    "매출액(원)": st.column_config.NumberColumn("매출액(원)", format="%d"),
+                    "매입액(원)": st.column_config.NumberColumn("매입액(원)", format="%d"),
+                    "예상Profit(원)": st.column_config.NumberColumn("예상Profit(원)", format="%d"),
                 },
-                key=f"manifest_editor_v10_{selected_manifest_date}",
-                height=320,
+                key=f"manifest_editor_v3_{selected_manifest_date}",
+                height=400,
             )
 
-            col_sv1, col_sv2 = st.columns(2)
-            with col_sv1:
-                if st.button("💾 매입처 변경 내용 저장하기", type="primary", use_container_width=True):
-                    try:
-                        for _, edited_row in edited_manifest_table.iterrows():
-                            target_bl = str(edited_row.get("B/L 번호", ""))
-                            new_vendor = str(edited_row.get("매입처", ""))
-                            
-                            for real_item in st.session_state.bl_data_list:
-                                if str(real_item.get("B/L 번호", "")) == target_bl:
-                                    real_item["매입처"] = new_vendor
-                                    real_item["최종수정자"] = current_user_name
-                                    
-                        save_bl_data(st.session_state.bl_data_list)
-                        st.success("✅ 매입처 변경 내용이 성공적으로 저장되었습니다!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ 저장 중 오류 발생: {e}")
-            with col_sv2:
-                if st.button("🔄 화면 새로고침", use_container_width=True):
-                    st.rerun()
-
-            st.markdown("---")
-
-            # ----------------------------------------------------
-            # 🖨️ 매입처별 자동 분리 및 화물 입고 리스트 (즉시 표시)
-            # ----------------------------------------------------
-            st.subheader("🖨️ 매입처별 화물 입고 리스트 (자동 분리)")
-
-            vendors_in_data = [v for v in edited_manifest_table["매입처"].unique() if v and v != "None" and v != "nan"]
-
-            if not vendors_in_data:
-                st.warning("등록된 매입처가 없습니다. 상단 표에서 매입처를 먼저 지정해 주세요.")
-            else:
-                for vendor in vendors_in_data:
-                    vendor_data = edited_manifest_table[edited_manifest_table["매입처"] == vendor]
-                    
-                    vendor_print_df = pd.DataFrame()
-                    vendor_print_df["박스번호"] = vendor_data.get("B/L 번호", "-")
-                    vendor_print_df["날짜"] = vendor_data.get("날짜", selected_manifest_date)
-                    vendor_print_df["박스수"] = vendor_data.get("박스수", "1 CTN")
-                    vendor_print_df["실중량"] = vendor_data.get("실중량(kg)", vendor_data.get("매입실중량(kg)", "-"))
-                    vendor_print_df["부피중량/규격"] = vendor_data.get("부피규격", "-")
-                    vendor_print_df["화주"] = vendor_data.get("해외수하인", "-")
-                    vendor_print_df["주소"] = vendor_data.get("해외수하인주소", "-")
-                    vendor_print_df["전화번호"] = vendor_data.get("해외수하인전화번호", "-")
-
-                    with st.expander(f"📌 [{vendor}] 화물 입고 리스트 (총 {len(vendor_data)}건)", expanded=True):
-                        st.dataframe(vendor_print_df, use_container_width=True, hide_index=True)
+            if st.button("💾 매입처 변경 내용 저장하기", type="primary", use_container_width=True):
+                try:
+                    for _, edited_row in edited_manifest_table.iterrows():
+                        target_bl = str(edited_row.get("B/L 번호", ""))
+                        new_vendor = str(edited_row.get("매입처", ""))
                         
-                        c_dl1, c_dl2, c_dl3 = st.columns(3)
-                        with c_dl1:
-                            csv_data = vendor_print_df.to_csv(index=False).encode('utf-8-sig')
-                            st.download_button(
-                                label=f"📥 [{vendor}] 파일 다운로드",
-                                data=csv_data,
-                                file_name=f"inbound_list_{vendor}_{selected_manifest_date}.csv",
-                                mime="text/csv",
-                                key=f"dl_vendor_{vendor}_{selected_manifest_date}"
-                            )
-                        with c_dl2:
-                            if st.button(f"✉️ [{vendor}] 담당자 전송", key=f"send_vendor_{vendor}_{selected_manifest_date}"):
-                                st.toast(f"[{vendor}] 담당자에게 입고 리스트가 성공적으로 전송되었습니다!")
-                        with c_dl3:
-                            v_info = st.session_state.get("supplier_infos", {}).get(vendor, {})
-                            v_bno = v_info.get("사업자등록번호", "-")
-                            v_mgr = v_info.get("담당자", "-")
-                            v_tel = v_info.get("전화번호", "-")
-
-                            # ----------------------------------------------------
-                            # 🖨️ A4 가로 맞춤 [범운 화물 입고 리스트] HTML (SyntaxError 수정 완료)
-                            # ----------------------------------------------------
-                            a4_manifest_html = f"""
-                            <!DOCTYPE html>
-                            <html>
-                            <head>
-                                <meta charset="utf-8">
-                                <style>
-                                    @media print {{
-                                        body {{ -webkit-print-color-adjust: exact; }}
-                                        .no-print {{ display: none !important; }}
-                                        @page {{ size: A4 landscape; margin: 8mm; }}
-                                    }}
-                                    body {{ font-family: 'Pretendard', sans-serif; color: #0f172a; font-size: 8.5pt; margin: 0; padding: 10px; background: #fff; }}
-                                    .report-box {{ width: 100%; max-width: 1050px; margin: 0 auto; border: 2px solid #0f172a; padding: 16px; border-radius: 8px; background: #ffffff; box-sizing: border-box; }}
-                                    .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 12px; }}
-                                    .header-table td {{ border: none; vertical-align: middle; }}
-                                    
-                                    .approval-table {{ border-collapse: collapse; float: right; }}
-                                    .approval-table th, .approval-table td {{ border: 1px solid #475569; font-size: 8pt; text-align: center; padding: 4px 8px; }}
-                                    .approval-table th {{ background-color: #f1f5f9; }}
-                                    .approval-sign {{ height: 32px; }}
-
-                                    .info-box {{ background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 9pt; }}
-                                    
-                                    .data-table {{ width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }}
-                                    .data-table th, .data-table td {{ border: 1px solid #475569; padding: 6px 4px; text-align: center; font-size: 8pt; word-break: break-all; }}
-                                    .data-table th {{ background-color: #0f172a; color: #ffffff; font-weight: 600; }}
-                                    .data-table tr:nth-child(even) {{ background-color: #f8fafc; }}
-
-                                    .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 10px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 15px; }}
-                                </style>
-                            </head>
-                            <body>
-                                <div class="report-box">
-                                    <button class="p-btn no-print" onclick="window.print()">🖨️ A4 입고 리스트 인쇄 / PDF 저장</button>
-                                    
-                                    <table class="header-table">
-                                        <tr>
-                                            <td>
-                                                <div style="font-size: 11pt; font-weight: bold; color: #2563eb; margin-bottom: 2px;">(주)범운해운항공</div>
-                                                <div style="font-size: 17pt; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">범운 화물 입고 리스트 (INBOUND MANIFEST)</div>
-                                                <div style="font-size: 8.5pt; color: #64748b; margin-top: 3px;">입고/발송일자: <b>{selected_manifest_date}</b> | 매입처: <b style="color: #1e3a8a;">{vendor}</b></div>
-                                            </td>
-                                            <td style="width: 150px;">
-                                                <table class="approval-table">
-                                                    <tr><th rowspan="2" style="width: 18px; background:#f8fafc;">결<br>재</th><th>담당</th><th>대표</th></tr>
-                                                    <tr><td class="approval-sign"></td><td class="approval-sign"></td></tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </table>
-
-                                    <div class="info-box">
-                                        <b>[협력사(매입처) 정보]</b> 상호: <b>{vendor}</b> | 사업자번호: {v_bno} | 담당자: {v_mgr} ({v_tel}) &nbsp;&nbsp;|&nbsp;&nbsp; 총 입고 수량: <b>{len(vendor_data)} 건</b>
-                                    </div>
-
-                                    <table class="data-table">
-                                        <tr>
-                                            <th style="width: 12%;">박스번호</th>
-                                            <th style="width: 9%;">날짜</th>
-                                            <th style="width: 8%;">박스수</th>
-                                            <th style="width: 9%;">실중량</th>
-                                            <th style="width: 16%;">부피중량/규격</th>
-                                            <th style="width: 14%;">화주</th>
-                                            <th style="width: 21%;">주소</th>
-                                            <th style="width: 11%;">전화번호</th>
-                                        </tr>
-                            """
-                            for _, r in vendor_data.iterrows():
-                                weight_val = r.get("실중량(kg)", r.get("매입실중량(kg)", "-"))
-                                a4_manifest_html += f"""
-                                        <tr>
-                                            <td style="font-weight: bold;">{r.get("B/L 번호", "-")}</td>
-                                            <td>{str(r.get("날짜", selected_manifest_date))[:10]}</td>
-                                            <td>{r.get("박스수", "1 CTN")}</td>
-                                            <td>{weight_val} kg</td>
-                                            <td>{r.get("부피규격", "-")}</td>
-                                            <td style="font-weight: bold;">{r.get("해외수하인", "-")}</td>
-                                            <td style="text-align: left; padding-left: 4px;">{r.get("해외수하인주소", "-")}</td>
-                                            <td>{r.get("해외수하인전화번호", "-")}</td>
-                                        </tr>
-                                """
-                            a4_manifest_html += f"""
-                                    </table>
-                                    
-                                    <div style="margin-top: 25px; text-align: center; font-size: 9pt; color: #475569;">
-                                        상기 화물의 입고 내역을 정식 확인합니다.<br><br>
-                                        <b style="font-size: 10.5pt; color: #0f172a;">주식회사 범운해운항공 대표이사 이상복 [직인생략]</b>
-                                    </div>
-                                </div>
-                            </body>
-                            </html>
-                            """
-                            
-                            if st.button(f"🖨️ [{vendor}] A4 입고 리스트 인쇄", key=f"print_a4_{vendor}_{selected_manifest_date}"):
-                                components.html(a4_manifest_html, height=750, scrolling=True)
+                        for real_item in st.session_state.bl_data_list:
+                            if str(real_item.get("B/L 번호", "")) == target_bl:
+                                real_item["매입처"] = new_vendor
+                                real_item["최종수정자"] = current_user_name
+                                
+                    save_bl_data(st.session_state.bl_data_list)
+                    st.success("✅ 매입처 변경 내용이 성공적으로 저장되었습니다!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ 저장 중 오류 발생: {e}")
         else:
             st.info(f"📌 선택하신 날짜({selected_manifest_date})에 등록된 발송 화물 내역이 없습니다.")
     else:
