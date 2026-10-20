@@ -2591,7 +2591,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     "선택": st.column_config.CheckboxColumn("선택", default=False),
                     "매입처": st.column_config.SelectboxColumn("매입처(협력사 선택)", options=combined_suppliers, required=False),
                 },
-                key=f"manifest_editor_v9_{selected_manifest_date}",
+                key=f"manifest_editor_v10_{selected_manifest_date}",
                 height=320,
             )
 
@@ -2624,7 +2624,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
             # ----------------------------------------------------
             st.subheader("🖨️ 매입처별 화물 입고 리스트 (자동 분리)")
 
-            # 매입처 목록 추출 (빈값/None 제외 및 정렬)
             vendors_in_data = [v for v in edited_manifest_table["매입처"].unique() if v and v != "None" and v != "nan"]
 
             if not vendors_in_data:
@@ -2633,7 +2632,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 for vendor in vendors_in_data:
                     vendor_data = edited_manifest_table[edited_manifest_table["매입처"] == vendor]
                     
-                    # 📌 매입처 전달용 8개 컬럼 전용 표 생성
                     vendor_print_df = pd.DataFrame()
                     vendor_print_df["박스번호"] = vendor_data.get("B/L 번호", "-")
                     vendor_print_df["날짜"] = vendor_data.get("날짜", selected_manifest_date)
@@ -2645,7 +2643,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     vendor_print_df["전화번호"] = vendor_data.get("해외수하인전화번호", "-")
 
                     with st.expander(f"📌 [{vendor}] 화물 입고 리스트 (총 {len(vendor_data)}건)", expanded=True):
-                        # 화면 표에도 딱 8개 필수 항목만 표기
                         st.dataframe(vendor_print_df, use_container_width=True, hide_index=True)
                         
                         c_dl1, c_dl2, c_dl3 = st.columns(3)
@@ -2668,7 +2665,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
                             v_tel = v_info.get("전화번호", "-")
 
                             # ----------------------------------------------------
-                            # 🖨️ A4 가로 맞춤 [범운 화물 입고 리스트] 정식 HTML
+                            # 🖨️ A4 가로 맞춤 [범운 화물 입고 리스트] HTML (SyntaxError 수정 완료)
                             # ----------------------------------------------------
                             a4_manifest_html = f"""
                             <!DOCTYPE html>
@@ -2722,7 +2719,53 @@ elif selected_menu == "📋 금일발송 매니페스트":
                                     </table>
 
                                     <div class="info-box">
-                                        <b>[협력사(매입처) 정보]</b> 상호: <b>{vendor}</b> | 사업자번호: {v_bno} |
+                                        <b>[협력사(매입처) 정보]</b> 상호: <b>{vendor}</b> | 사업자번호: {v_bno} | 담당자: {v_mgr} ({v_tel}) &nbsp;&nbsp;|&nbsp;&nbsp; 총 입고 수량: <b>{len(vendor_data)} 건</b>
+                                    </div>
+
+                                    <table class="data-table">
+                                        <tr>
+                                            <th style="width: 12%;">박스번호</th>
+                                            <th style="width: 9%;">날짜</th>
+                                            <th style="width: 8%;">박스수</th>
+                                            <th style="width: 9%;">실중량</th>
+                                            <th style="width: 16%;">부피중량/규격</th>
+                                            <th style="width: 14%;">화주</th>
+                                            <th style="width: 21%;">주소</th>
+                                            <th style="width: 11%;">전화번호</th>
+                                        </tr>
+                            """
+                            for _, r in vendor_data.iterrows():
+                                weight_val = r.get("실중량(kg)", r.get("매입실중량(kg)", "-"))
+                                a4_manifest_html += f"""
+                                        <tr>
+                                            <td style="font-weight: bold;">{r.get("B/L 번호", "-")}</td>
+                                            <td>{str(r.get("날짜", selected_manifest_date))[:10]}</td>
+                                            <td>{r.get("박스수", "1 CTN")}</td>
+                                            <td>{weight_val} kg</td>
+                                            <td>{r.get("부피규격", "-")}</td>
+                                            <td style="font-weight: bold;">{r.get("해외수하인", "-")}</td>
+                                            <td style="text-align: left; padding-left: 4px;">{r.get("해외수하인주소", "-")}</td>
+                                            <td>{r.get("해외수하인전화번호", "-")}</td>
+                                        </tr>
+                                """
+                            a4_manifest_html += f"""
+                                    </table>
+                                    
+                                    <div style="margin-top: 25px; text-align: center; font-size: 9pt; color: #475569;">
+                                        상기 화물의 입고 내역을 정식 확인합니다.<br><br>
+                                        <b style="font-size: 10.5pt; color: #0f172a;">주식회사 범운해운항공 대표이사 이상복 [직인생략]</b>
+                                    </div>
+                                </div>
+                            </body>
+                            </html>
+                            """
+                            
+                            if st.button(f"🖨️ [{vendor}] A4 입고 리스트 인쇄", key=f"print_a4_{vendor}_{selected_manifest_date}"):
+                                components.html(a4_manifest_html, height=750, scrolling=True)
+        else:
+            st.info(f"📌 선택하신 날짜({selected_manifest_date})에 등록된 발송 화물 내역이 없습니다.")
+    else:
+        st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
 # [8] 매출 거래처(화주) 관리 (메인 메뉴 독립)
 # ==========================================
