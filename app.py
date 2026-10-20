@@ -3207,7 +3207,7 @@ elif selected_menu == "📉 거래처 미수금관리":
 
                     save_bl_data
 # ==========================================
-# [일계표 및 입출금 장부] 메뉴 (지급상태 배치 및 지급완료 기능 포함)
+# [일계표 및 입출금 장부] (지급완료 명확 표기 적용 버전)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
@@ -3233,12 +3233,16 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             picked_date = st.date_input("📅 조회할 날짜 선택 (달력)", value=date.today(), key="cash_date_picker_calendar")
             selected_target_date = str(picked_date)
 
-    # 데이터 필터링 및 지급상태 기본값 보장
+    # 데이터 필터링 및 지급상태 기본값 보장 (수입 및 기존 데이터 '지급완료' 자동 적용)
     filtered_cash_data = []
     for item in cashbook_data:
-        item_date = str(item.get("날 traceable", item.get("날짜", "")))[:10]
-        if "지급상태" not in item:
-            item["지급상태"] = "지급완료" if "수입" in str(item.get("구분", "")) else "미지급"
+        io_type = str(item.get("구분", ""))
+        
+        # 지급상태가 없거나 비어있는 경우 기본값 세팅
+        if "지급상태" not in item or not item.get("지급상태") or item.get("지급상태") in ["None", "nan"]:
+            item["지급상태"] = "지급완료"
+        elif "수입" in io_type:
+            item["지급상태"] = "지급완료"
             
         if date_filter_mode == "전체 기간" or str(item.get("날짜", ""))[:10] == selected_target_date:
             filtered_cash_data.append(item)
@@ -3277,7 +3281,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         if "선택" not in df_cash.columns:
             df_cash.insert(0, "선택", False)
 
-        # '지급상태' 열을 '항목' 바로 옆(금액 왼쪽)에 배치하여 화면에 바로 보이도록 정렬
+        # '지급상태' 열을 '항목' 바로 옆에 정렬
         cols_order = ["선택", "날짜", "구분", "항목", "지급상태", "금액(원)", "적요"]
         existing_cols = [c for c in cols_order if c in df_cash.columns] + [c for c in df_cash.columns if c not in cols_order]
         df_cash = df_cash[existing_cols]
@@ -3288,9 +3292,10 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             use_container_width=True,
             column_config={
                 "선택": st.column_config.CheckboxColumn("선택", default=False),
-                "지급상태": st.column_config.SelectboxColumn("지급상태", options=["지급완료", "미지급"], required=True)
+                "지급상태": st.column_config.SelectboxColumn("지급상태", options=["지급완료", "미지급"], required=True),
+                "금액(원)": st.column_config.NumberColumn("금액(원)", format="%d"),
             },
-            key=f"cashbook_table_editor_{date_filter_mode}_{selected_target_date}_v5",
+            key=f"cashbook_table_editor_v6_{date_filter_mode}_{selected_target_date}",
             height=320,
         )
 
@@ -3450,7 +3455,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             for row in filtered_cash_data:
                 io_gubun = str(row.get("구분", "-"))
                 gubun_color = "#2563eb" if "수입" in io_gubun else "#dc2626"
-                status_str = str(row.get("지급상태", "지급완료" if "수입" in io_gubun else "미지급"))
+                status_str = str(row.get("지급상태", "지급완료"))
                 status_color = "#16a34a" if status_str == "지급완료" else "#dc2626"
                 
                 print_html += f"""
@@ -3475,7 +3480,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             </html>
             """
             
-            if st.button("🖨 정식 일계표 보고서 인쇄 / PDF", type="primary", use_container_width=True):
+            if st.button("🖨 정식 일계표 인쇄 / PDF", type="primary", use_container_width=True):
                 components.html(print_html, height=700, scrolling=True)
     else:
         st.info("조회된 장부 내역이 없습니다.")
@@ -3485,7 +3490,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     # --- 4. 하단: 새로운 수입 / 지출 장부 등록 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form_v8"):
+    with st.form("cashbook_register_form_v9"):
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
@@ -3518,7 +3523,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                     "구분": io_gb,
                     "항목": category,
                     "금액(원)": int(amount),
-                    "지급상태": pay_status,
+                    "지급상태": pay_status if "지출" in io_gb else "지급완료",
                     "적요": memo if memo else "-",
                 })
                 save_account_data(st.session_state.cashbook_list)
