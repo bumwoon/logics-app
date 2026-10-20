@@ -3246,114 +3246,119 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
         else:
           st.warning("삭제할 요율 행의 체크박스를 선택해주세요.")
 
-
 # ==========================================
 # [10] 거래처 미수금관리
 # ==========================================
-elif selected_menu == "💵 거래처 미수금관리":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>💵"
-      " 거래처별 및 월별 미수금 수금 현황 관리</h3>",
-      unsafe_allow_html=True,
-  )
-
-  if st.session_state.bl_data_list:
-    df_unpaid = pd.DataFrame(st.session_state.bl_data_list)
-    if "선택" not in df_unpaid.columns:
-      df_unpaid.insert(0, "선택", False)
-    if "수금상태" not in df_unpaid.columns:
-      df_unpaid["수금상태"] = "미수"
-    if "매출액(원)" in df_unpaid.columns:
-      df_unpaid["매출액(원)"] = pd.to_numeric(df_unpaid["매출액(원)"], errors="coerce").fillna(0)
-
-    # 날짜에서 연도-월(YYYY-MM) 추출 컬럼 생성
-    df_unpaid["연월"] = df_unpaid["날짜"].astype(str).str[:7]
-    available_months = sorted(df_unpaid["연월"].unique().tolist(), reverse=True)
-    if not available_months:
-      available_months = [date.today().strftime("%Y-%m")]
-
-    # 필터 UI 레이아웃 (거래처 선택, 월별 선택, 미수 건만 보기)
-    col_f1, col_f2, col_f3 = st.columns([2, 1.5, 1])
-    with col_f1:
-      client_filter_options = ["전체 거래처 보기"] + st.session_state.client_list
-      selected_client_filter = st.selectbox(
-          "🔍 조회할 거래처 선택하기", options=client_filter_options
-      )
-    with col_f2:
-      month_filter_options = ["전체 기간(월별 전체 보기)"] + available_months
-      selected_month_filter = st.selectbox(
-          "📅 조회할 월(달력) 선택하기", options=month_filter_options
-      )
-    with col_f3:
-      st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-      only_unpaid_flag = st.checkbox("📌 미수 건만 보기", value=True)
-
-    # 1. 거래처 필터링
-    df_filtered = df_unpaid.copy()
-    if selected_client_filter != "전체 거래처 보기":
-      df_filtered = df_filtered[
-          df_filtered["화주명(매출)"].astype(str).str.strip()
-          == str(selected_client_filter).strip()
-      ]
-
-    # 2. 월별(연도-월) 필터링
-    if selected_month_filter != "전체 기간(월별 전체 보기)":
-      df_filtered = df_filtered[df_filtered["연월"] == selected_month_filter]
-
-    # 금액 집계 계산 (필터링된 기준)
-    total_sales_sum = df_filtered["매출액(원)"].sum() if "매출액(원)" in df_filtered.columns else 0
-    total_unpaid_sum = df_filtered[df_filtered["수금상태"].astype(str).str.strip() != "수금완료"]["매출액(원)"].sum() if "매출액(원)" in df_filtered.columns else 0
-
-    # 미수금 요약 메트릭 카드 표시
-    m_col1, m_col2 = st.columns(2)
-    with m_col1:
-      st.metric(label="📌 선택 기간 총 청구 매출액", value=f"{int(total_sales_sum):,} 원")
-    with m_col2:
-      st.metric(label="🚨 선택 기간 미수금 잔액", value=f"{int(total_unpaid_sum):,} 원")
-
-    st.markdown("---")
-
-    # 미수 건만 보기 적용
-    df_table_view = df_filtered.copy()
-    if only_unpaid_flag and not df_table_view.empty:
-      df_table_view = df_table_view[
-          df_table_view["수금상태"].astype(str).str.strip() != "수금완료"
-      ]
-
-    # 불필요한 임시 컬럼('연월')은 화면 표시에서 제외
-    if "연월" in df_table_view.columns:
-      df_table_view = df_table_view.drop(columns=["연월"])
-
-    edited_unpaid_table = st.data_editor(
-        df_table_view,
-        hide_index=True,
-        use_container_width=True,
-        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-        key="unpaid_filter_table",
+elif selected_menu == "📉 거래처 미수금관리":
+    st.markdown(
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📉 거래처 미수금 현황 및 수금 관리</h3>",
+        unsafe_allow_html=True,
     )
 
-    selected_unpaid_rows = edited_unpaid_table[
-        edited_unpaid_table["선택"] == True
-    ]
+    if st.session_state.bl_data_list:
+        df_all_bl = pd.DataFrame(st.session_state.bl_data_list)
 
-    if st.button("💰 선택 건 [수금완료] 일괄처리", type="primary", use_container_width=True):
-      if len(selected_unpaid_rows) > 0:
-        for idx in selected_unpaid_rows.index.tolist():
-          bl_num_target = selected_unpaid_rows.loc[idx, "B/L 번호"]
-          # 원본 세션 데이터에서 해당 B/L 찾아 수금완료로 변경
-          for real_i, original_item in enumerate(st.session_state.bl_data_list):
-            if str(original_item.get("B/L 번호", "")) == str(bl_num_target):
-              st.session_state.bl_data_list[real_i]["수금상태"] = "수금완료"
-              st.session_state.bl_data_list[real_i]["최종수정자"] = current_user_name
-        save_bl_data(st.session_state.bl_data_list)
-        st.success("선택하신 건들이 '수금완료' 처리되었습니다!")
-        st.rerun()
-      else:
-        st.warning("수금완료 처리할 B/L 행의 체크박스를 선택해주세요.")
-  else:
-    st.info("등록된 B/L 데이터가 없습니다.")
-지출 장부 등록 ---
-    st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")# ==========================================
+        # 미수 상태 건만 필터링 (수금상태가 '수금완료'가 아닌 건)
+        if "수금상태" in df_all_bl.columns:
+            unpaid_df = df_all_bl[df_all_bl["수금상태"] != "수금완료"].copy()
+        else:
+            unpaid_df = df_all_bl.copy()
+
+        if not unpaid_df.empty:
+            # 1. 상단 화주별 미수금 요약
+            st.markdown("#### 📊 화주별 미수금 요약 현황")
+            
+            try:
+                unpaid_df["매출액_num"] = unpaid_df["매출액(원)"].apply(
+                    lambda x: float(str(x).replace(",", "") or 0)
+                )
+            except:
+                unpaid_df["매출액_num"] = 0.0
+
+            summary_unpaid = (
+                unpaid_df.groupby("화주명(매출)")["매출액_num"]
+                .agg(["count", "sum"])
+                .reset_index()
+            )
+            summary_unpaid.columns = ["화주명", "미수 건수", "총 미수금액(원)"]
+            summary_unpaid["총 미수금액(원)"] = summary_unpaid["총 미수금액(원)"].apply(
+                lambda x: f"{int(x):,} 원"
+            )
+
+            st.dataframe(summary_unpaid, use_container_width=True, hide_index=True)
+
+            total_unpaid_sum = unpaid_df["매출액_num"].sum()
+            st.warning(
+                f"⚠️ **전체 총 미수금 합계:** **{int(total_unpaid_sum):,} 원** (총 {len(unpaid_df)} 건)"
+            )
+
+            st.markdown("---")
+
+            # 2. 하단 상세 미수 B/L 내역 및 수금완료 일괄 처리
+            st.markdown("#### 📋 상세 미수 B/L 내역 (선택 건 수금완료 처리)")
+            st.info("💡 아래 표에서 수금 완료된 B/L의 **[선택]** 체크박스를 체크하신 후 하단의 **[선택 건 수금완료 일괄 처리]** 버튼을 누르세요.")
+
+            display_cols = [
+                "선택",
+                "날짜",
+                "Job 번호",
+                "B/L 번호",
+                "화주명(매출)",
+                "국가",
+                "품목",
+                "매출액(원)",
+                "수금상태",
+                "비고",
+            ]
+
+            if "선택" not in unpaid_df.columns:
+                unpaid_df.insert(0, "선택", False)
+
+            # 존재하지 않는 열 예외 처리
+            valid_cols = [c for c in display_cols if c in unpaid_df.columns]
+            df_table_view = unpaid_df[valid_cols]
+
+            edited_unpaid_table = st.data_editor(
+                df_table_view,
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "선택": st.column_config.CheckboxColumn("선택", required=True),
+                    "매출액(원)": st.column_config.NumberColumn("매출액(원)", format="%d"),
+                },
+                key="unpaid_filter_table_v2",
+                height=350,
+            )
+
+            selected_unpaid_rows = edited_unpaid_table[
+                edited_unpaid_table["선택"] == True
+            ]
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            if st.button(
+                "💳 선택 건 [수금완료] 일괄 처리",
+                type="primary",
+                use_container_width=True,
+            ):
+                if len(selected_unpaid_rows) > 0:
+                    for idx in selected_unpaid_rows.index.tolist():
+                        bl_num_target = selected_unpaid_rows.loc[idx, "B/L 번호"]
+                        # 원본 세션 데이터에서 해당 B/L 찾아 수금완료로 변경
+                        for real_i, original_item in enumerate(
+                            st.session_state.bl_data_list
+                        ):
+                            if str(original_item.get("B/L 번호", "")) == str(
+                                bl_num_target
+                            ):
+                                st.session_state.bl_data_list[real_i][
+                                    "수금상태"
+                                ] = "수금완료"
+                                st.session_state.bl_data_list[real_i][
+                                    "최종수정자"
+                                ] = current_user_name
+
+                    save_bl_data
 # ==========================================
 # [일계표 및 입출금 장부] 메뉴 (지급상태 배치 및 지급완료 기능 포함)
 # ==========================================
