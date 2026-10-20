@@ -1793,72 +1793,41 @@ if selected_menu == "📊 수출입 B/L 등록":
                 )
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역 (표 직접 수정 방식)
+# [2] 등록 B/L 수정 및 Profit 내역 (기존 상세 수정 폼 방식 복구)
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
-    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역 (표에서 직접 부분 수정 가능)</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>아래 표에서 수정하고 싶은 항목(화주명, 매출액, 실중량, B/L번호 등)을 직접 클릭하여 변경하신 뒤, 맨 아래의 <b>[표에서 수정한 내용 전체 저장하기]</b> 버튼을 누르세요.</p>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
     
     if st.session_state.bl_data_list:
         df_bl = pd.DataFrame(st.session_state.bl_data_list)
         
         for col_name in ["실중량(kg)", "매출실중량(kg)", "매입실중량(kg)"]:
             if col_name in df_bl.columns:
-                df_bl[col_name] = pd.to_numeric(df_bl[col_name], errors="coerce").fillna(0.0)
+                df_bl[col_name] = pd.to_numeric(df_bl[col_name], errors="coerce").fillna(0.0).apply(lambda x: f"{x:.2f}")
 
         if "선택" not in df_bl.columns:
             df_bl.insert(0, "선택", False)
             
+        st.info("💡 수정할 B/L 행의 **[선택] 체크박스**를 체크하시면, 아래쪽에 내용을 상세히 수정할 수 있는 **[B/L 개별 수정 입력칸]**이 나타납니다.")
+        
         edited_bl_table = st.data_editor(
             df_bl,
             hide_index=True,
             use_container_width=True,
             column_config={
-                "선택": st.column_config.CheckboxColumn("삭제", required=True),
-                "실중량(kg)": st.column_config.NumberColumn("실중량(kg)", format="%.2f", step=0.01),
-                "매출실중량(kg)": st.column_config.NumberColumn("매출실중량(kg)", format="%.2f", step=1.0),
-                "매입실중량(kg)": st.column_config.NumberColumn("매입실중량(kg)", format="%.2f", step=1.0),
-                "매출액(원)": st.column_config.NumberColumn("매출액(원)", format="%d", step=1000),
-                "매입액(원)": st.column_config.NumberColumn("매입액(원)", format="%d", step=1000),
+                "선택": st.column_config.CheckboxColumn(required=True),
+                "실중량(kg)": st.column_config.NumberColumn("실중량(kg)", format="%.2f"),
+                "매출실중량(kg)": st.column_config.NumberColumn("매출실중량(kg)", format="%.2f"),
+                "매입실중량(kg)": st.column_config.NumberColumn("매입실중량(kg)", format="%.2f"),
             },
-            key="direct_edit_bl_table",
-            height=450
+            key="edit_bl_profit_table_select_old",
+            height=300
         )
         
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
-            if st.button("💾 표에서 수정한 내용 전체 저장하기", type="primary", use_container_width=True):
-                try:
-                    updated_records = []
-                    for _, row in edited_bl_table.iterrows():
-                        row_dict = row.to_dict()
-                        row_dict.pop("선택", None)
-                        
-                        try:
-                            s_val = float(str(row_dict.get("매출액(원)", 0)).replace(",", "") or 0)
-                        except:
-                            s_val = 0.0
-                        try:
-                            p_val = float(str(row_dict.get("매입액(원)", 0)).replace(",", "") or 0)
-                        except:
-                            p_val = 0.0
-                            
-                        row_dict["매출액(원)"] = int(s_val)
-                        row_dict["매입액(원)"] = int(p_val)
-                        row_dict["예상Profit(원)"] = int(s_val - p_val)
-                        row_dict["최종수정자"] = current_user_name
-                        
-                        updated_records.append(row_dict)
-                        
-                    st.session_state.bl_data_list = updated_records
-                    save_bl_data(st.session_state.bl_data_list)
-                    st.success("✅ B/L 수정 내역이 성공적으로 저장되었습니다!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ 저장 중 오류 발생: {e}")
-                    
-        with col_btn2:
-            if st.button("🚨 선택한 B/L 행 삭제", type="secondary", use_container_width=True):
+            delete_clicked = st.button("🚨 선택한 B/L 삭제", type="secondary", use_container_width=True)
+            if delete_clicked:
                 selected_rows_del = edited_bl_table[edited_bl_table["선택"] == True]
                 if not selected_rows_del.empty:
                     indices_to_drop = selected_rows_del.index.tolist()
@@ -1870,6 +1839,131 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     st.rerun()
                 else:
                     st.warning("⚠️ 삭제할 B/L 행의 체크박스를 선택해주세요.")
+                    
+        st.markdown("---")
+        
+        selected_rows = edited_bl_table[edited_bl_table["선택"] == True]
+        
+        if len(selected_rows) == 1:
+            target_idx = selected_rows.index[0]
+            target_item = st.session_state.bl_data_list[target_idx]
+            
+            st.markdown(f"### 📝 선택한 B/L 상세 수정 칸 (Job: **{target_item.get('Job 번호', '')}** / B/L: **{target_item.get('B/L 번호', '')}**)")
+            
+            with st.form("detail_bl_edit_form_old"):
+                d_col1, d_col2, d_col3 = st.columns(3)
+                with d_col1:
+                    e_type = st.selectbox("구분", ["수출 (Export)", "수입 (Import)"], index=0 if "수출" in str(target_item.get("구분", "")) else 1)
+                    
+                    raw_date = str(target_item.get("날짜", str(date.today())))
+                    try:
+                        parsed_date = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
+                    except:
+                        parsed_date = date.today()
+                    e_date = st.date_input("선적 날짜", value=parsed_date)
+                    
+                    e_job = st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")))
+                    e_bl = st.text_input("B/L 번호", value=str(target_item.get("B/L 번호", "")))
+                with d_col2:
+                    e_country = st.text_input("국가", value=str(target_item.get("국가", "")))
+                    e_shipper = st.text_input("화주명(매출)", value=str(target_item.get("화주명(매출)", "")))
+                    e_consignee = st.text_input("해외수하인", value=str(target_item.get("해외수하인", "")))
+                    e_consignee_addr = st.text_input("해외수하인주소", value=str(target_item.get("해외수하인주소", "")))
+                    e_consignee_tel = st.text_input("해외수하인전화번호", value=str(target_item.get("해외수하인전화번호", "")))
+                with d_col3:
+                    e_vendor = st.text_input("매입처", value=str(target_item.get("매입처", "")))
+                    e_item = st.text_input("품목", value=str(target_item.get("품목", "")))
+                    e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
+                
+                st.markdown("---")
+                st.markdown("#### 📦 중량, 규격 및 금액 상세 수정")
+                
+                w_col1, w_col2, w_col3, w_col4 = st.columns(4)
+                with w_col1:
+                    e_box = st.text_input("박스수", value=str(target_item.get("박스수", "1 박스")))
+                    e_dim = st.text_input("부피 규격", value=str(target_item.get("부피규격", "-")))
+                with w_col2:
+                    e_cbm = st.text_input("CBM", value=str(target_item.get("CBM", "0.0 CBM")))
+                    e_trans = st.text_input("운송형태", value=str(target_item.get("운송형태", "항공(Air)")))
+                with w_col3:
+                    try:
+                        def_gw = float(target_item.get("실중량(kg)", target_item.get("매출실중량(kg)", 1.0)))
+                    except:
+                        def_gw = 1.0
+                    e_sales_gw = st.number_input("실중량 (kg) [소수점 유지]", value=def_gw, min_value=0.0, step=0.01, format="%.2f")
+                    
+                    try:
+                        def_scw = float(target_item.get("매출청구중량(kg)", 1.0))
+                    except:
+                        def_scw = 1.0
+                    e_sales_cw = st.number_input("매출 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_scw)), min_value=0.0, step=1.0)
+                with w_col4:
+                    try:
+                        def_pgw = float(target_item.get("매입실중량(kg)", def_gw))
+                    except:
+                        def_pgw = 1.0
+                    e_purchase_gw = st.number_input("매입 실중량(kg) [소수점 유지]", value=def_pgw, min_value=0.0, step=0.01, format="%.2f")
+                    
+                    try:
+                        def_pcw = float(target_item.get("매입청구중량(kg)", 1.0))
+                    except:
+                        def_pcw = 1.0
+                    e_purchase_cw = st.number_input("매입 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_pcw)), min_value=0.0, step=1.0)
+                
+                st.markdown("---")
+                d_col4, d_col5 = st.columns(2)
+                with d_col4:
+                    try:
+                        def_sales = int(target_item.get("매출액(원)", 0))
+                    except:
+                        def_sales = 0
+                    e_sales = st.number_input("매출액 (원)", value=def_sales, step=10000)
+                with d_col5:
+                    try:
+                        def_purchase = int(target_item.get("매입액(원)", 0))
+                    except:
+                        def_purchase = 0
+                    e_purchase = st.number_input("매입액 (원)", value=def_purchase, step=10000)
+                    
+                e_memo = st.text_area("비고", value=str(target_item.get("비고", "")))
+                
+                submitted_update = st.form_submit_button("💾 이 내용으로 B/L 수정 저장하기", type="primary", use_container_width=True)
+                if submitted_update:
+                    st.session_state.bl_data_list[target_idx].update({
+                        "구분": e_type,
+                        "날짜": str(e_date),
+                        "Job 번호": e_job,
+                        "B/L 번호": e_bl,
+                        "국가": e_country,
+                        "화주명(매출)": e_shipper,
+                        "해외수하인": e_consignee,
+                        "해외수하인주소": e_consignee_addr,
+                        "해외수하인전화번호": e_consignee_tel,
+                        "매입처": e_vendor,
+                        "품목": e_item,
+                        "박스수": e_box,
+                        "부피규격": e_dim,
+                        "CBM": e_cbm,
+                        "운송형태": e_trans,
+                        "실중량(kg)": float(e_sales_gw),
+                        "매출실중량(kg)": float(e_sales_gw),
+                        "매입실중량(kg)": float(e_purchase_gw),
+                        "매출청구중량(kg)": float(math.ceil(e_sales_cw)),
+                        "매입청구중량(kg)": float(math.ceil(e_purchase_cw)),
+                        "수금상태": e_status,
+                        "매출액(원)": float(e_sales),
+                        "매입액(원)": float(e_purchase),
+                        "예상Profit(원)": float(e_sales) - float(e_purchase),
+                        "비고": "" if e_memo == "nan" else e_memo,
+                        "최종수정자": current_user_name
+                    })
+                    save_bl_data(st.session_state.bl_data_list)
+                    st.success("✅ 선택하신 B/L의 실중량 및 청구중량이 성공적으로 수정 저장되었습니다!")
+                    st.rerun()
+        elif len(selected_rows) > 1:
+            st.warning("⚠️ 상세 수정은 **1개씩만** 선택해서 진행해주세요.")
+        else:
+            st.info("📌 수정할 B/L 행의 체크박스를 1개 선택하시면 아래에 상세 수정 입력칸이 나타납니다.")
     else:
         st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
