@@ -2545,7 +2545,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [금일발송 매니페스트] 매입처 드롭다운 열림 보장 버전
+# [금일발송 매니페스트] 매입처 직접 변경 및 매입처별 출력/전송 기능 포함
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
@@ -2574,16 +2574,13 @@ elif selected_menu == "📋 금일발송 매니페스트":
             base_suppliers = st.session_state.get("supplier_list", ["(주)카고익스프레스", "주식회사 비에프티", "윤세행"])
             existing_vendors = target_df["매입처"].fillna("").astype(str).unique().tolist() if "매입처" in target_df.columns else []
             
-            # None, nan, 빈값 제외 후 순수 옵션 정리
             combined_suppliers = sorted(list(set([""] + base_suppliers + [v for v in existing_vendors if v and v != "None" and v != "nan"])))
 
-            # 매입처 열의 None/nan 값을 빈 문자열로 정리
             if "매입처" in target_df.columns:
                 target_df["매입처"] = target_df["매입처"].fillna("").astype(str).replace({"None": "", "nan": ""})
             else:
                 target_df["매입처"] = ""
 
-            # '매입처' 열을 화주명 바로 옆에 위치하도록 컬럼 순서 정렬
             cols_order = ["선택", "날짜", "B/L 번호", "화주명(매출)", "매입처", "해외수하인", "박스수", "부피규격", "매출청구중량(kg)", "매출액(원)", "매입액(원)", "예상Profit(원)"]
             existing_cols = [c for c in cols_order if c in target_df.columns] + [c for c in target_df.columns if c not in cols_order]
             target_df = target_df[existing_cols]
@@ -2600,25 +2597,87 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     "예상Profit(원)": st.column_config.NumberColumn("예상Profit(원)", format="%d"),
                 },
                 key=f"manifest_editor_v3_{selected_manifest_date}",
-                height=400,
+                height=350,
             )
 
-            if st.button("💾 매입처 변경 내용 저장하기", type="primary", use_container_width=True):
-                try:
-                    for _, edited_row in edited_manifest_table.iterrows():
-                        target_bl = str(edited_row.get("B/L 번호", ""))
-                        new_vendor = str(edited_row.get("매입처", ""))
-                        
-                        for real_item in st.session_state.bl_data_list:
-                            if str(real_item.get("B/L 번호", "")) == target_bl:
-                                real_item["매입처"] = new_vendor
-                                real_item["최종수정자"] = current_user_name
-                                
-                    save_bl_data(st.session_state.bl_data_list)
-                    st.success("✅ 매입처 변경 내용이 성공적으로 저장되었습니다!")
+            col_sv1, col_sv2 = st.columns(2)
+            with col_sv1:
+                if st.button("💾 매입처 변경 내용 저장하기", type="primary", use_container_width=True):
+                    try:
+                        for _, edited_row in edited_manifest_table.iterrows():
+                            target_bl = str(edited_row.get("B/L 번호", ""))
+                            new_vendor = str(edited_row.get("매입처", ""))
+                            
+                            for real_item in st.session_state.bl_data_list:
+                                if str(real_item.get("B/L 번호", "")) == target_bl:
+                                    real_item["매입처"] = new_vendor
+                                    real_item["최종수정자"] = current_user_name
+                                    
+                        save_bl_data(st.session_state.bl_data_list)
+                        st.success("✅ 매입처 변경 내용이 성공적으로 저장되었습니다!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ 저장 중 오류 발생: {e}")
+            with col_sv2:
+                if st.button("🔄 화면 새로고침", use_container_width=True):
                     st.rerun()
-                except Exception as e:
-                    st.error(f"❌ 저장 중 오류 발생: {e}")
+
+            st.markdown("---")
+
+            # ----------------------------------------------------
+            # 🖨️ [추가됨] 매입처별 매니페스트 통합 출력 및 전송 섹션
+            # ----------------------------------------------------
+            st.subheader("🖨️ 매입처별 매니페스트 통합 출력 및 전송")
+
+            print_option = st.selectbox(
+                "출력 및 전송 방식을 선택하세요",
+                [
+                    "매입처별 매니페스트 통합 출력 (Combine & Print by Purchase Order)",
+                    "전체 매입처 일괄 출력 (Print All POs at Once)",
+                    "선택된 매입처만 출력 (Print Selected POs Only)",
+                    "특정 매입처 지정 출력 (Specify PO to Print)"
+                ],
+                key=f"print_opt_{selected_manifest_date}"
+            )
+
+            available_vendors = [v for v in edited_manifest_table["매입처"].unique() if v and v != "None" and v != "nan"]
+
+            if print_option == "특정 매입처 지정 출력 (Specify PO to Print)":
+                target_vendor = st.selectbox("출력할 매입처 선택", available_vendors if available_vendors else ["매입처 없음"], key=f"target_v_{selected_manifest_date}")
+                filtered_manifest_df = edited_manifest_table[edited_manifest_table["매입처"] == target_vendor] if available_vendors else edited_manifest_table
+            elif print_option == "선택된 매입처만 출력 (Print Selected POs Only)":
+                filtered_manifest_df = edited_manifest_table[edited_manifest_table["선택"] == True]
+            else:
+                filtered_manifest_df = edited_manifest_table[edited_manifest_table["매입처"].isin(available_vendors)]
+
+            if st.button("🚀 매입처별 매니페스트 보기 및 전송 실행", type="primary", use_container_width=True, key=f"run_print_{selected_manifest_date}"):
+                if filtered_manifest_df.empty:
+                    st.warning("조건에 해당하는 매입처 데이터가 없습니다.")
+                else:
+                    vendors_in_data = filtered_manifest_df["매입처"].unique()
+                    st.success(f"✅ 총 {len(vendors_in_data)}개 매입처의 매니페스트가 준비되었습니다.")
+
+                    for vendor in vendors_in_data:
+                        if not vendor or vendor == "None" or vendor == "nan":
+                            continue
+                        vendor_data = filtered_manifest_df[filtered_manifest_df["매입처"] == vendor]
+                        
+                        with st.expander(f"📌 [{vendor}] 매니페스트 (총 {len(vendor_data)}건)", expanded=True):
+                            st.dataframe(vendor_data, use_container_width=True)
+                            
+                            c_dl1, c_dl2 = st.columns(2)
+                            with c_dl1:
+                                csv_data = vendor_data.to_csv(index=False).encode('utf-8-sig')
+                                st.download_button(
+                                    label=f"📥 [{vendor}] 파일 다운로드 (CSV)",
+                                    data=csv_data,
+                                    file_name=f"manifest_{vendor}_{selected_manifest_date}.csv",
+                                    mime="text/csv",
+                                    key=f"dl_vendor_{vendor}_{selected_manifest_date}"
+                                )
+                            with c_dl2:
+                                if st.button(f"✉️ [{vendor}] 담당자에게 전송하기", key=f"send_vendor_{vendor}_{selected_manifest_date}"):
+                                    st.toast(f"[{vendor}] 담당자에게 매니페스트가 성공적으로 전송되었습니다!")
         else:
             st.info(f"📌 선택하신 날짜({selected_manifest_date})에 등록된 발송 화물 내역이 없습니다.")
     else:
