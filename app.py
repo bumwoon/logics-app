@@ -2596,7 +2596,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     "매입액(원)": st.column_config.NumberColumn("매입액(원)", format="%d"),
                     "예상Profit(원)": st.column_config.NumberColumn("예상Profit(원)", format="%d"),
                 },
-                key=f"manifest_editor_v4_{selected_manifest_date}",
+                key=f"manifest_editor_v5_{selected_manifest_date}",
                 height=350,
             )
 
@@ -2625,7 +2625,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
             st.markdown("---")
 
             # ----------------------------------------------------
-            # 🖨️ 매입처별 매니페스트 통합 출력 및 A4 인송/전송 섹션
+            # 🖨️ 매입처별 매니페스트 통합 출력 및 A4 인쇄/전송 섹션
             # ----------------------------------------------------
             st.subheader("🖨️ 매입처별 매니페스트 통합 출력 및 전송")
 
@@ -2756,7 +2756,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
                                 for _, r in vendor_data.iterrows():
                                     a4_manifest_html += f"""
                                             <tr>
-                                                <td>{str(r.get("날짜", selected_manifest_date}))[:10]}</td>
+                                                <td>{str(r.get("날짜", selected_manifest_date))[:10]}</td>
                                                 <td style="font-weight: bold;">{r.get("B/L 번호", "-")}</td>
                                                 <td>{r.get("화주명(매출)", "-")}</td>
                                                 <td style="text-align: left; padding-left: 6px;">{r.get("해외수하인", "-")}</td>
