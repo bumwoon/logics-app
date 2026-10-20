@@ -3207,7 +3207,7 @@ elif selected_menu == "📉 거래처 미수금관리":
 
                     save_bl_data
 # ==========================================
-# [일계표 및 입출금 장부] (지급완료 명확 표기 적용 버전)
+# [일계표 및 입출금 장부] (등록 폼 '지급완료' 기본 선택 적용)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
@@ -3233,12 +3233,10 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             picked_date = st.date_input("📅 조회할 날짜 선택 (달력)", value=date.today(), key="cash_date_picker_calendar")
             selected_target_date = str(picked_date)
 
-    # 데이터 필터링 및 지급상태 기본값 보장 (수입 및 기존 데이터 '지급완료' 자동 적용)
+    # 데이터 필터링 및 지급상태 기본값 보장
     filtered_cash_data = []
     for item in cashbook_data:
         io_type = str(item.get("구분", ""))
-        
-        # 지급상태가 없거나 비어있는 경우 기본값 세팅
         if "지급상태" not in item or not item.get("지급상태") or item.get("지급상태") in ["None", "nan"]:
             item["지급상태"] = "지급완료"
         elif "수입" in io_type:
@@ -3281,7 +3279,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         if "선택" not in df_cash.columns:
             df_cash.insert(0, "선택", False)
 
-        # '지급상태' 열을 '항목' 바로 옆에 정렬
         cols_order = ["선택", "날짜", "구분", "항목", "지급상태", "금액(원)", "적요"]
         existing_cols = [c for c in cols_order if c in df_cash.columns] + [c for c in df_cash.columns if c not in cols_order]
         df_cash = df_cash[existing_cols]
@@ -3295,7 +3292,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 "지급상태": st.column_config.SelectboxColumn("지급상태", options=["지급완료", "미지급"], required=True),
                 "금액(원)": st.column_config.NumberColumn("금액(원)", format="%d"),
             },
-            key=f"cashbook_table_editor_v6_{date_filter_mode}_{selected_target_date}",
+            key=f"cashbook_table_editor_v10_{date_filter_mode}_{selected_target_date}",
             height=320,
         )
 
@@ -3490,11 +3487,12 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     # --- 4. 하단: 새로운 수입 / 지출 장부 등록 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form_v9"):
+    with st.form("cashbook_register_form_v10"):
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
             io_gb = st.selectbox("입출금 구분", ["지출 (-)", "수입 (+)"])
+            # '지급완료'가 0번 인덱스로 기본 선택되도록 명시 적용
             pay_status = st.selectbox("지급 상태", ["지급완료", "미지급"], index=0)
         with f_col2:
             cat_options = [
@@ -3523,7 +3521,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                     "구분": io_gb,
                     "항목": category,
                     "금액(원)": int(amount),
-                    "지급상태": pay_status if "지출" in io_gb else "지급완료",
+                    "지급상태": pay_status,
                     "적요": memo if memo else "-",
                 })
                 save_account_data(st.session_state.cashbook_list)
@@ -3531,6 +3529,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 st.rerun()
             else:
                 st.warning("⚠️ 금액은 0원보다 커야 합니다.")
+
 # ==========================================
 # [12] 업무용 일지
 # ==========================================
