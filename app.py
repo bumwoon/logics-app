@@ -1194,137 +1194,105 @@ uploaded_integrated_file = st.sidebar.file_uploader(
 )
 
 if uploaded_integrated_file is not None:
-    # 같은 업로드 파일이 Streamlit 재실행 때마다 반복 복원되는 것을 방지합니다.
-    upload_signature = (
-        uploaded_integrated_file.name,
-        uploaded_integrated_file.size,
-    )
-    if st.session_state.get("_last_integrated_upload_signature") != upload_signature:
-        try:
-            file_extension = uploaded_integrated_file.name.rsplit(".", 1)[-1].lower()
-            parsed_meta = {}
-            sheets = {}
+    try:
+        file_extension = uploaded_integrated_file.name.rsplit(".", 1)[-1].lower()
+        parsed_meta = {}
+        sheets = {}
 
-            if file_extension == "csv":
-                sheets["CSV"] = pd.read_csv(uploaded_integrated_file)
-            else:
-                xls = pd.ExcelFile(uploaded_integrated_file)
-                for sheet_name in xls.sheet_names:
-                    sheets[sheet_name] = pd.read_excel(xls, sheet_name=sheet_name)
+        if file_extension == "csv":
+            sheets["CSV"] = pd.read_csv(uploaded_integrated_file)
+        else:
+            xls = pd.ExcelFile(uploaded_integrated_file)
+            for sheet_name in xls.sheet_names:
+                sheets[sheet_name] = pd.read_excel(xls, sheet_name=sheet_name)
 
-            # 새 통합 백업 및 이전 버전의 __SYSTEM_META__ 형식을 모두 읽습니다.
-            for df_meta in sheets.values():
-                if "__SYSTEM_META__" in df_meta.columns and not df_meta.empty:
-                    meta_val = df_meta["__SYSTEM_META__"].iloc[0]
-                    if pd.notna(meta_val) and str(meta_val).strip():
-                        try:
-                            parsed_meta = json.loads(str(meta_val))
-                            break
-                        except (json.JSONDecodeError, TypeError, ValueError):
-                            pass
-
-            if parsed_meta:
-                st.session_state.client_list = parsed_meta.get(
-                    "client_list", st.session_state.get("client_list", [])
-                )
-                st.session_state.client_rates = parsed_meta.get(
-                    "client_rates", st.session_state.get("client_rates", {})
-                )
-                st.session_state.client_infos = parsed_meta.get(
-                    "client_infos", st.session_state.get("client_infos", {})
-                )
-                st.session_state.supplier_list = parsed_meta.get(
-                    "supplier_list", st.session_state.get("supplier_list", [])
-                )
-                st.session_state.supplier_rates = parsed_meta.get(
-                    "supplier_rates", st.session_state.get("supplier_rates", {})
-                )
-                st.session_state.supplier_infos = parsed_meta.get(
-                    "supplier_infos", st.session_state.get("supplier_infos", {})
-                )
-
-            # 일계표는 메타 데이터 우선, 없으면 별도 시트, 마지막으로 구버전 파일을 확인합니다.
-            ledger_restored = False
-            if "ledger_data" in parsed_meta:
-                st.session_state.cashbook_list = parsed_meta.get("ledger_data") or []
-                ledger_restored = True
-            if not ledger_restored:
-                for sheet_name in ("일계표_입출금장부", "일계표", "입출금장부", "계정장부"):
-                    if sheet_name in sheets:
-                        df_ledger = sheets[sheet_name].copy()
-                        df_ledger = df_ledger.drop(
-                            columns=["__SYSTEM_META__"], errors="ignore"
-                        )
-                        st.session_state.cashbook_list = (
-                            df_ledger.fillna("").to_dict("records")
-                            if not df_ledger.empty else []
-                        )
-                        ledger_restored = True
+        # 시스템 메타데이터 읽기 시도
+        for df_meta in sheets.values():
+            if "__SYSTEM_META__" in df_meta.columns and not df_meta.empty:
+                meta_val = df_meta["__SYSTEM_META__"].iloc[0]
+                if pd.notna(meta_val) and str(meta_val).strip():
+                    try:
+                        parsed_meta = json.loads(str(meta_val))
                         break
-            if ledger_restored:
-                save_account_data(st.session_state.cashbook_list)
+                    except Exception:
+                        pass
 
-            if "expense_data" in parsed_meta:
-                st.session_state.expense_data_list = parsed_meta.get("expense_data") or []
-            elif "경비_지출내역" in sheets:
-                st.session_state.expense_data_list = sheets["경비_지출내역"].fillna("").to_dict("records")
-            elif "지출내역" in sheets:
-                st.session_state.expense_data_list = sheets["지출내역"].fillna("").to_dict("records")
-            if "expense_data_list" in st.session_state:
-                save_expense_data(st.session_state.expense_data_list)
+        if parsed_meta:
+            st.session_state.client_list = parsed_meta.get("client_list", st.session_state.client_list)
+            st.session_state.client_rates = parsed_meta.get("client_rates", st.session_state.client_rates)
+            st.session_state.client_infos = parsed_meta.get("client_infos", st.session_state.client_infos)
+            st.session_state.supplier_list = parsed_meta.get("supplier_list", st.session_state.supplier_list)
+            st.session_state.supplier_rates = parsed_meta.get("supplier_rates", st.session_state.supplier_rates)
+            st.session_state.supplier_infos = parsed_meta.get("supplier_infos", st.session_state.supplier_infos)
 
-            if "meeting_data" in parsed_meta:
-                st.session_state.meeting_data_list = parsed_meta.get("meeting_data") or []
-            elif "거래처미팅노트" in sheets:
-                st.session_state.meeting_data_list = sheets["거래처미팅노트"].fillna("").to_dict("records")
-            if "meeting_data_list" in st.session_state:
-                save_meeting_data(st.session_state.meeting_data_list)
-
-            if "note_data" in parsed_meta:
-                st.session_state.note_data_list = parsed_meta.get("note_data") or []
-            elif "업무용일지" in sheets:
-                st.session_state.note_data_list = sheets["업무용일지"].fillna("").to_dict("records")
-            if "note_data_list" in st.session_state:
-                save_note_data(st.session_state.note_data_list)
-
-            # 구버전 단일 시트 및 새 버전 B/L 시트를 모두 지원합니다.
-            bl_df = None
-            for sheet_name in ("B_L데이터", "Bumwoon_Integrated_Backup", "BL_Data", "BL_History"):
-                if sheet_name in sheets and "B/L 번호" in sheets[sheet_name].columns:
-                    bl_df = sheets[sheet_name].copy()
+        # 일계표 및 장부 데이터 복원
+        ledger_restored = False
+        if "ledger_data" in parsed_meta:
+            st.session_state.cashbook_list = parsed_meta.get("ledger_data") or []
+            ledger_restored = True
+        if not ledger_restored:
+            for sheet_name in ("일계표_입출금장부", "일계표", "입출금장부", "계정장부"):
+                if sheet_name in sheets:
+                    df_ledger = sheets[sheet_name].copy()
+                    df_ledger = df_ledger.drop(columns=["__SYSTEM_META__"], errors="ignore")
+                    st.session_state.cashbook_list = df_ledger.fillna("").to_dict("records") if not df_ledger.empty else []
+                    ledger_restored = True
                     break
-            if bl_df is None:
-                for df_candidate in sheets.values():
-                    if "B/L 번호" in df_candidate.columns:
-                        bl_df = df_candidate.copy()
-                        break
-            if bl_df is not None:
-                bl_df = bl_df.drop(columns=["__SYSTEM_META__"], errors="ignore")
-                bl_df = bl_df[bl_df["B/L 번호"].notna()]
-                st.session_state.bl_data_list = bl_df.fillna("").to_dict("records")
-                save_bl_data(st.session_state.bl_data_list)
+        if ledger_restored:
+            save_account_data(st.session_state.cashbook_list)
 
-            if parsed_meta:
-                save_client_data(
-                    st.session_state.client_list,
-                    st.session_state.client_rates,
-                    st.session_state.client_infos,
-                )
-                save_supplier_data(
-                    st.session_state.supplier_list,
-                    st.session_state.supplier_rates,
-                    st.session_state.supplier_infos,
-                )
+        # 경비, 미팅, 업무일지 복원
+        if "expense_data" in parsed_meta:
+            st.session_state.expense_data_list = parsed_meta.get("expense_data") or []
+        elif "경비_지출내역" in sheets:
+            st.session_state.expense_data_list = sheets["경비_지출내역"].fillna("").to_dict("records")
+        if "expense_data_list" in st.session_state:
+            save_expense_data(st.session_state.expense_data_list)
 
-            st.session_state["_last_integrated_upload_signature"] = upload_signature
-            st.sidebar.success(
-                f"복원 완료: B/L {len(st.session_state.get('bl_data_list', []))}건, "
-                f"일계표 {len(st.session_state.get('cashbook_list', []))}건을 확인했습니다."
-            )
-            st.rerun()
-        except Exception as e:
-            st.sidebar.error(f"통합 데이터 복원 중 오류가 발생했습니다: {e}")
+        if "meeting_data" in parsed_meta:
+            st.session_state.meeting_data_list = parsed_meta.get("meeting_data") or []
+        elif "거래처미팅노트" in sheets:
+            st.session_state.meeting_data_list = sheets["거래처미팅노트"].fillna("").to_dict("records")
+        if "meeting_data_list" in st.session_state:
+            save_meeting_data(st.session_state.meeting_data_list)
 
+        if "note_data" in parsed_meta:
+            st.session_state.note_data_list = parsed_meta.get("note_data") or []
+        elif "업무용일지" in sheets:
+            st.session_state.note_data_list = sheets["업무용일지"].fillna("").to_dict("records")
+        if "note_data_list" in st.session_state:
+            save_note_data(st.session_state.note_data_list)
+
+        # B/L 데이터 복원
+        bl_df = None
+        for sheet_name in ("B_L데이터", "Bumwoon_Integrated_Backup", "BL_Data", "BL_History"):
+            if sheet_name in sheets and "B/L 번호" in sheets[sheet_name].columns:
+                bl_df = sheets[sheet_name].copy()
+                break
+        if bl_df is None:
+            for df_candidate in sheets.values():
+                if "B/L 번호" in df_candidate.columns:
+                    bl_df = df_candidate.copy()
+                    break
+
+        if bl_df is not None:
+            bl_df = bl_df.drop(columns=["__SYSTEM_META__"], errors="ignore")
+            bl_df = bl_df[bl_df["B/L 번호"].notna()]
+            st.session_state.bl_data_list = bl_df.fillna("").to_dict("records")
+            save_bl_data(st.session_state.bl_data_list)
+
+        # 파일 저장 동기화
+        if parsed_meta:
+            save_client_data(st.session_state.client_list, st.session_state.client_rates, st.session_state.client_infos)
+            save_supplier_data(st.session_state.supplier_list, st.session_state.supplier_rates, st.session_state.supplier_infos)
+
+        st.sidebar.success(
+            f"🎉 복원 완료! (B/L: {len(st.session_state.get('bl_data_list', []))}건, 일계표: {len(st.session_state.get('cashbook_list', []))}건)"
+        )
+        st.rerun()
+
+    except Exception as e:
+        st.sidebar.error(f"❌ 복원 중 오류 발생: {e}")
 
 # ==========================================
 # 사이드바 메인 메뉴 (매출/매입 거래처 완전 독립 분리)
