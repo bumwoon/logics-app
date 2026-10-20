@@ -1793,7 +1793,7 @@ if selected_menu == "📊 수출입 B/L 등록":
                 )
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역 (기존 상세 수정 폼 방식 복구)
+# [2] 등록 B/L 수정 및 Profit 내역
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
@@ -1820,7 +1820,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 "매출실중량(kg)": st.column_config.NumberColumn("매출실중량(kg)", format="%.2f"),
                 "매입실중량(kg)": st.column_config.NumberColumn("매입실중량(kg)", format="%.2f"),
             },
-            key="edit_bl_profit_table_select_old",
+            key="edit_bl_profit_table_select_v2",
             height=300
         )
         
@@ -1850,7 +1850,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
             
             st.markdown(f"### 📝 선택한 B/L 상세 수정 칸 (Job: **{target_item.get('Job 번호', '')}** / B/L: **{target_item.get('B/L 번호', '')}**)")
             
-            with st.form("detail_bl_edit_form_old"):
+            with st.form("detail_bl_edit_form_v2"):
                 d_col1, d_col2, d_col3 = st.columns(3)
                 with d_col1:
                     e_type = st.selectbox("구분", ["수출 (Export)", "수입 (Import)"], index=0 if "수출" in str(target_item.get("구분", "")) else 1)
@@ -1865,14 +1865,30 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     e_job = st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")))
                     e_bl = st.text_input("B/L 번호", value=str(target_item.get("B/L 번호", "")))
                 with d_col2:
-                    e_country = st.text_input("국가", value=str(target_item.get("국가", "")))
-                    e_shipper = st.text_input("화주명(매출)", value=str(target_item.get("화주명(매출)", "")))
+                    e_country = st.selectbox("국가", options=COUNTRY_LIST, index=COUNTRY_LIST.index(target_item.get("국가", "미국")) if target_item.get("국가") in COUNTRY_LIST else 0)
+                    
+                    # 화주명 자동 선택
+                    client_opts = [""] + st.session_state.get("client_list", [])
+                    cur_shipper = str(target_item.get("화주명(매출)", ""))
+                    shipper_idx = client_opts.index(cur_shipper) if cur_shipper in client_opts else 0
+                    e_shipper = st.selectbox("화주명(매출)", options=client_opts, index=shipper_idx)
+                    
                     e_consignee = st.text_input("해외수하인", value=str(target_item.get("해외수하인", "")))
                     e_consignee_addr = st.text_input("해외수하인주소", value=str(target_item.get("해외수하인주소", "")))
                     e_consignee_tel = st.text_input("해외수하인전화번호", value=str(target_item.get("해외수하인전화번호", "")))
                 with d_col3:
-                    e_vendor = st.text_input("매입처", value=str(target_item.get("매입처", "")))
-                    e_item = st.text_input("품목", value=str(target_item.get("품목", "")))
+                    # 매입처 자동 선택 목록
+                    supplier_opts = [""] + st.session_state.get("supplier_list", [])
+                    cur_vendor = str(target_item.get("매입처", ""))
+                    vendor_idx = supplier_opts.index(cur_vendor) if cur_vendor in supplier_opts else 0
+                    e_vendor = st.selectbox("매입처", options=supplier_opts, index=vendor_idx)
+                    
+                    # 품목 자동 선택 목록
+                    item_opts = ["보톡스", "필러", "화장품", "특가품목", "기타"]
+                    cur_item = str(target_item.get("품목", ""))
+                    item_idx = item_opts.index(cur_item) if cur_item in item_opts else 0
+                    e_item = st.selectbox("품목", options=item_opts, index=item_idx)
+                    
                     e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
                 
                 st.markdown("---")
@@ -1884,7 +1900,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     e_dim = st.text_input("부피 규격", value=str(target_item.get("부피규격", "-")))
                 with w_col2:
                     e_cbm = st.text_input("CBM", value=str(target_item.get("CBM", "0.0 CBM")))
-                    e_trans = st.text_input("운송형태", value=str(target_item.get("운송형태", "항공(Air)")))
+                    e_trans = st.selectbox("운송형태", options=["항공(Air)", "해상(LCL)", "에어카고"], index=0 if "항공" in str(target_item.get("운송형태", "")) else (1 if "해상" in str(target_item.get("운송형태", "")) else 2))
                 with w_col3:
                     try:
                         def_gw = float(target_item.get("실중량(kg)", target_item.get("매출실중량(kg)", 1.0)))
