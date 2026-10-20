@@ -2545,7 +2545,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [금일발송 매니페스트] 매입처 직접 변경 및 매입처별 출력/전송 기능 포함
+# [금일발송 매니페스트] 매입처 직접 변경 및 A4 맞춤 인쇄/전송 기능 포함
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
@@ -2571,7 +2571,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
             st.info("💡 아래 표의 **[매입처]** 칸을 클릭하시면 등록된 협력사 목록이 드롭다운으로 나타납니다.")
 
             # 1. 시스템 등록 매입처 + 기존 데이터 매입처를 합쳐서 드롭다운 옵션 생성
-            base_suppliers = st.session_state.get("supplier_list", ["(주)카고익스프레스", "주식회사 비에프티", "윤세행"])
+            base_suppliers = st.session_state.get("supplier_list", ["(주)카스익스프레스", "주식회사 비에프티", "윤세형", "ESI"])
             existing_vendors = target_df["매입처"].fillna("").astype(str).unique().tolist() if "매입처" in target_df.columns else []
             
             combined_suppliers = sorted(list(set([""] + base_suppliers + [v for v in existing_vendors if v and v != "None" and v != "nan"])))
@@ -2596,7 +2596,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     "매입액(원)": st.column_config.NumberColumn("매입액(원)", format="%d"),
                     "예상Profit(원)": st.column_config.NumberColumn("예상Profit(원)", format="%d"),
                 },
-                key=f"manifest_editor_v3_{selected_manifest_date}",
+                key=f"manifest_editor_v4_{selected_manifest_date}",
                 height=350,
             )
 
@@ -2625,7 +2625,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
             st.markdown("---")
 
             # ----------------------------------------------------
-            # 🖨️ [추가됨] 매입처별 매니페스트 통합 출력 및 전송 섹션
+            # 🖨️ 매입처별 매니페스트 통합 출력 및 A4 인송/전송 섹션
             # ----------------------------------------------------
             st.subheader("🖨️ 매입처별 매니페스트 통합 출력 및 전송")
 
@@ -2665,19 +2665,119 @@ elif selected_menu == "📋 금일발송 매니페스트":
                         with st.expander(f"📌 [{vendor}] 매니페스트 (총 {len(vendor_data)}건)", expanded=True):
                             st.dataframe(vendor_data, use_container_width=True)
                             
-                            c_dl1, c_dl2 = st.columns(2)
+                            c_dl1, c_dl2, c_dl3 = st.columns(3)
                             with c_dl1:
                                 csv_data = vendor_data.to_csv(index=False).encode('utf-8-sig')
                                 st.download_button(
-                                    label=f"📥 [{vendor}] 파일 다운로드 (CSV)",
+                                    label=f"📥 [{vendor}] 파일 다운로드",
                                     data=csv_data,
                                     file_name=f"manifest_{vendor}_{selected_manifest_date}.csv",
                                     mime="text/csv",
                                     key=f"dl_vendor_{vendor}_{selected_manifest_date}"
                                 )
                             with c_dl2:
-                                if st.button(f"✉️ [{vendor}] 담당자에게 전송하기", key=f"send_vendor_{vendor}_{selected_manifest_date}"):
+                                if st.button(f"✉️ [{vendor}] 담당자 전송", key=f"send_vendor_{vendor}_{selected_manifest_date}"):
                                     st.toast(f"[{vendor}] 담당자에게 매니페스트가 성공적으로 전송되었습니다!")
+                            with c_dl3:
+                                # ----------------------------------------------------
+                                # 🖨️ A4 양식 맞춤형 정식 매니페스트 HTML 생성 및 인쇄 버튼
+                                # ----------------------------------------------------
+                                v_info = st.session_state.get("supplier_infos", {}).get(vendor, {})
+                                v_bno = v_info.get("사업자등록번호", "-")
+                                v_mgr = v_info.get("담당자", "-")
+                                v_tel = v_info.get("전화번호", "-")
+
+                                a4_manifest_html = f"""
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                    <meta charset="utf-8">
+                                    <style>
+                                        @media print {{
+                                            body {{ -webkit-print-color-adjust: exact; }}
+                                            .no-print {{ display: none !important; }}
+                                            @page {{ size: A4 portrait; margin: 10mm; }}
+                                        }}
+                                        body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9pt; margin: 0; padding: 10px; background: #fff; }}
+                                        .report-box {{ max-width: 780px; margin: 0 auto; border: 2px solid #0f172a; padding: 20px; border-radius: 8px; background: #ffffff; }}
+                                        .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
+                                        .header-table td {{ border: none; vertical-align: middle; }}
+                                        
+                                        .approval-table {{ border-collapse: collapse; float: right; }}
+                                        .approval-table th, .approval-table td {{ border: 1px solid #64748b; font-size: 8pt; text-align: center; padding: 4px 8px; }}
+                                        .approval-table th {{ background-color: #f1f5f9; }}
+                                        .approval-sign {{ height: 35px; }}
+
+                                        .info-box {{ background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; font-size: 9.5pt; }}
+                                        
+                                        .data-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }}
+                                        .data-table th, .data-table td {{ border: 1px solid #64748b; padding: 7px 6px; text-align: center; font-size: 8.5pt; word-break: break-all; }}
+                                        .data-table th {{ background-color: #0f172a; color: white; font-weight: 600; }}
+                                        .data-table tr:nth-child(even) {{ background-color: #f8fafc; }}
+
+                                        .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 12px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }}
+                                    </style>
+                                </head>
+                                <body>
+                                    <div class="report-box">
+                                        <button class="p-btn no-print" onclick="window.print()">🖨️ A4 정식 매니페스트 인쇄 / PDF 저장</button>
+                                        
+                                        <table class="header-table">
+                                            <tr>
+                                                <td>
+                                                    <div style="font-size: 11pt; font-weight: bold; color: #2563eb; margin-bottom: 2px;">(주)범운해운항공</div>
+                                                    <div style="font-size: 18pt; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">화물 입고 매니페스트 (MANIFEST)</div>
+                                                    <div style="font-size: 8.5pt; color: #64748b; margin-top: 4px;">발송일자: <b>{selected_manifest_date}</b> | 매입처: <b style="color: #1e3a8a;">{vendor}</b></div>
+                                                </td>
+                                                <td style="width: 160px;">
+                                                    <table class="approval-table">
+                                                        <tr><th rowspan="2" style="width: 20px; background:#f8fafc;">결<br>재</th><th>담당</th><th>대표</th></tr>
+                                                        <tr><td class="approval-sign"></td><td class="approval-sign"></td></tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <div class="info-box">
+                                            <b>[협력사(매입처) 정보]</b> 상호: <b>{vendor}</b> | 사업자번호: {v_bno} | 담당자: {v_mgr} ({v_tel})<br>
+                                            총 입고 화물 건수: <b>{len(vendor_data)} 건</b>
+                                        </div>
+
+                                        <table class="data-table">
+                                            <tr>
+                                                <th style="width: 12%;">선적일자</th>
+                                                <th style="width: 16%;">B/L 번호</th>
+                                                <th style="width: 18%;">화주명(매출)</th>
+                                                <th style="width: 20%;">해외수하인</th>
+                                                <th style="width: 14%;">박스수</th>
+                                                <th style="width: 20%;">부피규격</th>
+                                            </tr>
+                                """
+                                for _, r in vendor_data.iterrows():
+                                    a4_manifest_html += f"""
+                                            <tr>
+                                                <td>{str(r.get("날짜", selected_manifest_date}))[:10]}</td>
+                                                <td style="font-weight: bold;">{r.get("B/L 번호", "-")}</td>
+                                                <td>{r.get("화주명(매출)", "-")}</td>
+                                                <td style="text-align: left; padding-left: 6px;">{r.get("해외수하인", "-")}</td>
+                                                <td>{r.get("박스수", "-")}</td>
+                                                <td>{r.get("부피규격", "-")}</td>
+                                            </tr>
+                                    """
+                                a4_manifest_html += f"""
+                                        </table>
+                                        
+                                        <div style="margin-top: 30px; text-align: center; font-size: 9.5pt; color: #475569;">
+                                            상기 화물의 입고 및 발송 내역을 확인합니다.<br><br>
+                                            <b style="font-size: 11pt; color: #0f172a;">주식회사 범운해운항공 대표이사 이상복 [직인생략]</b>
+                                        </div>
+                                    </div>
+                                </body>
+                                </html>
+                                """
+                                
+                                if st.button(f"🖨️ [{vendor}] A4 보고서 인쇄", key=f"print_a4_{vendor}_{selected_manifest_date}"):
+                                    components.html(a4_manifest_html, height=750, scrolling=True)
         else:
             st.info(f"📌 선택하신 날짜({selected_manifest_date})에 등록된 발송 화물 내역이 없습니다.")
     else:
