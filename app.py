@@ -1793,7 +1793,7 @@ if selected_menu == "📊 수출입 B/L 등록":
                 )
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역 (수정 및 저장 완성본)
+# [2] 등록 B/L 수정 및 Profit 내역 (기존 상세 수정 폼 방식 복구)
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
@@ -1820,7 +1820,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 "매출실중량(kg)": st.column_config.NumberColumn("매출실중량(kg)", format="%.2f"),
                 "매입실중량(kg)": st.column_config.NumberColumn("매입실중량(kg)", format="%.2f"),
             },
-            key="edit_bl_profit_table_select",
+            key="edit_bl_profit_table_select_old",
             height=300
         )
         
@@ -1850,7 +1850,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
             
             st.markdown(f"### 📝 선택한 B/L 상세 수정 칸 (Job: **{target_item.get('Job 번호', '')}** / B/L: **{target_item.get('B/L 번호', '')}**)")
             
-            with st.form("detail_bl_edit_form"):
+            with st.form("detail_bl_edit_form_old"):
                 d_col1, d_col2, d_col3 = st.columns(3)
                 with d_col1:
                     e_type = st.selectbox("구분", ["수출 (Export)", "수입 (Import)"], index=0 if "수출" in str(target_item.get("구분", "")) else 1)
@@ -1865,27 +1865,14 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     e_job = st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")))
                     e_bl = st.text_input("B/L 번호", value=str(target_item.get("B/L 번호", "")))
                 with d_col2:
-                    e_country = st.selectbox("국가", options=COUNTRY_LIST, index=COUNTRY_LIST.index(target_item.get("국가", "미국")) if target_item.get("국가") in COUNTRY_LIST else 0)
-                    
-                    client_opts = [""] + st.session_state.get("client_list", [])
-                    cur_shipper = str(target_item.get("화주명(매출)", ""))
-                    shipper_idx = client_opts.index(cur_shipper) if cur_shipper in client_opts else 0
-                    e_shipper = st.selectbox("화주명(매출)", options=client_opts, index=shipper_idx)
-                    
+                    e_country = st.text_input("국가", value=str(target_item.get("국가", "")))
+                    e_shipper = st.text_input("화주명(매출)", value=str(target_item.get("화주명(매출)", "")))
                     e_consignee = st.text_input("해외수하인", value=str(target_item.get("해외수하인", "")))
                     e_consignee_addr = st.text_input("해외수하인주소", value=str(target_item.get("해외수하인주소", "")))
                     e_consignee_tel = st.text_input("해외수하인전화번호", value=str(target_item.get("해외수하인전화번호", "")))
                 with d_col3:
-                    supplier_opts = [""] + st.session_state.get("supplier_list", [])
-                    cur_vendor = str(target_item.get("매입처", ""))
-                    vendor_idx = supplier_opts.index(cur_vendor) if cur_vendor in supplier_opts else 0
-                    e_vendor = st.selectbox("매입처", options=supplier_opts, index=vendor_idx)
-                    
-                    item_opts = ["보톡스", "필러", "화장품", "특가품목", "기타"]
-                    cur_item = str(target_item.get("품목", ""))
-                    item_idx = item_opts.index(cur_item) if cur_item in item_opts else 0
-                    e_item = st.selectbox("품목", options=item_opts, index=item_idx)
-                    
+                    e_vendor = st.text_input("매입처", value=str(target_item.get("매입처", "")))
+                    e_item = st.text_input("품목", value=str(target_item.get("품목", "")))
                     e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
                 
                 st.markdown("---")
@@ -1897,7 +1884,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     e_dim = st.text_input("부피 규격", value=str(target_item.get("부피규격", "-")))
                 with w_col2:
                     e_cbm = st.text_input("CBM", value=str(target_item.get("CBM", "0.0 CBM")))
-                    e_trans = st.selectbox("운송형태", options=["항공(Air)", "해상(LCL)", "에어카고"], index=0 if "항공" in str(target_item.get("운송형태", "")) else (1 if "해상" in str(target_item.get("운송형태", "")) else 2))
+                    e_trans = st.text_input("운송형태", value=str(target_item.get("운송형태", "항공(Air)")))
                 with w_col3:
                     try:
                         def_gw = float(target_item.get("실중량(kg)", target_item.get("매출실중량(kg)", 1.0)))
@@ -1909,7 +1896,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         def_scw = float(target_item.get("매출청구중량(kg)", 1.0))
                     except:
                         def_scw = 1.0
-                    e_sales_cw = st.number_input("매출 청구중량(kg)", value=float(math.ceil(def_scw)), min_value=0.0, step=1.0)
+                    e_sales_cw = st.number_input("매출 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_scw)), min_value=0.0, step=1.0)
                 with w_col4:
                     try:
                         def_pgw = float(target_item.get("매입실중량(kg)", def_gw))
@@ -1921,7 +1908,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         def_pcw = float(target_item.get("매입청구중량(kg)", 1.0))
                     except:
                         def_pcw = 1.0
-                    e_purchase_cw = st.number_input("매입 청구중량(kg)", value=float(math.ceil(def_pcw)), min_value=0.0, step=1.0)
+                    e_purchase_cw = st.number_input("매입 청구중량(kg) [kg당 올림]", value=float(math.ceil(def_pcw)), min_value=0.0, step=1.0)
                 
                 st.markdown("---")
                 d_col4, d_col5 = st.columns(2)
@@ -1930,57 +1917,53 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         def_sales = int(target_item.get("매출액(원)", 0))
                     except:
                         def_sales = 0
-                    e_sales = st.number_input("총 매출액 (원)", value=def_sales, min_value=0, step=1000, format="%d")
+                    e_sales = st.number_input("매출액 (원)", value=def_sales, step=10000)
                 with d_col5:
                     try:
                         def_purchase = int(target_item.get("매입액(원)", 0))
                     except:
                         def_purchase = 0
-                    e_purchase = st.number_input("총 매입액 (원)", value=def_purchase, min_value=0, step=1000, format="%d")
-
-                e_remarks = st.text_area("비고 수정", value=str(target_item.get("비고", "")))
-
-                # 💡 수정 내용 저장 버튼 및 반영 로직
-                if st.form_submit_button("💾 수정된 B/L 내용 저장하기", type="primary", use_container_width=True):
-                    preview_profit = int(e_sales) - int(e_purchase)
+                    e_purchase = st.number_input("매입액 (원)", value=def_purchase, step=10000)
                     
-                    st.session_state.bl_data_list[target_idx] = {
+                e_memo = st.text_area("비고", value=str(target_item.get("비고", "")))
+                
+                submitted_update = st.form_submit_button("💾 이 내용으로 B/L 수정 저장하기", type="primary", use_container_width=True)
+                if submitted_update:
+                    st.session_state.bl_data_list[target_idx].update({
                         "구분": e_type,
                         "날짜": str(e_date),
                         "Job 번호": e_job,
                         "B/L 번호": e_bl,
                         "국가": e_country,
-                        "출발지": target_item.get("출발지", "대한민국 (KOREA)"),
                         "화주명(매출)": e_shipper,
                         "해외수하인": e_consignee,
                         "해외수하인주소": e_consignee_addr,
                         "해외수하인전화번호": e_consignee_tel,
                         "매입처": e_vendor,
-                        "운송형태": e_trans,
-                        "서비스옵션": target_item.get("서비스옵션", "Door To Door"),
                         "품목": e_item,
                         "박스수": e_box,
                         "부피규격": e_dim,
+                        "CBM": e_cbm,
+                        "운송형태": e_trans,
                         "실중량(kg)": float(e_sales_gw),
                         "매출실중량(kg)": float(e_sales_gw),
                         "매입실중량(kg)": float(e_purchase_gw),
-                        "매출청구중량(kg)": float(e_sales_cw),
-                        "매입청구중량(kg)": float(e_purchase_cw),
-                        "CBM": e_cbm,
-                        "현재 상태": target_item.get("현재 상태", "운송 중"),
+                        "매출청구중량(kg)": float(math.ceil(e_sales_cw)),
+                        "매입청구중량(kg)": float(math.ceil(e_purchase_cw)),
                         "수금상태": e_status,
-                        "매출액(원)": int(e_sales),
-                        "매입액(원)": int(e_purchase),
-                        "예상Profit(원)": preview_profit,
-                        "비고": e_remarks,
-                        "최종작성자": target_item.get("최종작성자", current_user_name),
-                        "최종수정자": current_user_name,
-                    }
+                        "매출액(원)": float(e_sales),
+                        "매입액(원)": float(e_purchase),
+                        "예상Profit(원)": float(e_sales) - float(e_purchase),
+                        "비고": "" if e_memo == "nan" else e_memo,
+                        "최종수정자": current_user_name
+                    })
                     save_bl_data(st.session_state.bl_data_list)
-                    st.success(f"🎉 B/L 번호({e_bl}) 수정 내용이 성공적으로 저장되었습니다!")
+                    st.success("✅ 선택하신 B/L의 실중량 및 청구중량이 성공적으로 수정 저장되었습니다!")
                     st.rerun()
         elif len(selected_rows) > 1:
-            st.warning("⚠️ 상세 수정은 1개의 B/L만 선택하여 진행해주세요.")
+            st.warning("⚠️ 상세 수정은 **1개씩만** 선택해서 진행해주세요.")
+        else:
+            st.info("📌 수정할 B/L 행의 체크박스를 1개 선택하시면 아래에 상세 수정 입력칸이 나타납니다.")
     else:
         st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
@@ -2598,84 +2581,237 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [금일발송 매니페스트] 매입처 드롭다운 열림 보장 버전
+# [7] 금일발송 매니페스트 (PDF 인쇄 + 매입처 전송용 엑셀 다운로드 복구)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 날짜별 발송 화물 매니페스트 및 Profit 정산</h3>",
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋"
+        " 날짜별 발송 화물 매니페스트 및 Profit 정산</h3>",
         unsafe_allow_html=True,
     )
 
-    if st.session_state.bl_data_list:
-        df_manifest = pd.DataFrame(st.session_state.bl_data_list)
-        
-        st.markdown("#### 📅 조회할 선적 날짜 선택")
-        all_dates = sorted(list(set(str(d)[:10] for d in df_manifest["날짜"]))) if "날짜" in df_manifest.columns else [str(date.today())]
-        
-        selected_manifest_date = st.selectbox("날짜 선택", options=all_dates, index=len(all_dates)-1 if all_dates else 0)
-        
-        target_df = df_manifest[df_manifest["날짜"].astype(str).str.startswith(selected_manifest_date)].copy()
-        
-        if not target_df.empty:
-            if "선택" not in target_df.columns:
-                target_df.insert(0, "선택", False)
-                
-            st.markdown(f"#### 📦 [{selected_manifest_date}] 발송 화물 목록 (매입처 직접 변경 가능)")
-            st.info("💡 아래 표의 **[매입처]** 칸을 클릭하시면 등록된 협력사 목록이 드롭다운으로 나타납니다.")
+    selected_manifest_date = st.date_input(
+        "조회할 선적 날짜 선택", value=date.today(), key="manifest_date_picker"
+    )
+    target_date_str = str(selected_manifest_date)
 
-            # 1. 시스템 등록 매입처 + 기존 데이터 매입처를 합쳐서 드롭다운 옵션 생성
-            base_suppliers = st.session_state.get("supplier_list", ["(주)카고익스프레스", "주식회사 비에프티", "윤세행"])
-            existing_vendors = target_df["매입처"].fillna("").astype(str).unique().tolist() if "매입처" in target_df.columns else []
+    date_shipments = [
+        item
+        for item in st.session_state.bl_data_list
+        if str(item.get("날짜", ""))[:10] == target_date_str
+    ]
+
+    if date_shipments:
+        # 1. 화면 표시용 데이터프레임 구성
+        manifest_rows = []
+        for r_m in date_shipments:
+            try:
+                sales_amt = int(float(str(r_m.get("매출액(원)", 0)).replace(",", "") or 0))
+            except:
+                sales_amt = 0
             
-            # None, nan, 빈값 제외 후 순수 옵션 정리
-            combined_suppliers = sorted(list(set([""] + base_suppliers + [v for v in existing_vendors if v and v != "None" and v != "nan"])))
+            try:
+                purchase_amt = int(float(str(r_m.get("매입액(원)", 0)).replace(",", "") or 0))
+            except:
+                purchase_amt = 0
+                
+            profit_amt = sales_amt - purchase_amt
 
-            # 매입처 열의 None/nan 값을 빈 문자열로 정리
-            if "매입처" in target_df.columns:
-                target_df["매입처"] = target_df["매입처"].fillna("").astype(str).replace({"None": "", "nan": ""})
-            else:
-                target_df["매입처"] = ""
+            manifest_rows.append({
+                "날짜": str(r_m.get("날짜", target_date_str))[:10],
+                "B/L 번호": str(r_m.get("B/L 번호", "-")),
+                "화주명(매출)": str(r_m.get("화주명(매출)", "-")),
+                "해외수하인": str(r_m.get("해외수하인", "-")),
+                "박스수": str(r_m.get("박스수", "1 박스")),
+                "부피규격": str(r_m.get("부피규격", "-")),
+                "매출청구중량(kg)": f"{float(r_m.get('매출청구중량(kg)', 1.0)):.1f} kg",
+                "매입처": str(r_m.get("매입처", "-")),
+                "매출액(원)": f"{sales_amt:,} 원",
+                "매입액(원)": f"{purchase_amt:,} 원",
+                "Profit(원)": f"{profit_amt:,} 원",
+            })
 
-            # '매입처' 열을 화주명 바로 옆에 위치하도록 컬럼 순서 정렬
-            cols_order = ["선택", "날짜", "B/L 번호", "화주명(매출)", "매입처", "해외수하인", "박스수", "부피규격", "매출청구중량(kg)", "매출액(원)", "매입액(원)", "예상Profit(원)"]
-            existing_cols = [c for c in cols_order if c in target_df.columns] + [c for c in target_df.columns if c not in cols_order]
-            target_df = target_df[existing_cols]
+        manifest_display_df = pd.DataFrame(manifest_rows)
 
-            edited_manifest_table = st.data_editor(
-                target_df,
-                hide_index=True,
-                use_container_width=True,
-                column_config={
-                    "선택": st.column_config.CheckboxColumn("선택", default=False),
-                    "매입처": st.column_config.SelectboxColumn("매입처(협력사 선택)", options=combined_suppliers, required=False),
-                    "매출액(원)": st.column_config.NumberColumn("매출액(원)", format="%d"),
-                    "매입액(원)": st.column_config.NumberColumn("매입액(원)", format="%d"),
-                    "예상Profit(원)": st.column_config.NumberColumn("예상Profit(원)", format="%d"),
-                },
-                key=f"manifest_editor_v3_{selected_manifest_date}",
-                height=400,
+        st.dataframe(
+            manifest_display_df,
+            use_container_width=True,
+        )
+
+        st.markdown("---")
+
+        # 인쇄용 HTML 팝업 생성
+        print_manifest_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                @media print {{
+                    body {{ -webkit-print-color-adjust: exact; }}
+                    .no-print {{ display: none !important; }}
+                    @page {{ size: A4 landscape; margin: 8mm; }}
+                }}
+                body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 8.5pt; margin: 0; padding: 10px; background: #fff; }}
+                .box {{ max-width: 1100px; margin: 0 auto; border: 2px solid #0f172a; padding: 15px; border-radius: 6px; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }}
+                th, td {{ border: 1px solid #64748b; padding: 6px 4px; text-align: center; vertical-align: middle; font-size: 7.5pt; word-break: break-all; }}
+                th {{ background-color: #0f172a; color: white; font-size: 8pt; }}
+                .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 10px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 15px; }}
+            </style>
+        </head>
+        <body>
+            <div class="box">
+                <button class="p-btn no-print" onclick="window.print()">🖨 매니페스트 인쇄 및 PDF 저장하기</button>
+                <h2 style="text-align: center; color: #1e3a8a; margin-bottom: 5px; font-size: 14pt;">(주)범운해운항공 - 일일 발송 매니페스트 ({target_date_str})</h2>
+                <table>
+                    <tr>
+                        <th style="width: 7%;">날짜</th>
+                        <th style="width: 9%;">B/L 번호</th>
+                        <th style="width: 10%;">화주</th>
+                        <th style="width: 10%;">수하인</th>
+                        <th style="width: 8%;">박스수</th>
+                        <th style="width: 13%;">부피규격</th>
+                        <th style="width: 8%;">청구중량</th>
+                        <th style="width: 10%;">매입처</th>
+                        <th style="width: 9%;">매출액</th>
+                        <th style="width: 9%;">매입액</th>
+                        <th style="width: 9%;">Profit</th>
+                    </tr>
+        """
+        
+        tot_s = 0
+        tot_p = 0
+        tot_pf = 0
+
+        for r_m in date_shipments:
+            try:
+                s_val = int(float(str(r_m.get("매출액(원)", 0)).replace(",", "") or 0))
+            except:
+                s_val = 0
+            try:
+                p_val = int(float(str(r_m.get("매입액(원)", 0)).replace(",", "") or 0))
+            except:
+                p_val = 0
+            pf_val = s_val - p_val
+
+            tot_s += s_val
+            tot_p += p_val
+            tot_pf += pf_val
+
+            print_manifest_html += f"""
+                    <tr>
+                        <td>{str(r_m.get("날짜", target_date_str))[:10]}</td>
+                        <td style="font-weight: bold;">{str(r_m.get("B/L 번호", "-"))}</td>
+                        <td>{str(r_m.get("화주명(매출)", "-"))}</td>
+                        <td>{str(r_m.get("해외수하인", "-"))}</td>
+                        <td>{str(r_m.get("박스수", "1 박스"))}</td>
+                        <td>{str(r_m.get("부피규격", "-"))}</td>
+                        <td>{float(r_m.get("매출청구중량(kg)", 1.0)):.1f} kg</td>
+                        <td>{str(r_m.get("매입처", "-"))}</td>
+                        <td style="text-align: right;">{s_val:,}</td>
+                        <td style="text-align: right;">{p_val:,}</td>
+                        <td style="text-align: right; font-weight: bold; color: #1e3a8a;">{pf_val:,}</td>
+                    </tr>
+            """
+
+        print_manifest_html += f"""
+                    <tr style="background-color: #f1f5f9; font-weight: bold;">
+                        <td colspan="8" style="text-align: center;">합계 (TOTAL)</td>
+                        <td style="text-align: right;">{tot_s:,}</td>
+                        <td style="text-align: right;">{tot_p:,}</td>
+                        <td style="text-align: right; color: #dc2626;">{tot_pf:,}</td>
+                    </tr>
+                </table>
+                <div style="margin-top: 20px; text-align: center; font-weight: bold; font-size: 10pt;">
+                    주식회사 범운해운항공 대표이사 이상복 [직인생략]
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # 2. 매입처 전송용 입고 LIST 엑셀 데이터 생성
+        vendor_rows = []
+        for idx_v, r_v in enumerate(date_shipments, start=1):
+            gw_val = r_v.get("실중량(kg)", r_v.get("매출실중량(kg)", ""))
+            if gw_val == "" or gw_val is None or str(gw_val) == "-":
+                gw_val = r_v.get("매출청구중량(kg)", "-")
+            try:
+                if float(gw_val) != int(float(gw_val)):
+                    gw_val = float(gw_val)
+                else:
+                    gw_val = int(float(gw_val))
+            except:
+                pass
+
+            vendor_rows.append({
+                "NO": idx_v,
+                "입고날짜": str(r_v.get("날짜", target_date_str))[:10],
+                "B/L 번호": r_v.get("B/L 번호", "-"),
+                "실중량(kg)": gw_val,
+                "부피규격(사이즈)": r_v.get("부피규격", "-"),
+                "수하인": r_v.get("해외수하인", "-"),
+                "수하인 주소": r_v.get("해외수하인주소", "-"),
+                "수하인 전화번호": r_v.get("해외수하인전화번호", "-"),
+            })
+        vendor_df = pd.DataFrame(vendor_rows)
+
+        excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            vendor_df.to_excel(writer, index=False, sheet_name='입고 LIST', startrow=2)
+            workbook = writer.book
+            worksheet = writer.sheets['입고 LIST']
+            
+            worksheet.cell(row=1, column=1, value="입고 LIST").font = openpyxl.styles.Font(size=16, bold=True, color="1E3A8A")
+            worksheet.page_setup.orientation = worksheet.ORIENTATION_LANDSCAPE
+            worksheet.page_setup.paperSize = worksheet.PAPERSIZE_A4
+            worksheet.sheet_properties.pageSetUpPr.fitToPage = True
+            worksheet.page_setup.fitToWidth = 1
+            worksheet.page_setup.fitToHeight = 0
+            
+            header_fill = openpyxl.styles.PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+            header_font = openpyxl.styles.Font(color="FFFFFF", bold=True)
+            thin_border = openpyxl.styles.Border(
+                left=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                right=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                top=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                bottom=openpyxl.styles.Side(style='thin', color='CBD5E1')
             )
+            
+            for col_num in range(1, len(vendor_df.columns) + 1):
+                cell = worksheet.cell(row=3, column=col_num)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
+            
+            for row in worksheet.iter_rows(min_row=3, max_row=len(vendor_df) + 3, min_col=1, max_col=len(vendor_df.columns)):
+                for cell in row:
+                    cell.border = thin_border
+                    if cell.row > 3:
+                        cell.alignment = openpyxl.styles.Alignment(vertical="center")
 
-            if st.button("💾 매입처 변경 내용 저장하기", type="primary", use_container_width=True):
-                try:
-                    for _, edited_row in edited_manifest_table.iterrows():
-                        target_bl = str(edited_row.get("B/L 번호", ""))
-                        new_vendor = str(edited_row.get("매입처", ""))
-                        
-                        for real_item in st.session_state.bl_data_list:
-                            if str(real_item.get("B/L 번호", "")) == target_bl:
-                                real_item["매입처"] = new_vendor
-                                real_item["최종수정자"] = current_user_name
-                                
-                    save_bl_data(st.session_state.bl_data_list)
-                    st.success("✅ 매입처 변경 내용이 성공적으로 저장되었습니다!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ 저장 중 오류 발생: {e}")
-        else:
-            st.info(f"📌 선택하신 날짜({selected_manifest_date})에 등록된 발송 화물 내역이 없습니다.")
+            for col in worksheet.columns:
+                max_len = max(len(str(cell.value or '')) for cell in col)
+                col_letter = openpyxl.utils.get_column_letter(col[0].column)
+                worksheet.column_dimensions[col_letter].width = max(max_len + 5, 12)
+
+        # 3. 버튼 배치 (PDF 인쇄 버튼 & 매입처 전송용 엑셀 다운로드 버튼 나란히 배치)
+        col_dl1, col_dl2 = st.columns(2)
+        with col_dl1:
+            if st.button("🖨 매니페스트 정식 인쇄 / PDF 저장", type="primary", use_container_width=True):
+                components.html(print_manifest_html, height=650, scrolling=True)
+        with col_dl2:
+            st.download_button(
+                "📦 [매입처 전송용] 입고 LIST 엑셀 다운로드 (.xlsx)",
+                data=excel_buffer.getvalue(),
+                file_name=f"입고LIST_{target_date_str}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="vendor_inbound_excel_download",
+                use_container_width=True
+            )
     else:
-        st.info("등록된 B/L 데이터가 없습니다.")
+        st.info("선택하신 날짜로 등록된 선적 B/L 내역이 없습니다.")
 # ==========================================
 # [8] 매출 거래처(화주) 관리 (메인 메뉴 독립)
 # ==========================================
@@ -3146,129 +3282,114 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
         else:
           st.warning("삭제할 요율 행의 체크박스를 선택해주세요.")
 
+
 # ==========================================
-# [10] 거래처 미수금관리 (정상 복구 완성본)
+# [10] 거래처 미수금관리
 # ==========================================
-elif selected_menu == "📉 거래처 미수금관리":
-    st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📉 거래처 미수금 현황 및 수금 관리</h3>",
-        unsafe_allow_html=True,
+elif selected_menu == "💵 거래처 미수금관리":
+  st.markdown(
+      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>💵"
+      " 거래처별 및 월별 미수금 수금 현황 관리</h3>",
+      unsafe_allow_html=True,
+  )
+
+  if st.session_state.bl_data_list:
+    df_unpaid = pd.DataFrame(st.session_state.bl_data_list)
+    if "선택" not in df_unpaid.columns:
+      df_unpaid.insert(0, "선택", False)
+    if "수금상태" not in df_unpaid.columns:
+      df_unpaid["수금상태"] = "미수"
+    if "매출액(원)" in df_unpaid.columns:
+      df_unpaid["매출액(원)"] = pd.to_numeric(df_unpaid["매출액(원)"], errors="coerce").fillna(0)
+
+    # 날짜에서 연도-월(YYYY-MM) 추출 컬럼 생성
+    df_unpaid["연월"] = df_unpaid["날짜"].astype(str).str[:7]
+    available_months = sorted(df_unpaid["연월"].unique().tolist(), reverse=True)
+    if not available_months:
+      available_months = [date.today().strftime("%Y-%m")]
+
+    # 필터 UI 레이아웃 (거래처 선택, 월별 선택, 미수 건만 보기)
+    col_f1, col_f2, col_f3 = st.columns([2, 1.5, 1])
+    with col_f1:
+      client_filter_options = ["전체 거래처 보기"] + st.session_state.client_list
+      selected_client_filter = st.selectbox(
+          "🔍 조회할 거래처 선택하기", options=client_filter_options
+      )
+    with col_f2:
+      month_filter_options = ["전체 기간(월별 전체 보기)"] + available_months
+      selected_month_filter = st.selectbox(
+          "📅 조회할 월(달력) 선택하기", options=month_filter_options
+      )
+    with col_f3:
+      st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+      only_unpaid_flag = st.checkbox("📌 미수 건만 보기", value=True)
+
+    # 1. 거래처 필터링
+    df_filtered = df_unpaid.copy()
+    if selected_client_filter != "전체 거래처 보기":
+      df_filtered = df_filtered[
+          df_filtered["화주명(매출)"].astype(str).str.strip()
+          == str(selected_client_filter).strip()
+      ]
+
+    # 2. 월별(연도-월) 필터링
+    if selected_month_filter != "전체 기간(월별 전체 보기)":
+      df_filtered = df_filtered[df_filtered["연월"] == selected_month_filter]
+
+    # 금액 집계 계산 (필터링된 기준)
+    total_sales_sum = df_filtered["매출액(원)"].sum() if "매출액(원)" in df_filtered.columns else 0
+    total_unpaid_sum = df_filtered[df_filtered["수금상태"].astype(str).str.strip() != "수금완료"]["매출액(원)"].sum() if "매출액(원)" in df_filtered.columns else 0
+
+    # 미수금 요약 메트릭 카드 표시
+    m_col1, m_col2 = st.columns(2)
+    with m_col1:
+      st.metric(label="📌 선택 기간 총 청구 매출액", value=f"{int(total_sales_sum):,} 원")
+    with m_col2:
+      st.metric(label="🚨 선택 기간 미수금 잔액", value=f"{int(total_unpaid_sum):,} 원")
+
+    st.markdown("---")
+
+    # 미수 건만 보기 적용
+    df_table_view = df_filtered.copy()
+    if only_unpaid_flag and not df_table_view.empty:
+      df_table_view = df_table_view[
+          df_table_view["수금상태"].astype(str).str.strip() != "수금완료"
+      ]
+
+    # 불필요한 임시 컬럼('연월')은 화면 표시에서 제외
+    if "연월" in df_table_view.columns:
+      df_table_view = df_table_view.drop(columns=["연월"])
+
+    edited_unpaid_table = st.data_editor(
+        df_table_view,
+        hide_index=True,
+        use_container_width=True,
+        column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+        key="unpaid_filter_table",
     )
 
-    if st.session_state.bl_data_list:
-        df_all_bl = pd.DataFrame(st.session_state.bl_data_list)
+    selected_unpaid_rows = edited_unpaid_table[
+        edited_unpaid_table["선택"] == True
+    ]
 
-        # 미수 상태 건만 필터링 (수금상태가 '수금완료'가 아닌 건)
-        if "수금상태" in df_all_bl.columns:
-            unpaid_df = df_all_bl[df_all_bl["수금상태"] != "수금완료"].copy()
-        else:
-            unpaid_df = df_all_bl.copy()
-
-        if not unpaid_df.empty:
-            # 1. 상단 화주별 미수금 요약
-            st.markdown("#### 📊 화주별 미수금 요약 현황")
-            
-            try:
-                unpaid_df["매출액_num"] = unpaid_df["매출액(원)"].apply(
-                    lambda x: float(str(x).replace(",", "") or 0)
-                )
-            except:
-                unpaid_df["매출액_num"] = 0.0
-
-            summary_unpaid = (
-                unpaid_df.groupby("화주명(매출)")["매출액_num"]
-                .agg(["count", "sum"])
-                .reset_index()
-            )
-            summary_unpaid.columns = ["화주명", "미수 건수", "총 미수금액(원)"]
-            summary_unpaid["총 미수금액(원)"] = summary_unpaid["총 미수금액(원)"].apply(
-                lambda x: f"{int(x):,} 원"
-            )
-
-            st.dataframe(summary_unpaid, use_container_width=True, hide_index=True)
-
-            total_unpaid_sum = unpaid_df["매출액_num"].sum()
-            st.warning(
-                f"⚠️ **전체 총 미수금 합계:** **{int(total_unpaid_sum):,} 원** (총 {len(unpaid_df)} 건)"
-            )
-
-            st.markdown("---")
-
-            # 2. 하단 상세 미수 B/L 내역 및 수금완료 일괄 처리
-            st.markdown("#### 📋 상세 미수 B/L 내역 (선택 건 수금완료 처리)")
-            st.info("💡 아래 표에서 수금 완료된 B/L의 **[선택]** 체크박스를 체크하신 후 하단의 **[선택 건 수금완료 일괄 처리]** 버튼을 누르세요.")
-
-            display_cols = [
-                "선택",
-                "날짜",
-                "Job 번호",
-                "B/L 번호",
-                "화주명(매출)",
-                "국가",
-                "품목",
-                "매출액(원)",
-                "수금상태",
-                "비고",
-            ]
-
-            if "선택" not in unpaid_df.columns:
-                unpaid_df.insert(0, "선택", False)
-
-            # 존재하지 않는 열 예외 처리
-            valid_cols = [c for c in display_cols if c in unpaid_df.columns]
-            df_table_view = unpaid_df[valid_cols]
-
-            edited_unpaid_table = st.data_editor(
-                df_table_view,
-                hide_index=True,
-                use_container_width=True,
-                column_config={
-                    "선택": st.column_config.CheckboxColumn("선택", required=True),
-                    "매출액(원)": st.column_config.NumberColumn("매출액(원)", format="%d"),
-                },
-                key="unpaid_filter_table_v2",
-                height=350,
-            )
-
-            selected_unpaid_rows = edited_unpaid_table[
-                edited_unpaid_table["선택"] == True
-            ]
-
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            if st.button(
-                "💳 선택 건 [수금완료] 일괄 처리",
-                type="primary",
-                use_container_width=True,
-            ):
-                if len(selected_unpaid_rows) > 0:
-                    for idx in selected_unpaid_rows.index.tolist():
-                        bl_num_target = selected_unpaid_rows.loc[idx, "B/L 번호"]
-                        # 원본 세션 데이터에서 해당 B/L 찾아 수금완료로 변경
-                        for real_i, original_item in enumerate(
-                            st.session_state.bl_data_list
-                        ):
-                            if str(original_item.get("B/L 번호", "")) == str(
-                                bl_num_target
-                            ):
-                                st.session_state.bl_data_list[real_i][
-                                    "수금상태"
-                                ] = "수금완료"
-                                st.session_state.bl_data_list[real_i][
-                                    "최종수정자"
-                                ] = current_user_name
-
-                    save_bl_data(st.session_state.bl_data_list)
-                    st.success("🎉 선택하신 B/L이 성공적으로 [수금완료] 처리되었습니다!")
-                    st.rerun()
-                else:
-                    st.warning("⚠️ 수금완료 처리할 B/L의 체크박스를 선택해주세요.")
-        else:
-            st.success("🎉 현재 미수금(미수 B/L) 내역이 없습니다! 모두 수금완료 상태입니다.")
-    else:
-        st.info("등록된 B/L 데이터가 없습니다.")
+    if st.button("💰 선택 건 [수금완료] 일괄처리", type="primary", use_container_width=True):
+      if len(selected_unpaid_rows) > 0:
+        for idx in selected_unpaid_rows.index.tolist():
+          bl_num_target = selected_unpaid_rows.loc[idx, "B/L 번호"]
+          # 원본 세션 데이터에서 해당 B/L 찾아 수금완료로 변경
+          for real_i, original_item in enumerate(st.session_state.bl_data_list):
+            if str(original_item.get("B/L 번호", "")) == str(bl_num_target):
+              st.session_state.bl_data_list[real_i]["수금상태"] = "수금완료"
+              st.session_state.bl_data_list[real_i]["최종수정자"] = current_user_name
+        save_bl_data(st.session_state.bl_data_list)
+        st.success("선택하신 건들이 '수금완료' 처리되었습니다!")
+        st.rerun()
+      else:
+        st.warning("수금완료 처리할 B/L 행의 체크박스를 선택해주세요.")
+  else:
+    st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [일계표 및 입출금 장부] (등록 폼 '지급완료' 기본 선택 적용)
+# [일계표 및 입출금 장부] 메뉴 (달력 선택 방식 적용)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
@@ -3281,7 +3402,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     cashbook_data = st.session_state.cashbook_list
 
-    # --- 1. 상단: 날짜별 필터 (달력 위젯 표시) ---
+    # --- 1. 상단: 날짜별 필터 (달력 위젯 표시) 및 인쇄/다운로드 버튼 ---
     st.markdown("#### 📅 날짜별 조회 및 인쇄")
     
     col_f1, col_f2 = st.columns([1.5, 2])
@@ -3291,22 +3412,18 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     selected_target_date = str(date.today())
     if date_filter_mode == "특정 날짜 선택":
         with col_f2:
+            # 📅 클릭하여 날짜를 고를 수 있는 달력 위젯 적용
             picked_date = st.date_input("📅 조회할 날짜 선택 (달력)", value=date.today(), key="cash_date_picker_calendar")
             selected_target_date = str(picked_date)
 
-    # 데이터 필터링 및 지급상태 기본값 보장
+    # 데이터 필터링
     filtered_cash_data = []
     for item in cashbook_data:
-        io_type = str(item.get("구분", ""))
-        if "지급상태" not in item or not item.get("지급상태") or item.get("지급상태") in ["None", "nan"]:
-            item["지급상태"] = "지급완료"
-        elif "수입" in io_type:
-            item["지급상태"] = "지급완료"
-            
-        if date_filter_mode == "전체 기간" or str(item.get("날짜", ""))[:10] == selected_target_date:
+        item_date = str(item.get("날짜", ""))[:10]
+        if date_filter_mode == "전체 기간" or item_date == selected_target_date:
             filtered_cash_data.append(item)
 
-    # --- 2. 통장 잔액 및 수입/지출 총액 요약 ---
+    # --- 2. 통장 잔액 및 수입/지출 총액 요약 (선택한 조건 기준) ---
     total_income = sum(
         float(str(item.get("금액(원)", 0)).replace(",", ""))
         for item in filtered_cash_data
@@ -3329,54 +3446,30 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     st.markdown("---")
 
-    # --- 3. 중단: 장부 내역 조회 및 편집/삭제/지급완료 ---
+    # --- 3. 중단: 장부 내역 조회 및 편집/삭제 ---
     print_title = "전체 일계표" if date_filter_mode == "전체 기간" else f"{selected_target_date} 일계표"
     title_label = f"📋 등록된 장부 내역 (전체)" if date_filter_mode == "전체 기간" else f"📋 [{selected_target_date}] 일일 장부 내역"
     st.markdown(f"#### {title_label}")
 
     if filtered_cash_data:
         df_cash = pd.DataFrame(filtered_cash_data)
-        
         if "선택" not in df_cash.columns:
             df_cash.insert(0, "선택", False)
-
-        cols_order = ["선택", "날짜", "구분", "항목", "지급상태", "금액(원)", "적요"]
-        existing_cols = [c for c in cols_order if c in df_cash.columns] + [c for c in df_cash.columns if c not in cols_order]
-        df_cash = df_cash[existing_cols]
 
         edited_cash_table = st.data_editor(
             df_cash,
             hide_index=True,
             use_container_width=True,
             column_config={
-                "선택": st.column_config.CheckboxColumn("선택", default=False),
-                "지급상태": st.column_config.SelectboxColumn("지급상태", options=["지급완료", "미지급"], required=True),
-                "금액(원)": st.column_config.NumberColumn("금액(원)", format="%d"),
+                "선택": st.column_config.CheckboxColumn("삭제 선택", default=False)
             },
-            key=f"cashbook_table_editor_v10_{date_filter_mode}_{selected_target_date}",
+            key=f"cashbook_table_editor_{date_filter_mode}_{selected_target_date}",
             height=320,
         )
 
-        c_btn1, c_btn2, c_btn3, c_btn4 = st.columns([1.2, 1.2, 1, 1.2])
+        c_btn1, c_btn2, c_btn3 = st.columns(3)
         with c_btn1:
-            if st.button("💳 선택 건 [지급완료] 일괄 처리", type="primary", use_container_width=True):
-                selected_rows = edited_cash_table[edited_cash_table["선택"] == True]
-                if not selected_rows.empty:
-                    for idx in selected_rows.index.tolist():
-                        target_row = selected_rows.loc[idx]
-                        for real_item in st.session_state.cashbook_list:
-                            if (str(real_item.get("날짜", ""))[:10] == str(target_row.get("날짜", ""))[:10] and
-                                str(real_item.get("적요", "")) == str(target_row.get("적요", "")) and
-                                str(real_item.get("금액(원)", "")) == str(target_row.get("금액(원)", ""))):
-                                real_item["지급상태"] = "지급완료"
-                    save_account_data(st.session_state.cashbook_list)
-                    st.success("✅ 선택하신 내역이 '지급완료' 처리되었습니다.")
-                    st.rerun()
-                else:
-                    st.warning("⚠️ 지급완료 처리할 행의 체크박스를 선택해주세요.")
-
-        with c_btn2:
-            if st.button("💾 변경된 내용 저장", use_container_width=True):
+            if st.button("💾 변경된 장부 내용 저장", type="primary", use_container_width=True):
                 try:
                     saved_df = edited_cash_table.drop(columns=["선택"], errors="ignore").copy()
                     edited_records = saved_df.fillna("").to_dict(orient="records")
@@ -3396,9 +3489,8 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                     st.rerun()
                 except Exception as e:
                     st.error(f"저장 중 오류 발생: {e}")
-
-        with c_btn3:
-            if st.button("🚨 선택 내역 삭제", type="secondary", use_container_width=True):
+        with c_btn2:
+            if st.button("🚨 선택한 장부 내역 삭제", type="secondary", use_container_width=True):
                 selected_del = edited_cash_table[edited_cash_table["선택"] == True]
                 if not selected_del.empty:
                     del_signatures = set()
@@ -3418,8 +3510,8 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                     st.rerun()
                 else:
                     st.warning("⚠️ 삭제할 행의 체크박스를 선택해주세요.")
-
-        with c_btn4:
+        with c_btn3:
+            # 회사 보고용 격식 있는 고급 일계표 HTML 양식 생성
             print_html = f"""
             <!DOCTYPE html>
             <html>
@@ -3502,27 +3594,22 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
                     <table class="data-table">
                         <tr>
-                            <th style="width: 12%;">거래일자</th>
-                            <th style="width: 12%;">구분</th>
-                            <th style="width: 18%;">항목</th>
-                            <th style="width: 18%;">금액 (원)</th>
-                            <th style="width: 12%;">지급상태</th>
-                            <th style="width: 28%;">적요 및 메모</th>
+                            <th style="width: 15%;">거래일자</th>
+                            <th style="width: 15%;">구분</th>
+                            <th style="width: 20%;">항목</th>
+                            <th style="width: 20%;">금액 (원)</th>
+                            <th style="width: 30%;">적요 및 메모</th>
                         </tr>
             """
             for row in filtered_cash_data:
                 io_gubun = str(row.get("구분", "-"))
                 gubun_color = "#2563eb" if "수입" in io_gubun else "#dc2626"
-                status_str = str(row.get("지급상태", "지급완료"))
-                status_color = "#16a34a" if status_str == "지급완료" else "#dc2626"
-                
                 print_html += f"""
                         <tr>
                             <td>{row.get("날짜", "-")}</td>
                             <td style="font-weight: bold; color: {gubun_color};">{io_gubun}</td>
                             <td>{row.get("항목", "-")}</td>
                             <td style="text-align: right; font-weight: bold;">{int(float(str(row.get("금액(원)", 0)).replace(",", "") or 0)):,} 원</td>
-                            <td style="font-weight: bold; color: {status_color};">{status_str}</td>
                             <td style="text-align: left; padding-left: 10px;">{row.get("적요", "-")}</td>
                         </tr>
                 """
@@ -3538,23 +3625,21 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             </html>
             """
             
-            if st.button("🖨 정식 일계표 인쇄 / PDF", type="primary", use_container_width=True):
+            if st.button("🖨 정식 일계표 보고서 인쇄 / PDF", type="primary", use_container_width=True):
                 components.html(print_html, height=700, scrolling=True)
     else:
         st.info("조회된 장부 내역이 없습니다.")
 
     st.markdown("---")
 
-    # --- 4. 하단: 새로운 수입 / 지출 장부 등록 ---
+    # --- 4. 하단: 새로운 수입 / 지출 등록 폼 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form_v10"):
+    with st.form("cashbook_register_form_v6"):
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
             io_gb = st.selectbox("입출금 구분", ["지출 (-)", "수입 (+)"])
-            # '지급완료'가 0번 인덱스로 기본 선택되도록 명시 적용
-            pay_status = st.selectbox("지급 상태", ["지급완료", "미지급"], index=0)
         with f_col2:
             cat_options = [
                 "접대비",
@@ -3582,7 +3667,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                     "구분": io_gb,
                     "항목": category,
                     "금액(원)": int(amount),
-                    "지급상태": pay_status,
                     "적요": memo if memo else "-",
                 })
                 save_account_data(st.session_state.cashbook_list)
@@ -3590,7 +3674,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 st.rerun()
             else:
                 st.warning("⚠️ 금액은 0원보다 커야 합니다.")
-
 # ==========================================
 # [12] 업무용 일지
 # ==========================================
