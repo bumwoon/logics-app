@@ -3404,8 +3404,10 @@ elif selected_menu == "💵 거래처 미수금관리":
         st.warning("수금완료 처리할 B/L 행의 체크박스를 선택해주세요.")
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
+지출 장부 등록 ---
+    st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")# ==========================================
 # ==========================================
-# [일계표 및 입출금 장부] 메뉴 (지급상태/지급완료 기능 추가)
+# [일계표 및 입출금 장부] 메뉴 (지급상태 배치 및 지급완료 기능 포함)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
@@ -3431,14 +3433,14 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             picked_date = st.date_input("📅 조회할 날짜 선택 (달력)", value=date.today(), key="cash_date_picker_calendar")
             selected_target_date = str(picked_date)
 
-    # 데이터 필터링
+    # 데이터 필터링 및 지급상태 기본값 보장
     filtered_cash_data = []
     for item in cashbook_data:
-        item_date = str(item.get("날짜", ""))[:10]
-        if date_filter_mode == "전체 기간" or item_date == selected_target_date:
-            # 기존 데이터에 지급상태 기본값 보장
-            if "지급상태" not in item:
-                item["지급상태"] = "지급완료" if "수입" in str(item.get("구분", "")) else "미지급"
+        item_date = str(item.get("날 traceable", item.get("날짜", "")))[:10]
+        if "지급상태" not in item:
+            item["지급상태"] = "지급완료" if "수입" in str(item.get("구분", "")) else "미지급"
+            
+        if date_filter_mode == "전체 기간" or str(item.get("날짜", ""))[:10] == selected_target_date:
             filtered_cash_data.append(item)
 
     # --- 2. 통장 잔액 및 수입/지출 총액 요약 ---
@@ -3471,8 +3473,14 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     if filtered_cash_data:
         df_cash = pd.DataFrame(filtered_cash_data)
+        
         if "선택" not in df_cash.columns:
             df_cash.insert(0, "선택", False)
+
+        # '지급상태' 열을 '항목' 바로 옆(금액 왼쪽)에 배치하여 화면에 바로 보이도록 정렬
+        cols_order = ["선택", "날짜", "구분", "항목", "지급상태", "금액(원)", "적요"]
+        existing_cols = [c for c in cols_order if c in df_cash.columns] + [c for c in df_cash.columns if c not in cols_order]
+        df_cash = df_cash[existing_cols]
 
         edited_cash_table = st.data_editor(
             df_cash,
@@ -3482,7 +3490,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 "선택": st.column_config.CheckboxColumn("선택", default=False),
                 "지급상태": st.column_config.SelectboxColumn("지급상태", options=["지급완료", "미지급"], required=True)
             },
-            key=f"cashbook_table_editor_{date_filter_mode}_{selected_target_date}_v3",
+            key=f"cashbook_table_editor_{date_filter_mode}_{selected_target_date}_v5",
             height=320,
         )
 
@@ -3667,7 +3675,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             </html>
             """
             
-            if st.button("🖨 정식 일계표 인쇄 / PDF", type="primary", use_container_width=True):
+            if st.button("🖨 정식 일계표 보고서 인쇄 / PDF", type="primary", use_container_width=True):
                 components.html(print_html, height=700, scrolling=True)
     else:
         st.info("조회된 장부 내역이 없습니다.")
@@ -3677,7 +3685,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     # --- 4. 하단: 새로운 수입 / 지출 장부 등록 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form_v7"):
+    with st.form("cashbook_register_form_v8"):
         f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
