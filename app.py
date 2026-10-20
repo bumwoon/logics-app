@@ -2545,7 +2545,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [금일발송 매니페스트] 매입처 열 바로 표시 버전
+# [금일발송 매니페스트] 매입처 드롭다운 열림 보장 버전
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
@@ -2568,12 +2568,22 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 target_df.insert(0, "선택", False)
                 
             st.markdown(f"#### 📦 [{selected_manifest_date}] 발송 화물 목록 (매입처 직접 변경 가능)")
-            st.info("💡 아래 표의 **[매입처]** 열에서 협력사를 선택하신 뒤, 아래 **[매입처 변경 내용 저장하기]** 버튼을 누르세요.")
+            st.info("💡 아래 표의 **[매입처]** 칸을 클릭하시면 등록된 협력사 목록이 드롭다운으로 나타납니다.")
 
-            # 등록된 매입처 목록 가져오기
-            supplier_list_opt = st.session_state.get("supplier_list", ["(주)카고", "윤세행", "기타협력사"])
+            # 1. 시스템 등록 매입처 + 기존 데이터 매입처를 합쳐서 드롭다운 옵션 생성
+            base_suppliers = st.session_state.get("supplier_list", ["(주)카고익스프레스", "주식회사 비에프티", "윤세행"])
+            existing_vendors = target_df["매입처"].fillna("").astype(str).unique().tolist() if "매입처" in target_df.columns else []
+            
+            # None, nan, 빈값 제외 후 순수 옵션 정리
+            combined_suppliers = sorted(list(set([""] + base_suppliers + [v for v in existing_vendors if v and v != "None" and v != "nan"])))
 
-            # '매입처' 열을 '화주명(매출)' 바로 옆으로 배치하여 즉시 보이게 정렬
+            # 매입처 열의 None/nan 값을 빈 문자열로 정리
+            if "매입처" in target_df.columns:
+                target_df["매입처"] = target_df["매입처"].fillna("").astype(str).replace({"None": "", "nan": ""})
+            else:
+                target_df["매입처"] = ""
+
+            # '매입처' 열을 화주명 바로 옆에 위치하도록 컬럼 순서 정렬
             cols_order = ["선택", "날짜", "B/L 번호", "화주명(매출)", "매입처", "해외수하인", "박스수", "부피규격", "매출청구중량(kg)", "매출액(원)", "매입액(원)", "예상Profit(원)"]
             existing_cols = [c for c in cols_order if c in target_df.columns] + [c for c in target_df.columns if c not in cols_order]
             target_df = target_df[existing_cols]
@@ -2584,12 +2594,12 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 use_container_width=True,
                 column_config={
                     "선택": st.column_config.CheckboxColumn("선택", default=False),
-                    "매입처": st.column_config.SelectboxColumn("매입처 (협력사 선택)", options=supplier_list_opt, required=False),
+                    "매입처": st.column_config.SelectboxColumn("매입처(협력사 선택)", options=combined_suppliers, required=False),
                     "매출액(원)": st.column_config.NumberColumn("매출액(원)", format="%d"),
                     "매입액(원)": st.column_config.NumberColumn("매입액(원)", format="%d"),
                     "예상Profit(원)": st.column_config.NumberColumn("예상Profit(원)", format="%d"),
                 },
-                key=f"manifest_editor_v2_{selected_manifest_date}",
+                key=f"manifest_editor_v3_{selected_manifest_date}",
                 height=400,
             )
 
