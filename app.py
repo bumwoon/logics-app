@@ -2581,7 +2581,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [7] 금일발송 매니페스트 (매입처 선택 드롭다운 상단 배치 버전)
+# [7] 금일발송 매니페스트 (매입처별 독립 선택/추출 버전)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
@@ -2590,15 +2590,16 @@ elif selected_menu == "📋 금일발송 매니페스트":
         unsafe_allow_html=True,
     )
 
-    # 💡 날짜 선택과 매입처 선택 칸을 나란히 상단에 배치하여 매입처를 다르게 선택할 수 있게 합니다.
-    col_sel1, col_sel2 = st.columns(2)
-    with col_sel1:
+    # 1. 상단에 날짜 선택과 매입처 선택 칸을 나란히 배치하여 개별 추출 가능하도록 구성
+    m_col_f1, m_col_f2 = st.columns(2)
+    with m_col_f1:
         selected_manifest_date = st.date_input(
             "1️⃣ 조회할 선적 날짜 선택", value=date.today(), key="manifest_date_picker"
         )
     
     target_date_str = str(selected_manifest_date)
 
+    # 해당 날짜 데이터 전체 1차 필터링
     date_shipments = [
         item
         for item in st.session_state.bl_data_list
@@ -2606,18 +2607,18 @@ elif selected_menu == "📋 금일발송 매니페스트":
     ]
 
     if date_shipments:
-        # 해당 날짜에 등록된 매입처 목록을 자동으로 추출하여 선택 옵션 생성
+        # 해당 날짜에 실제 존재하는 매입처 목록 자동 추출 (예: 카스, 윤세형 등)
         available_suppliers = sorted(list(set(str(r.get("매입처", "-")) for r in date_shipments if str(r.get("매입처", "-")).strip())))
         supplier_filter_options = ["전체 매입처 보기"] + available_suppliers
         
-        with col_sel2:
+        with m_col_f2:
             selected_vendor_filter = st.selectbox(
-                "2️⃣ 출력할 매입처 선택 (매입처별로 다르게 추출)", 
+                "2️⃣ 출력할 매입처 선택 (카스, 윤세형 등 따로 선택)", 
                 options=supplier_filter_options, 
                 key="manifest_vendor_filter_select"
             )
 
-        # 선택한 매입처에 따라 데이터 필터링
+        # 선택된 매입처에 맞춰 2차 데이터 필터링
         if selected_vendor_filter == "전체 매입처 보기":
             filtered_shipments = date_shipments
         else:
@@ -2629,7 +2630,10 @@ elif selected_menu == "📋 금일발송 매니페스트":
         st.markdown("---")
 
         if filtered_shipments:
-            st.markdown(f"#### 📦 [{target_date_str}] 선적 내역 (선택한 매입처: <span style='color: #2563eb;'>{selected_vendor_filter}</span> - 총 {len(filtered_shipments)}건)", unsafe_allow_html=True)
+            st.markdown(
+                f"#### 📦 [{target_date_str}] 선적 내역 (선택 매입처: <span style='color: #2563eb;'>{selected_vendor_filter}</span> - 총 {len(filtered_shipments)}건)", 
+                unsafe_allow_html=True
+            )
 
             # 1. 화면 표시용 데이터프레임 구성
             manifest_rows = []
@@ -2665,181 +2669,8 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
             st.markdown("---")
 
-            # 인쇄용 HTML 팝업 생성
-            print_manifest_html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <style>
-                    @media print {{
-                        body {{ -webkit-print-color-adjust: exact; }}
-                        .no-print {{ display: none !important; }}
-                        @page {{ size: A4 landscape; margin: 8mm; }}
-                    }}
-                    body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 8.5pt; margin: 0; padding: 10px; background: #fff; }}
-                    .box {{ max-width: 1100px; margin: 0 auto; border: 2px solid #0f172a; padding: 15px; border-radius: 6px; }}
-                    table {{ width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }}
-                    th, td {{ border: 1px solid #64748b; padding: 6px 4px; text-align: center; vertical-align: middle; font-size: 7.5pt; word-break: break-all; }}
-                    th {{ background-color: #0f172a; color: white; font-size: 8pt; }}
-                    .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 10px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 15px; }}
-                </style>
-            </head>
-            <body>
-                <div class="box">
-                    <button class="p-btn no-print" onclick="window.print()">🖨 매니페스트 인쇄 및 PDF 저장하기</button>
-                    <h2 style="text-align: center; color: #1e3a8a; margin-bottom: 5px; font-size: 14pt;">(주)범운해운항공 - 일일 발송 매니페스트 ({target_date_str} / 매입처: {selected_vendor_filter})</h2>
-                    <table>
-                        <tr>
-                            <th style="width: 7%;">날짜</th>
-                            <th style="width: 9%;">B/L 번호</th>
-                            <th style="width: 10%;">화주</th>
-                            <th style="width: 10%;">수하인</th>
-                            <th style="width: 8%;">박스수</th>
-                            <th style="width: 13%;">부피규격</th>
-                            <th style="width: 8%;">청구중량</th>
-                            <th style="width: 10%;">매입처</th>
-                            <th style="width: 9%;">매출액</th>
-                            <th style="width: 9%;">매입액</th>
-                            <th style="width: 9%;">Profit</th>
-                        </tr>
-            """
-            
-            tot_s = 0
-            tot_p = 0
-            tot_pf = 0
-
-            for r_m in filtered_shipments:
-                try:
-                    s_val = int(float(str(r_m.get("매출액(원)", 0)).replace(",", "") or 0))
-                except:
-                    s_val = 0
-                try:
-                    p_val = int(float(str(r_m.get("매입액(원)", 0)).replace(",", "") or 0))
-                except:
-                    p_val = 0
-                pf_val = s_val - p_val
-
-                tot_s += s_val
-                tot_p += p_val
-                tot_pf += pf_val
-
-                print_manifest_html += f"""
-                        <tr>
-                            <td>{str(r_m.get("날짜", target_date_str))[:10]}</td>
-                            <td style="font-weight: bold;">{str(r_m.get("B/L 번호", "-"))}</td>
-                            <td>{str(r_m.get("화주명(매출)", "-"))}</td>
-                            <td>{str(r_m.get("해외수하인", "-"))}</td>
-                            <td>{str(r_m.get("박스수", "1 박스"))}</td>
-                            <td>{str(r_m.get("부피규격", "-"))}</td>
-                            <td>{float(r_m.get("매출청구중량(kg)", 1.0)):.1f} kg</td>
-                            <td>{str(r_m.get("매입처", "-"))}</td>
-                            <td style="text-align: right;">{s_val:,}</td>
-                            <td style="text-align: right;">{p_val:,}</td>
-                            <td style="text-align: right; font-weight: bold; color: #1e3a8a;">{pf_val:,}</td>
-                        </tr>
-                """
-
-            print_manifest_html += f"""
-                        <tr style="background-color: #f1f5f9; font-weight: bold;">
-                            <td colspan="8" style="text-align: center;">합계 (TOTAL)</td>
-                            <td style="text-align: right;">{tot_s:,}</td>
-                            <td style="text-align: right;">{tot_p:,}</td>
-                            <td style="text-align: right; color: #dc2626;">{tot_pf:,}</td>
-                        </tr>
-                    </table>
-                    <div style="margin-top: 20px; text-align: center; font-weight: bold; font-size: 10pt;">
-                        주식회사 범운해운항공 대표이사 이상복 [직인생략]
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-
-            # 2. 선택된 매입처 전송용 입고 LIST 엑셀 데이터 생성
-            vendor_rows = []
-            for idx_v, r_v in enumerate(filtered_shipments, start=1):
-                gw_val = r_v.get("실중량(kg)", r_v.get("매출실중량(kg)", ""))
-                if gw_val == "" or gw_val is None or str(gw_val) == "-":
-                    gw_val = r_v.get("매출청구중량(kg)", "-")
-                try:
-                    if float(gw_val) != int(float(gw_val)):
-                        gw_val = float(gw_val)
-                    else:
-                        gw_val = int(float(gw_val))
-                except:
-                    pass
-
-                vendor_rows.append({
-                    "NO": idx_v,
-                    "입고날짜": str(r_v.get("날짜", target_date_str))[:10],
-                    "B/L 번호": r_v.get("B/L 번호", "-"),
-                    "실중량(kg)": gw_val,
-                    "부피규격(사이즈)": r_v.get("부피규격", "-"),
-                    "수하인": r_v.get("해외수하인", "-"),
-                    "수하인 주소": r_v.get("해외수하인주소", "-"),
-                    "수하인 전화번호": r_v.get("해외수하인전화번호", "-"),
-                })
-            vendor_df = pd.DataFrame(vendor_rows)
-
-            excel_buffer = io.BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                vendor_df.to_excel(writer, index=False, sheet_name='입고 LIST', startrow=2)
-                workbook = writer.book
-                worksheet = writer.sheets['입고 LIST']
-                
-                worksheet.cell(row=1, column=1, value=f"입고 LIST ({selected_vendor_filter})").font = openpyxl.styles.Font(size=16, bold=True, color="1E3A8A")
-                worksheet.page_setup.orientation = worksheet.ORIENTATION_LANDSCAPE
-                worksheet.page_setup.paperSize = worksheet.PAPERSIZE_A4
-                worksheet.sheet_properties.pageSetUpPr.fitToPage = True
-                worksheet.page_setup.fitToWidth = 1
-                worksheet.page_setup.fitToHeight = 0
-                
-                header_fill = openpyxl.styles.PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
-                header_font = openpyxl.styles.Font(color="FFFFFF", bold=True)
-                thin_border = openpyxl.styles.Border(
-                    left=openpyxl.styles.Side(style='thin', color='CBD5E1'),
-                    right=openpyxl.styles.Side(style='thin', color='CBD5E1'),
-                    top=openpyxl.styles.Side(style='thin', color='CBD5E1'),
-                    bottom=openpyxl.styles.Side(style='thin', color='CBD5E1')
-                )
-                
-                for col_num in range(1, len(vendor_df.columns) + 1):
-                    cell = worksheet.cell(row=3, column=col_num)
-                    cell.fill = header_fill
-                    cell.font = header_font
-                    cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
-                
-                for row in worksheet.iter_rows(min_row=3, max_row=len(vendor_df) + 3, min_col=1, max_col=len(vendor_df.columns)):
-                    for cell in row:
-                        cell.border = thin_border
-                        if cell.row > 3:
-                            cell.alignment = openpyxl.styles.Alignment(vertical="center")
-
-                for col in worksheet.columns:
-                    max_len = max(len(str(cell.value or '')) for cell in col)
-                    col_letter = openpyxl.utils.get_column_letter(col[0].column)
-                    worksheet.column_dimensions[col_letter].width = max(max_len + 5, 12)
-
-            # 3. 버튼 배치 (인쇄 버튼과 선택한 매입처 전송용 엑셀 다운로드 버튼)
-            col_dl1, col_dl2 = st.columns(2)
-            with col_dl1:
-                if st.button("🖨 매니페스트 정식 인쇄 / PDF 저장", type="primary", use_container_width=True):
-                    components.html(print_manifest_html, height=650, scrolling=True)
-            with col_dl2:
-                safe_vendor_filename = selected_vendor_filter.replace("/", "_").replace(" ", "_")
-                st.download_button(
-                    f"📦 [{selected_vendor_filter}] 입고 LIST 엑셀 다운로드 (.xlsx)",
-                    data=excel_buffer.getvalue(),
-                    file_name=f"입고LIST_{target_date_str}_{safe_vendor_filename}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key=f"vendor_inbound_excel_download_{safe_vendor_filename}",
-                    use_container_width=True
-                )
-        else:
-            st.warning(f"선택하신 매입처({selected_vendor_filter})로 등록된 발송 내역이 없습니다.")
-    else:
-        st.info("선택하신 날짜로 등록된 선적 B/L 내역이 없습니다.")
+            # 선택한 매입처 전용 인쇄용 HTML 팝업 생성
+            print_
 # ==========================================
 # [8] 매출 거래처(화주) 관리 (메인 메뉴 독립)
 # ==========================================
