@@ -2120,164 +2120,198 @@ elif selected_menu == "🤝 매입 관리 (협력사별 독립 트랙)":
     else:
         st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [3] B/L 운송장 출력 메뉴
+# [3] B/L 운송장 출력 메뉴 (검색창 추가 버전)
 # ==========================================
 elif selected_menu == "🚢 B/L 운송장 출력":
-  st.markdown(
-      "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🚢"
-      " (주)범운해운항공 정식 B/L 운송장 출력</h3>",
-      unsafe_allow_html=True,
-  )
-
-  if st.session_state.bl_data_list:
-    bl_number_list = [
-        str(item.get("B/L 번호", "")) for item in st.session_state.bl_data_list
-    ]
-    selected_print_bl = st.selectbox(
-        "출력할 B/L 번호 선택하기", options=bl_number_list
+    st.markdown(
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>🚢"
+        " (주)범운해운항공 정식 B/L 운송장 출력</h3>",
+        unsafe_allow_html=True,
     )
 
-    target_bl_data = next(
-        (
-            item
-            for item in st.session_state.bl_data_list
-            if str(item.get("B/L 번호")) == selected_print_bl
-        ),
-        None,
-    )
+    if st.session_state.bl_data_list:
+        # 💡 B/L 번호나 화주명을 직접 검색할 수 있는 입력창 추가
+        search_filter_keyword = st.text_input(
+            "🔍 B/L 번호 또는 화주명 검색 (입력하시면 아래 선택 목록이 필터링됩니다)",
+            value="",
+            placeholder="예: BW260017 또는 텐트리스트",
+            key="bl_print_search_keyword"
+        )
 
-    if target_bl_data:
+        # 검색어가 있으면 일치하는 항목만 필터링, 없으면 전체 목록 표시
+        filtered_bl_items = []
+        for item in st.session_state.bl_data_list:
+            b_no = str(item.get("B/L 번호", ""))
+            s_name = str(item.get("화주명(매출)", ""))
+            j_no = str(item.get("Job 번호", ""))
+            
+            if search_filter_keyword.strip() == "":
+                filtered_bl_items.append(item)
+            else:
+                kw = search_filter_keyword.strip().lower()
+                if kw in b_no.lower() or kw in s_name.lower() or kw in j_no.lower():
+                    filtered_bl_items.append(item)
 
-      def clean_val(v, default="-"):
-        if v is None:
-          return default
-        s = str(v).strip()
-        if s == "" or s.lower() == "nan":
-          return default
-        return s
+        if filtered_bl_items:
+            # 선택창에 보기 좋게 [B/L번호] 화주명 형태로 표시
+            bl_display_options = [
+                f"{item.get('B/L 번호', '')} (화주: {item.get('화주명(매출)', '-')}, Job: {item.get('Job 번호', '-')})"
+                for item in filtered_bl_items
+            ]
+            
+            selected_display_str = st.selectbox(
+                "출력할 B/L 선택하기 (검색 결과)", 
+                options=bl_display_options,
+                key="selected_bl_print_selectbox"
+            )
 
-      shipper_n = clean_val(target_bl_data.get("화주명(매출)"))
-      shipper_inf = st.session_state.client_infos.get(shipper_n, {})
-      shipper_addr = clean_val(
-          shipper_inf.get("주소"), "경기도 김포시 풍무동 326-5번지 2층"
-      )
-      shipper_bno = clean_val(shipper_inf.get("사업자등록번호"), "-")
-      shipper_mgr = clean_val(shipper_inf.get("담당자"), "-")
-      shipper_tel = clean_val(shipper_inf.get("전화번호"), "-")
+            # 선택된 문자열에서 B/L 번호 추출
+            selected_print_bl = selected_display_str.split(" ")[0].strip()
 
-      consignee_n = clean_val(target_bl_data.get("해외수하인"))
-      consignee_addr = clean_val(target_bl_data.get("해외수하인주소"), "-")
-      consignee_tel = clean_val(target_bl_data.get("해외수하인전화번호"), "-")
-      dest_c = clean_val(target_bl_data.get("국가"))
-      origin_p = clean_val(target_bl_data.get("출발지"), "대한민국 (KOREA)")
-      ship_date = clean_val(target_bl_data.get("날짜"), str(date.today()))
-      bl_num_str = clean_val(target_bl_data.get("B/L 번호"))
-      job_num_str = clean_val(target_bl_data.get("Job 번호"), "-")
-      item_name = clean_val(target_bl_data.get("품목"))
-      box_cnt = clean_val(target_bl_data.get("박스수"), "1 박스")
-      vol_spec = clean_val(target_bl_data.get("부피규격"), "-")
-      cbm_val = clean_val(target_bl_data.get("CBM"), "-")
-      sales_cw = target_bl_data.get("매출청구중량(kg)", 1.0)
-      transport_t = clean_val(target_bl_data.get("운송형태"), "항공(Air)")
-      service_opt = clean_val(target_bl_data.get("서비스옵션"), "Door To Door")
-      current_status_str = clean_val(
-          target_bl_data.get("현재 상태"), "운송 중"
-      )
+            target_bl_data = next(
+                (
+                    item
+                    for item in st.session_state.bl_data_list
+                    if str(item.get("B/L 번호", "")) == selected_print_bl
+                ),
+                None,
+            )
 
-      logo_embed_bl = (
-          f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
-          " style='height: 42px; vertical-align: middle; margin-right: 10px;'>"
-          if encoded_sidebar_logo
-          else ""
-      )
-      barcode_html = generate_barcode_html(bl_num_str)
+            if target_bl_data:
 
-      air_check = "☑" if "항공" in transport_t else "☐"
-      sea_check = "☑" if "해상" in transport_t else "☐"
-      d2d_check = "☑" if "Door" in service_opt else "☐"
+              def clean_val(v, default="-"):
+                if v is None:
+                  return default
+                s = str(v).strip()
+                if s == "" or s.lower() == "nan":
+                  return default
+                return s
 
-      awb_html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <style>
-                    @media print {{
-                        body {{ -webkit-print-color-adjust: exact; }}
-                        .no-print {{ display: none !important; }}
-                        @page {{ size: A4 portrait; margin: 10mm; }}
-                    }}
-                    body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9.5pt; margin: 0; padding: 10px; background: #fff; }}
-                    .awb-container {{ max-width: 760px; margin: 0 auto; border: 2px solid #0f172a; padding: 20px; border-radius: 6px; }}
-                    .top-table, .mid-table {{ width: 100%; border-collapse: collapse; margin-bottom: 8px; }}
-                    .top-table td, .mid-table td {{ border: 1px solid #64748b; padding: 8px 10px; vertical-align: top; }}
-                    .section-header {{ background-color: #0f172a; color: white; font-weight: bold; font-size: 9pt; padding: 3px 6px; margin-bottom: 4px; }}
-                    .print-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 10px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 15px; }}
-                </style>
-            </head>
-            <body>
-                <div class="awb-container">
-                    <button class="print-btn no-print" onclick="window.print()">🖨 B/L 운송장 인쇄 및 PDF 저장</button>
-                    <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
-                        <tr>
-                            <td style="width: 55%; border: none;">
-                                <div style="display: flex; align-items: center;">
-                                    {logo_embed_bl}
-                                    <div>
-                                        <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
-                                        <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td style="width: 45%; text-align: right; border: none;">
-                                <div style="font-size: 8.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">AIR WAYBILL / B/L NO.</div>
-                                {barcode_html}
-                            </td>
-                        </tr>
-                    </table>
-                    <table class="top-table">
-                        <tr>
-                            <td style="width: 50%;">
-                                <div class="section-header">FROM (SHIPPER / 송하인)</div>
-                                <b>상호:</b> {shipper_n}<br>
-                                <b>사업자등록번호:</b> {shipper_bno}<br>
-                                <b>주소:</b> {shipper_addr}<br>
-                                <b>담당자 / 연락처:</b> {shipper_mgr} / {shipper_tel}
-                            </td>
-                            <td style="width: 50%;">
-                                <div class="section-header">TO (CONSIGNEE / 수하인)</div>
-                                <b>수하인명:</b> <span style="font-size: 10.5pt; color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br><b>주소:</b> {consignee_addr}<br><b>연락처:</b> {consignee_tel}<br>
-                                <b>도착 국가:</b> {dest_c}<br>
-                                <b>출발지:</b> {origin_p}
-                            </td>
-                        </tr>
-                    </table>
-                    <table class="mid-table">
-                        <tr>
-                            <td style="width: 33%;"><b>CARRIER</b><br>{air_check} AIR &nbsp;&nbsp; {sea_check} SEA</td>
-                            <td style="width: 33%;"><b>SERVICE</b><br>{d2d_check} Door To Door</td>
-                            <td style="width: 34%;"><b>SCHEDULE</b><br>선적일자: <b>{ship_date}</b></td>
-                        </tr>
-                    </table>
-                    <table class="top-table">
-                        <tr>
-                            <td style="width: 60%;">
-                                <div class="section-header">DESCRIPTION OF CONTENTS</div>
-                                <div style="font-size: 11pt; font-weight: bold; color: #1e3a8a; padding: 6px 0;">{item_name}</div>
-                                • 박스 수: <b>{box_cnt}</b> | 규격: {vol_spec} ({cbm_val})
-                            </td>
-                            <td style="width: 40%;">
-                                <div class="section-header">WEIGHT</div>
-                                청구중량: <b style="color: #dc2626;">{sales_cw} KG</b>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </body>
-            </html>
-            """
-      components.html(awb_html, height=750, scrolling=False)
+              shipper_n = clean_val(target_bl_data.get("화주명(매출)"))
+              shipper_inf = st.session_state.client_infos.get(shipper_n, {})
+              shipper_addr = clean_val(
+                  shipper_inf.get("주소"), "경기도 김포시 풍무동 326-5번지 2층"
+              )
+              shipper_bno = clean_val(shipper_inf.get("사업자등록번호"), "-")
+              shipper_mgr = clean_val(shipper_inf.get("담당자"), "-")
+              shipper_tel = clean_val(shipper_inf.get("전화번호"), "-")
 
+              consignee_n = clean_val(target_bl_data.get("해외수하인"))
+              consignee_addr = clean_val(target_bl_data.get("해외수하인주소"), "-")
+              consignee_tel = clean_val(target_bl_data.get("해외수하인전화번호"), "-")
+              dest_c = clean_val(target_bl_data.get("국가"))
+              origin_p = clean_val(target_bl_data.get("출발지"), "대한민국 (KOREA)")
+              ship_date = clean_val(target_bl_data.get("날짜"), str(date.today()))
+              bl_num_str = clean_val(target_bl_data.get("B/L 번호"))
+              job_num_str = clean_val(target_bl_data.get("Job 번호"), "-")
+              item_name = clean_val(target_bl_data.get("품목"))
+              box_cnt = clean_val(target_bl_data.get("박스수"), "1 박스")
+              vol_spec = clean_val(target_bl_data.get("부피규격"), "-")
+              cbm_val = clean_val(target_bl_data.get("CBM"), "-")
+              sales_cw = target_bl_data.get("매출청구중량(kg)", 1.0)
+              transport_t = clean_val(target_bl_data.get("운송형태"), "항공(Air)")
+              service_opt = clean_val(target_bl_data.get("서비스옵션"), "Door To Door")
+              current_status_str = clean_val(
+                  target_bl_data.get("현재 상태"), "운송 중"
+              )
+
+              logo_embed_bl = (
+                  f"<img src='data:image/png;base64,{encoded_sidebar_logo}'"
+                  " style='height: 42px; vertical-align: middle; margin-right: 10px;'>"
+                  if encoded_sidebar_logo
+                  else ""
+              )
+              barcode_html = generate_barcode_html(bl_num_str)
+
+              air_check = "☑" if "항공" in transport_t else "☐"
+              sea_check = "☑" if "해상" in transport_t else "☐"
+              d2d_check = "☑" if "Door" in service_opt else "☐"
+
+              awb_html = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            @media print {{
+                                body {{ -webkit-print-color-adjust: exact; }}
+                                .no-print {{ display: none !important; }}
+                                @page {{ size: A4 portrait; margin: 10mm; }}
+                            }}
+                            body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9.5pt; margin: 0; padding: 10px; background: #fff; }}
+                            .awb-container {{ max-width: 760px; margin: 0 auto; border: 2px solid #0f172a; padding: 20px; border-radius: 6px; }}
+                            .top-table, .mid-table {{ width: 100%; border-collapse: collapse; margin-bottom: 8px; }}
+                            .top-table td, .mid-table td {{ border: 1px solid #64748b; padding: 8px 10px; vertical-align: top; }}
+                            .section-header {{ background-color: #0f172a; color: white; font-weight: bold; font-size: 9pt; padding: 3px 6px; margin-bottom: 4px; }}
+                            .print-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 10px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 15px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="awb-container">
+                            <button class="print-btn no-print" onclick="window.print()">🖨 B/L 운송장 인쇄 및 PDF 저장</button>
+                            <table style="width: 100%; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
+                                <tr>
+                                    <td style="width: 55%; border: none;">
+                                        <div style="display: flex; align-items: center;">
+                                            {logo_embed_bl}
+                                            <div>
+                                                <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">주식회사 범운해운항공</div>
+                                                <div style="font-size: 7.5pt; color: #475569; font-weight: bold;">BUMWOON OCEAN & AIR CO., LTD.</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="width: 45%; text-align: right; border: none;">
+                                        <div style="font-size: 8.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">AIR WAYBILL / B/L NO.</div>
+                                        {barcode_html}
+                                    </td>
+                                </tr>
+                            </table>
+                            <table class="top-table">
+                                <tr>
+                                    <td style="width: 50%;">
+                                        <div class="section-header">FROM (SHIPPER / 송하인)</div>
+                                        <b>상호:</b> {shipper_n}<br>
+                                        <b>사업자등록번호:</b> {shipper_bno}<br>
+                                        <b>주소:</b> {shipper_addr}<br>
+                                        <b>담당자 / 연락처:</b> {shipper_mgr} / {shipper_tel}
+                                    </td>
+                                    <td style="width: 50%;">
+                                        <div class="section-header">TO (CONSIGNEE / 수하인)</div>
+                                        <b>수하인명:</b> <span style="font-size: 10.5pt; color: #1e3a8a; font-weight: bold;">{consignee_n}</span><br><b>주소:</b> {consignee_addr}<br><b>연락처:</b> {consignee_tel}<br>
+                                        <b>도착 국가:</b> {dest_c}<br>
+                                        <b>출발지:</b> {origin_p}
+                                    </td>
+                                </tr>
+                            </table>
+                            <table class="mid-table">
+                                <tr>
+                                    <td style="width: 33%;"><b>CARRIER</b><br>{air_check} AIR &nbsp;&nbsp; {sea_check} SEA</td>
+                                    <td style="width: 33%;"><b>SERVICE</b><br>{d2d_check} Door To Door</td>
+                                    <td style="width: 34%;"><b>SCHEDULE</b><br>선적일자: <b>{ship_date}</b></td>
+                                </tr>
+                            </table>
+                            <table class="top-table">
+                                <tr>
+                                    <td style="width: 60%;">
+                                        <div class="section-header">DESCRIPTION OF CONTENTS</div>
+                                        <div style="font-size: 11pt; font-weight: bold; color: #1e3a8a; padding: 6px 0;">{item_name}</div>
+                                        • 박스 수: <b>{box_cnt}</b> | 규격: {vol_spec} ({cbm_val})
+                                    </td>
+                                    <td style="width: 40%;">
+                                        <div class="section-header">WEIGHT</div>
+                                        청구중량: <b style="color: #dc2626;">{sales_cw} KG</b>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </body>
+                    </html>
+                    """
+              components.html(awb_html, height=750, scrolling=False)
+        else:
+            st.warning("🔍 검색하신 조건에 일치하는 B/L 내역이 없습니다.")
+    else:
+        st.info("등록된 B/L 데이터가 없습니다.")
 
 # ==========================================
 # [4] 거래처 인보이스 발행
