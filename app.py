@@ -2634,7 +2634,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [7] 금일발송 매니페스트 (매입처별 독립 선택 및 인쇄 기능 포함)
+# [7] 금일발송 매니페스트 (엑셀 다운로드 및 인쇄 버튼 완벽 포함)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
@@ -2705,17 +2705,41 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     "해외수하인": str(r_m.get("해외수하인", "-")),
                     "박스수": str(r_m.get("박스수", "1 박스")),
                     "부피규격": str(r_m.get("부피규격", "-")),
-                    "매출청구중량(kg)": f"{float(r_m.get('매출청구중량(kg)', 1.0)):.1f} kg",
+                    "매출청구중량(kg)": float(r_m.get('매출청구중량(kg)', 1.0)),
                     "매입처": str(r_m.get("매입처", "-")),
-                    "매출액(원)": f"{sales_amt:,} 원",
-                    "매입액(원)": f"{purchase_amt:,} 원",
-                    "Profit(원)": f"{profit_amt:,} 원",
+                    "매출액(원)": sales_amt,
+                    "매입액(원)": purchase_amt,
+                    "Profit(원)": profit_amt,
                 })
 
             manifest_display_df = pd.DataFrame(manifest_rows)
-            st.dataframe(manifest_display_df, use_container_width=True)
+            
+            # 화면 표시용 포맷 데이터프레임
+            display_view_df = manifest_display_df.copy()
+            display_view_df["매출청구중량(kg)"] = display_view_df["매출청구중량(kg)"].apply(lambda x: f"{x:.1f} kg")
+            display_view_df["매출액(원)"] = display_view_df["매출액(원)"].apply(lambda x: f"{x:,} 원")
+            display_view_df["매입액(원)"] = display_view_df["매입액(원)"].apply(lambda x: f"{x:,} 원")
+            display_view_df["Profit(원)"] = display_view_df["Profit(원)"].apply(lambda x: f"{x:,} 원")
+
+            st.dataframe(display_view_df, use_container_width=True)
 
             st.markdown("---")
+
+            # 📥 엑셀 다운로드 버튼 추가 영역
+            excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                manifest_display_df.to_excel(writer, index=False, sheet_name='금일발송매니페스트')
+            excel_data = excel_buffer.getvalue()
+
+            d_col1, d_col2 = st.columns(2)
+            with d_col1:
+                st.download_button(
+                    label="📥 현재 매니페스트 엑셀 다운로드 (.xlsx)",
+                    data=excel_data,
+                    file_name=f"Bumwoon_Manifest_{target_date_str}_{selected_vendor_filter}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
 
             # 선택한 매입처 전용 인쇄용 HTML 팝업 생성
             manifest_html = f"""
@@ -2783,8 +2807,9 @@ elif selected_menu == "📋 금일발송 매니페스트":
             </html>
             """
             
-            if st.button("🖨 선택한 매입처 매니페스트 인쇄 / PDF 보고서", type="primary", use_container_width=True):
-                components.html(manifest_html, height=700, scrolling=True)
+            with d_col2:
+                if st.button("🖨 매니페스트 인쇄 / PDF 보고서", type="primary", use_container_width=True):
+                    components.html(manifest_html, height=700, scrolling=True)
         else:
             st.warning("⚠️ 선택하신 매입처에 해당하는 선적 내역이 없습니다.")
     else:
