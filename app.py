@@ -1793,7 +1793,7 @@ if selected_menu == "📊 수출입 B/L 등록":
                 )
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역 (기존 상세 수정 폼 방식 복구)
+# [2] 등록 B/L 수정 및 Profit 내역 (국가/매입처/품목 드롭다운 적용 완료)
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
@@ -1865,14 +1865,28 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     e_job = st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")))
                     e_bl = st.text_input("B/L 번호", value=str(target_item.get("B/L 번호", "")))
                 with d_col2:
-                    e_country = st.text_input("국가", value=str(target_item.get("국가", "")))
+                    # 💡 국가 선택 드롭다운
+                    current_country_val = str(target_item.get("국가", "미국")).strip()
+                    country_idx = COUNTRY_LIST.index(current_country_val) if current_country_val in COUNTRY_LIST else 0
+                    e_country = st.selectbox("국가 선택", options=COUNTRY_LIST, index=country_idx)
+
                     e_shipper = st.text_input("화주명(매출)", value=str(target_item.get("화주명(매출)", "")))
                     e_consignee = st.text_input("해외수하인", value=str(target_item.get("해외수하인", "")))
                     e_consignee_addr = st.text_input("해외수하인주소", value=str(target_item.get("해외수하인주소", "")))
                     e_consignee_tel = st.text_input("해외수하인전화번호", value=str(target_item.get("해외수하인전화번호", "")))
                 with d_col3:
-                    e_vendor = st.text_input("매입처", value=str(target_item.get("매입처", "")))
-                    e_item = st.text_input("품목", value=str(target_item.get("품목", "")))
+                    # 💡 매입처 선택 드롭다운
+                    suppliers_opt = st.session_state.get("supplier_list", ["(주)카스익스프레스", "ESI", "윤세형"])
+                    current_supplier_val = str(target_item.get("매입처", "")).strip()
+                    supp_idx = suppliers_opt.index(current_supplier_val) if current_supplier_val in suppliers_opt else 0
+                    e_vendor = st.selectbox("매입처 선택", options=suppliers_opt, index=supp_idx)
+
+                    # 💡 품목 선택 드롭다운
+                    item_options_list = ["보톡스", "필러", "화장품", "특가품목", "기타"]
+                    current_item_val = str(target_item.get("품목", "보톡스")).strip()
+                    item_idx = item_options_list.index(current_item_val) if current_item_val in item_options_list else 0
+                    e_item = st.selectbox("품목 선택", options=item_options_list, index=item_idx)
+
                     e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
                 
                 st.markdown("---")
