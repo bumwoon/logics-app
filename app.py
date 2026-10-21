@@ -2634,7 +2634,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [7] 금일발송 매니페스트 (엑셀 다운로드 및 인쇄 버튼 완벽 포함)
+# [7] 금일발송 매니페스트 (엑셀 다운로드 openpyxl 적용 및 인쇄 버튼 포함)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
@@ -2725,9 +2725,9 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
             st.markdown("---")
 
-            # 📥 엑셀 다운로드 버튼 추가 영역
+            # 📥 엑셀 다운로드 버튼 추가 영역 (engine='openpyxl' 적용)
             excel_buffer = io.BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
                 manifest_display_df.to_excel(writer, index=False, sheet_name='금일발송매니페스트')
             excel_data = excel_buffer.getvalue()
 
