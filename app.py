@@ -1793,7 +1793,7 @@ if selected_menu == "📊 수출입 B/L 등록":
                 )
 
 # ==========================================
-# [2] 등록 B/L 수정 및 Profit 내역 (국가/매입처/품목 드롭다운 선택 적용 완료)
+# [2] 등록 B/L 수정 및 Profit 내역 (국가/화주명/매입처/품목 드롭다운 선택 적용)
 # ==========================================
 elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋 등록 B/L 수정 및 Profit 내역</h3>", unsafe_allow_html=True)
@@ -1865,23 +1865,28 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     e_job = st.text_input("Job 번호", value=str(target_item.get("Job 번호", "")))
                     e_bl = st.text_input("B/L 번호", value=str(target_item.get("B/L 번호", "")))
                 with d_col2:
-                    # 💡 국가 선택 드롭다운 (COUNTRY_LIST 사용)
+                    # 💡 국가 선택 드롭다운 (COUNTRY_LIST)
                     current_country_val = str(target_item.get("국가", "미국")).strip()
                     country_idx = COUNTRY_LIST.index(current_country_val) if current_country_val in COUNTRY_LIST else 0
                     e_country = st.selectbox("국가 선택", options=COUNTRY_LIST, index=country_idx)
 
-                    e_shipper = st.text_input("화주명(매출)", value=str(target_item.get("화주명(매출)", "")))
+                    # 💡 화주명(매출) 선택 드롭다운 (client_list)
+                    clients_opt = st.session_state.get("client_list", ["아코글로벌", "주식회사 조은로직스"])
+                    current_shipper_val = str(target_item.get("화주명(매출)", "")).strip()
+                    shipper_idx = clients_opt.index(current_shipper_val) if current_shipper_val in clients_opt else 0
+                    e_shipper = st.selectbox("화주명(매출) 선택", options=clients_opt, index=shipper_idx)
+
                     e_consignee = st.text_input("해외수하인", value=str(target_item.get("해외수하인", "")))
                     e_consignee_addr = st.text_input("해외수하인주소", value=str(target_item.get("해외수하인주소", "")))
                     e_consignee_tel = st.text_input("해외수하인전화번호", value=str(target_item.get("해외수하인전화번호", "")))
                 with d_col3:
-                    # 💡 매입처 선택 드롭다운 (supplier_list 사용)
+                    # 💡 매입처 선택 드롭다운 (supplier_list)
                     suppliers_opt = st.session_state.get("supplier_list", ["(주)카스익스프레스", "ESI", "윤세형"])
                     current_supplier_val = str(target_item.get("매입처", "")).strip()
                     supp_idx = suppliers_opt.index(current_supplier_val) if current_supplier_val in suppliers_opt else 0
                     e_vendor = st.selectbox("매입처 선택", options=suppliers_opt, index=supp_idx)
 
-                    # 💡 품목 선택 드롭다운 (신규 등록과 동일한 품목 목록 사용)
+                    # 💡 품목 선택 드롭다운
                     item_options_list = ["보톡스", "필러", "화장품", "특가품목", "기타"]
                     current_item_val = str(target_item.get("품목", "보톡스")).strip()
                     item_idx = item_options_list.index(current_item_val) if current_item_val in item_options_list else 0
