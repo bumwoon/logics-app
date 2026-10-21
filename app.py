@@ -19,7 +19,7 @@ def simple_dual_backup():
 
     try:
         # 1. B/L 및 경비 데이터를 엑셀 파일로 생성
-        with pd.ExcelWriter(file_name, engine="openpyxl") as writer:
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
             if st.session_state.get("bl_data_list"):
                 pd.DataFrame(st.session_state.bl_data_list).to_excel(
                     writer, sheet_name="B_L데이터", index=False
