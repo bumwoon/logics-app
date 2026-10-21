@@ -2581,7 +2581,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [7] 금일발송 매니페스트 (매입처별 독립 분리 버전)
+# [7] 금일발송 매니페스트 (매입처 선택 칸 상단 배치 버전)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
@@ -2590,9 +2590,13 @@ elif selected_menu == "📋 금일발송 매니페스트":
         unsafe_allow_html=True,
     )
 
-    selected_manifest_date = st.date_input(
-        "조회할 선적 날짜 선택", value=date.today(), key="manifest_date_picker"
-    )
+    # 날짜 선택과 매입처 선택 칸을 나란히 상단에 배치하여 한눈에 고를 수 있게 합니다.
+    m_col_f1, m_col_f2 = st.columns(2)
+    with m_col_f1:
+        selected_manifest_date = st.date_input(
+            "1️⃣ 조회할 선적 날짜 선택", value=date.today(), key="manifest_date_picker"
+        )
+    
     target_date_str = str(selected_manifest_date)
 
     date_shipments = [
@@ -2602,15 +2606,16 @@ elif selected_menu == "📋 금일발송 매니페스트":
     ]
 
     if date_shipments:
-        # 매입처 목록 추출 (전체 + 각 매입처별)
+        # 해당 날짜에 존재하는 매입처 목록 추출
         available_suppliers = sorted(list(set(str(r.get("매입처", "-")) for r in date_shipments if str(r.get("매입처", "-")).strip())))
         supplier_filter_options = ["전체 매입처 보기"] + available_suppliers
         
-        selected_vendor_filter = st.selectbox(
-            "🏢 출력할 매입처 선택 (매입처별로 다르게 뽑기)", 
-            options=supplier_filter_options, 
-            key="manifest_vendor_filter_select"
-        )
+        with m_col_f2:
+            selected_vendor_filter = st.selectbox(
+                "2️⃣ 출력할 매입처 선택 (매입처별 개별 추출)", 
+                options=supplier_filter_options, 
+                key="manifest_vendor_filter_select"
+            )
 
         # 선택된 매입처에 따라 데이터 필터링
         if selected_vendor_filter == "전체 매입처 보기":
@@ -2621,7 +2626,11 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 if str(item.get("매입처", "-")).strip() == selected_vendor_filter
             ]
 
+        st.markdown("---")
+
         if filtered_shipments:
+            st.markdown(f"#### 📦 [{target_date_str}] 선적 내역 (조회 매입처: <span style='color: #2563eb;'>{selected_vendor_filter}</span> - 총 {len(filtered_shipments)}건)", unsafe_allow_html=True)
+
             # 1. 화면 표시용 데이터프레임 구성
             manifest_rows = []
             for r_m in filtered_shipments:
@@ -2828,7 +2837,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     use_container_width=True
                 )
         else:
-            st.info(f"선택하신 매입처({selected_vendor_filter})로 등록된 발송 내역이 없습니다.")
+            st.warning(f"선택하신 매입처({selected_vendor_filter})로 등록된 발송 내역이 없습니다.")
     else:
         st.info("선택하신 날짜로 등록된 선적 B/L 내역이 없습니다.")
 # ==========================================
