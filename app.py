@@ -2634,7 +2634,7 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [7] 금일발송 매니페스트 (매입처별 독립 선택/추출 버전)
+# [7] 금일발송 매니페스트 (매입처별 독립 선택 및 인쇄 기능 포함)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
@@ -2643,7 +2643,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
         unsafe_allow_html=True,
     )
 
-    # 1. 상단에 날짜 선택과 매입처 선택 칸을 나란히 배치하여 개별 추출 가능하도록 구성
     m_col_f1, m_col_f2 = st.columns(2)
     with m_col_f1:
         selected_manifest_date = st.date_input(
@@ -2652,7 +2651,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
     
     target_date_str = str(selected_manifest_date)
 
-    # 해당 날짜 데이터 전체 1차 필터링
     date_shipments = [
         item
         for item in st.session_state.bl_data_list
@@ -2660,7 +2658,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
     ]
 
     if date_shipments:
-        # 해당 날짜에 실제 존재하는 매입처 목록 자동 추출 (예: 카스, 윤세형 등)
         available_suppliers = sorted(list(set(str(r.get("매입처", "-")) for r in date_shipments if str(r.get("매입처", "-")).strip())))
         supplier_filter_options = ["전체 매입처 보기"] + available_suppliers
         
@@ -2671,7 +2668,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 key="manifest_vendor_filter_select"
             )
 
-        # 선택된 매입처에 맞춰 2차 데이터 필터링
         if selected_vendor_filter == "전체 매입처 보기":
             filtered_shipments = date_shipments
         else:
@@ -2688,7 +2684,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 unsafe_allow_html=True
             )
 
-            # 1. 화면 표시용 데이터프레임 구성
             manifest_rows = []
             for r_m in filtered_shipments:
                 try:
@@ -2723,6 +2718,77 @@ elif selected_menu == "📋 금일발송 매니페스트":
             st.markdown("---")
 
             # 선택한 매입처 전용 인쇄용 HTML 팝업 생성
+            manifest_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    @media print {{
+                        body {{ -webkit-print-color-adjust: exact; }}
+                        .no-print {{ display: none !important; }}
+                        @page {{ size: A4 landscape; margin: 10mm; }}
+                    }}
+                    body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9pt; margin: 0; padding: 10px; background: #fff; }}
+                    .box {{ max-width: 1050px; margin: 0 auto; border: 2px solid #0f172a; padding: 20px; border-radius: 6px; }}
+                    .t-tbl {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+                    .t-tbl th, .t-tbl td {{ border: 1px solid #64748b; padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 8.5pt; }}
+                    .t-tbl th {{ background-color: #0f172a; color: white; }}
+                    .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 10px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 15px; }}
+                </style>
+            </head>
+            <body>
+                <div class="box">
+                    <button class="p-btn no-print" onclick="window.print()">🖨 매니페스트 인쇄 / PDF 저장</button>
+                    <h2 style="text-align: center; color: #1e3a8a; margin-bottom: 5px;">[{target_date_str}] 선적 화물 매니페스트</h2>
+                    <p style="text-align: center; color: #475569; font-size: 9pt; margin-top: 0;">매입처: <b>{selected_vendor_filter}</b> | (주)범운해운항공</p>
+                    <table class="t-tbl">
+                        <tr>
+                            <th>선적일자</th><th>B/L 번호</th><th>화주명(매출)</th><th>해외수하인</th><th>박스수</th><th>부피규격</th><th>청구중량</th><th>매입처</th><th>매출액</th><th>매입액</th><th>Profit</th>
+                        </tr>
+            """
+            for r_m in filtered_shipments:
+                try:
+                    s_amt = int(float(str(r_m.get("매출액(원)", 0)).replace(",", "") or 0))
+                except:
+                    s_amt = 0
+                try:
+                    p_amt = int(float(str(r_m.get("매입액(원)", 0)).replace(",", "") or 0))
+                except:
+                    p_amt = 0
+                prof_amt = s_amt - p_amt
+
+                manifest_html += f"""
+                        <tr>
+                            <td>{str(r_m.get("날짜", target_date_str))[:10]}</td>
+                            <td style="font-weight: bold;">{str(r_m.get("B/L 번호", "-"))}</td>
+                            <td>{str(r_m.get("화주명(매출)", "-"))}</td>
+                            <td>{str(r_m.get("해외수하인", "-"))}</td>
+                            <td>{str(r_m.get("박스수", "1 박스"))}</td>
+                            <td>{str(r_m.get("부피규격", "-"))}</td>
+                            <td>{float(r_m.get('매출청구중량(kg)', 1.0)):.1f} kg</td>
+                            <td>{str(r_m.get("매입처", "-"))}</td>
+                            <td style="text-align: right;">{s_amt:,} 원</td>
+                            <td style="text-align: right;">{p_amt:,} 원</td>
+                            <td style="text-align: right; font-weight: bold; color: #2563eb;">{prof_amt:,} 원</td>
+                        </tr>
+                """
+            manifest_html += """
+                    </table>
+                    <div style="margin-top: 20px; text-align: right; font-weight: bold; font-size: 10pt;">
+                        (주)범운해운항공 대표이사 이상복 [직인생략]
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            if st.button("🖨 선택한 매입처 매니페스트 인쇄 / PDF 보고서", type="primary", use_container_width=True):
+                components.html(manifest_html, height=700, scrolling=True)
+        else:
+            st.warning("⚠️ 선택하신 매입처에 해당하는 선적 내역이 없습니다.")
+    else:
+        st.info("해당 날짜에 등록된 선적 내역이 없습니다.")
 # ==========================================
 # [8] 매출 거래처(화주) 관리 (메인 메뉴 독립)
 # ==========================================
