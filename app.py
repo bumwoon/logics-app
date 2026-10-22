@@ -2805,10 +2805,10 @@ elif selected_menu == "📋 금일발송 매니페스트":
             st.info("해당 날짜에 등록된 선적 내역이 없습니다.")
 
     # -------------------------------------------------------------
-    # 2️⃣ [탭 2] 거래처 공유용 입고 LIST (A4 인쇄 자동 맞춤 & nan 완벽 제거)
+    # 2️⃣ [탭 2] 거래처 공유용 입고 LIST (매입처별 필터 & 전화번호 포함)
     # -------------------------------------------------------------
     with tab_external:
-        st.markdown("##### 📦 거래처 제출용 입고 LIST (매출/매입 단가 및 Profit 제외)")
+        st.markdown("##### 📦 입고 LIST (매입처별 / 금액 제외 / 전화번호 포함)")
         m_col_e1, m_col_e2 = st.columns(2)
         with m_col_e1:
             selected_share_date = st.date_input(
@@ -2822,24 +2822,24 @@ elif selected_menu == "📋 금일발송 매니페스트":
         ]
 
         if share_shipments:
-            available_shippers = sorted(list(set(str(r.get("화주명(매출)", "-")) for r in share_shipments if str(r.get("화주명(매출)", "-")).strip())))
-            shipper_filter_options = ["전체 거래처 보기"] + available_shippers
+            # 매입처별 필터로 변경
+            available_suppliers = sorted(list(set(str(r.get("매입처", "-")) for r in share_shipments if str(r.get("매입처", "-")).strip())))
+            supplier_filter_options = ["전체 매입처 보기"] + available_suppliers
             
             with m_col_e2:
-                selected_shipper_filter = st.selectbox(
-                    "2️⃣ 거래처(화주) 선택", options=shipper_filter_options, key="manifest_shipper_select_share"
+                selected_supplier_filter = st.selectbox(
+                    "2️⃣ 매입처 선택", options=supplier_filter_options, key="manifest_supplier_select_share"
                 )
 
-            filtered_share_shipments = share_shipments if selected_shipper_filter == "전체 거래처 보기" else [
-                item for item in share_shipments if str(item.get("화주명(매출)", "-")).strip() == selected_shipper_filter
+            filtered_share_shipments = share_shipments if selected_supplier_filter == "전체 매입처 보기" else [
+                item for item in share_shipments if str(item.get("매입처", "-")).strip() == selected_supplier_filter
             ]
 
             if filtered_share_shipments:
-                st.markdown(f"#### 📦 [{share_date_str}] 입고 LIST (총 <span style='color: #2563eb;'>{len(filtered_share_shipments)}</span>건)", unsafe_allow_html=True)
+                st.markdown(f"#### 📦 입고 LIST - [{share_date_str}] (총 <span style='color: #2563eb;'>{len(filtered_share_shipments)}</span>건)", unsafe_allow_html=True)
 
                 share_rows = []
                 for idx, r_m in enumerate(filtered_share_shipments, 1):
-                    # nan 처리 로직 (비어있는 경우 빈칸 또는 - 표시)
                     def clean_val(v):
                         if v is None:
                             return ""
@@ -2864,18 +2864,18 @@ elif selected_menu == "📋 금일발송 매니페스트":
                         "실중량(kg)": gw_str,
                         "부피규격(사이즈)": clean_val(r_m.get("부피규격")),
                         "수하인": clean_val(r_m.get("해외수하인")),
+                        "수하인 전화번호": clean_val(r_m.get("해외수하인전화번호")),
                         "수하인 주소": clean_val(r_m.get("해외수하인주소")),
                     })
 
                 share_display_df = pd.DataFrame(share_rows)
 
-                # 화면 표시 스타일 (글씨 크게 & 깔끔하게)
                 st.markdown(
                     """
                     <style>
-                    table { font-size: 14.5px !important; }
-                    th { font-size: 15px !important; background-color: #1e3a8a !important; color: white !important; text-align: center !important; }
-                    td { font-size: 14px !important; padding: 10px 8px !important; }
+                    table { font-size: 14px !important; }
+                    th { font-size: 14.5px !important; background-color: #1e3a8a !important; color: white !important; text-align: center !important; }
+                    td { font-size: 13.5px !important; padding: 10px 8px !important; }
                     </style>
                     """,
                     unsafe_allow_html=True
@@ -2883,25 +2883,21 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 
                 st.dataframe(share_display_df, use_container_width=True, hide_index=True)
 
-                # ---------------------------------------------------------
-                # 📥 A4 용지 자동 맞춤 엑셀 생성 로직 (openpyxl 활용)
-                # ---------------------------------------------------------
+                # A4 자동 맞춤 엑셀 생성
                 excel_buffer_share = io.BytesIO()
                 wb = openpyxl.Workbook()
                 ws = wb.active
                 ws.title = "입고LIST"
 
-                # A4 가로 인쇄 설정
                 ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
                 ws.page_setup.paperSize = ws.PAPERSIZE_A4
                 ws.sheet_properties.pageSetUpPr.fitToPage = True
                 ws.page_setup.fitToWidth = 1
                 ws.page_setup.fitToHeight = 0
 
-                # 헤더 스타일 정의
                 header_fill = openpyxl.styles.PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
-                header_font = openpyxl.styles.Font(name="맑은 고딕", size=11, bold=True, color="FFFFFF")
-                data_font = openpyxl.styles.Font(name="맑은 고딕", size=10)
+                header_font = openpyxl.styles.Font(name="맑은 고딕", size=10.5, bold=True, color="FFFFFF")
+                data_font = openpyxl.styles.Font(name="맑은 고딕", size=9.5)
                 thin_border = openpyxl.styles.Border(
                     left=openpyxl.styles.Side(style='thin', color='D9D9D9'),
                     right=openpyxl.styles.Side(style='thin', color='D9D9D9'),
@@ -2911,7 +2907,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 center_align = openpyxl.styles.Alignment(horizontal='center', vertical='center')
                 left_align = openpyxl.styles.Alignment(horizontal='left', vertical='center')
 
-                # 제목 행 및 데이터 작성
                 headers = list(share_display_df.columns)
                 ws.append(headers)
 
@@ -2923,37 +2918,34 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 for row in share_display_df.itertuples(index=False):
                     ws.append(list(row))
 
-                # 데이터 행 스타일 적용 및 열 너비 자동 조정
                 for row_idx in range(2, ws.max_row + 1):
                     for col_idx in range(1, ws.max_column + 1):
                         cell = ws.cell(row=row_idx, column=col_idx)
                         cell.font = data_font
                         cell.border = thin_border
-                        if col_idx in [1, 2, 3, 4]:  # NO, 입고날짜, B/L번호, 실중량
+                        if col_idx in [1, 2, 3, 4]:
                             cell.alignment = center_align
                         else:
                             cell.alignment = left_align
 
-                # 열 너비 설정
-                col_widths = {'A': 6, 'B': 13, 'C': 15, 'D': 12, 'E': 25, 'F': 20, 'G': 45}
+                col_widths = {'A': 6, 'B': 12, 'C': 14, 'D': 10, 'E': 22, 'F': 14, 'G': 16, 'H': 38}
                 for col_letter, width in col_widths.items():
                     ws.column_dimensions[col_letter].width = width
 
                 wb.save(excel_buffer_share)
                 excel_data_share = excel_buffer_share.getvalue()
 
-                # 다운로드 버튼
                 st.download_button(
-                    label="📥 거래처 공유용 입고리스트 엑셀 다운로드 (.xlsx)",
+                    label="📥 입고리스트 엑셀 다운로드 (.xlsx)",
                     data=excel_data_share,
                     file_name=f"입고LIST_{share_date_str}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
             else:
-                st.warning("⚠️ 선택하신 조건에 해당하는 선적 내역이 없습니다.")
+                st.warning("⚠️ 선택하신 매입처 조건에 해당하는 선적 내역이 없습니다.")
         else:
-            st.info("해당 날짜에 등록된 선적 내역이 없습니다.")    
+            st.info("해당 날짜에 등록된 선적 내역이 없습니다.")   
 # ==========================================
 # [8] 매출 거래처(화주) 관리 (메인 메뉴 독립)
 # ==========================================
