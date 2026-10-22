@@ -2722,7 +2722,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
     tab_internal, tab_external = st.tabs(["🔒 사내 정산용 (매출/매입/Profit 포함)", "📤 거래처 공유용 입고 LIST (금액 제외)"])
 
     # -------------------------------------------------------------
-    # 1️⃣ [탭 1] 사내 정산용 (매출, 매입, Profit 정상 표시)
+    # 1️⃣ [탭 1] 사내 정산용 (매출, 매입, Profit 정상 표시 + A4 가로 맞춤 엑셀)
     # -------------------------------------------------------------
     with tab_internal:
         st.markdown("##### 🔒 사내 정산용 매니페스트 (매출, 매입, 마진 포함)")
@@ -2787,9 +2787,63 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
                 st.dataframe(display_view_df, use_container_width=True)
 
+                # A4 가로 1페이지 자동 맞춤 사내 매니페스트 엑셀 생성
                 excel_buffer = io.BytesIO()
-                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                    manifest_display_df.to_excel(writer, index=False, sheet_name='사내매니페스트')
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                ws.title = "사내매니페스트"
+
+                ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
+                ws.page_setup.paperSize = ws.PAPERSIZE_A4
+                ws.sheet_properties.pageSetUpPr.fitToPage = True
+                ws.page_setup.fitToWidth = 1
+                ws.page_setup.fitToHeight = 0
+
+                header_fill = openpyxl.styles.PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+                header_font = openpyxl.styles.Font(name="맑은 고딕", size=10, bold=True, color="FFFFFF")
+                data_font = openpyxl.styles.Font(name="맑은 고딕", size=9)
+                thin_border = openpyxl.styles.Border(
+                    left=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                    right=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                    top=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                    bottom=openpyxl.styles.Side(style='thin', color='CBD5E1')
+                )
+                center_align = openpyxl.styles.Alignment(horizontal='center', vertical='center')
+                right_align = openpyxl.styles.Alignment(horizontal='right', vertical='center')
+                left_align = openpyxl.styles.Alignment(horizontal='left', vertical='center')
+
+                headers = list(manifest_display_df.columns)
+                ws.append(headers)
+
+                for cell in ws[1]:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = center_align
+
+                for row in manifest_display_df.itertuples(index=False):
+                    ws.append(list(row))
+
+                for row_idx in range(2, ws.max_row + 1):
+                    for col_idx in range(1, ws.max_column + 1):
+                        cell = ws.cell(row=row_idx, column=col_idx)
+                        cell.font = data_font
+                        cell.border = thin_border
+                        if col_idx in [1, 2, 5, 7, 8]:
+                            cell.alignment = center_align
+                        elif col_idx in [9, 10, 11]:
+                            cell.alignment = right_align
+                            cell.number_format = '#,##0'
+                        else:
+                            cell.alignment = left_align
+
+                col_widths = {
+                    'A': 12, 'B': 14, 'C': 18, 'D': 16, 'E': 10, 
+                    'F': 18, 'G': 14, 'H': 16, 'I': 14, 'J': 14, 'K': 14
+                }
+                for col_letter, width in col_widths.items():
+                    ws.column_dimensions[col_letter].width = width
+
+                wb.save(excel_buffer)
                 excel_data = excel_buffer.getvalue()
 
                 st.download_button(
@@ -2805,7 +2859,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
             st.info("해당 날짜에 등록된 선적 내역이 없습니다.")
 
     # -------------------------------------------------------------
-    # 2️⃣ [탭 2] 거래처 공유용 입고 LIST (매입처별 필터 & 전화번호 포함)
+    # 2️⃣ [탭 2] 거래처 공유용 입고 LIST
     # -------------------------------------------------------------
     with tab_external:
         st.markdown("##### 📦 입고 LIST (매입처별 / 금액 제외 / 전화번호 포함)")
@@ -2822,7 +2876,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
         ]
 
         if share_shipments:
-            # 매입처별 필터로 변경
             available_suppliers = sorted(list(set(str(r.get("매입처", "-")) for r in share_shipments if str(r.get("매입처", "-")).strip())))
             supplier_filter_options = ["전체 매입처 보기"] + available_suppliers
             
@@ -2883,7 +2936,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 
                 st.dataframe(share_display_df, use_container_width=True, hide_index=True)
 
-                # A4 자동 맞춤 엑셀 생성
                 excel_buffer_share = io.BytesIO()
                 wb = openpyxl.Workbook()
                 ws = wb.active
@@ -2945,7 +2997,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
             else:
                 st.warning("⚠️ 선택하신 매입처 조건에 해당하는 선적 내역이 없습니다.")
         else:
-            st.info("해당 날짜에 등록된 선적 내역이 없습니다.")   
+            st.info("해당 날짜에 등록된 선적 내역이 없습니다.")
 # ==========================================
 # [8] 매출 거래처(화주) 관리 (메인 메뉴 독립)
 # ==========================================
