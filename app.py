@@ -2722,7 +2722,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
     tab_internal, tab_external = st.tabs(["🔒 사내 정산용 (매출/매입/Profit 포함)", "📤 거래처 공유용 입고 LIST (금액 제외)"])
 
     # -------------------------------------------------------------
-    # 1️⃣ [탭 1] 사내 정산용 (매출, 매입, Profit 정상 표시 + A4 가로 맞춤 엑셀)
+    # 1️⃣ [탭 1] 사내 정산용 (매출, 매입, Profit + 맨 아래 합계 행 포함 + A4 가로 맞춤 엑셀)
     # -------------------------------------------------------------
     with tab_internal:
         st.markdown("##### 🔒 사내 정산용 매니페스트 (매출, 매입, 마진 포함)")
@@ -2779,15 +2779,36 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     })
 
                 manifest_display_df = pd.DataFrame(manifest_rows)
-                display_view_df = manifest_display_df.copy()
-                display_view_df["매출청구중량(kg)"] = display_view_df["매출청구중량(kg)"].apply(lambda x: f"{x:.1f} kg")
-                display_view_df["매출액(원)"] = display_view_df["매출액(원)"].apply(lambda x: f"{x:,} 원")
-                display_view_df["매입액(원)"] = display_view_df["매입액(원)"].apply(lambda x: f"{x:,} 원")
-                display_view_df["Profit(원)"] = display_view_df["Profit(원)"].apply(lambda x: f"{x:,} 원")
+                
+                # ➕ 매출, 매입, Profit 총합계 행 계산
+                total_sales_sum = manifest_display_df["매출액(원)"].sum()
+                total_purchase_sum = manifest_display_df["매입액(원)"].sum()
+                total_profit_sum = manifest_display_df["Profit(원)"].sum()
+
+                summary_row = pd.DataFrame([{
+                    "날짜": "합계",
+                    "B/L 번호": f"총 {len(manifest_display_df)}건",
+                    "화주명(매출)": "",
+                    "해외수하인": "",
+                    "박스수": "",
+                    "부피규격": "",
+                    "매출청구중량(kg)": manifest_display_df["매출청구중량(kg)"].sum(),
+                    "매입처": "",
+                    "매출액(원)": total_sales_sum,
+                    "매입액(원)": total_purchase_sum,
+                    "Profit(원)": total_profit_sum,
+                }])
+                
+                # 화면 표시용 데이터프레임 (단위 서식 적용)
+                display_view_df = pd.concat([manifest_display_df, summary_row], ignore_index=True)
+                display_view_df["매출청구중량(kg)"] = display_view_df["매출청구중량(kg)"].apply(lambda x: f"{x:.1f} kg" if pd.notna(x) and x != "" else "")
+                display_view_df["매출액(원)"] = display_view_df["매출액(원)"].apply(lambda x: f"{int(x):,} 원" if pd.notna(x) and x != "" else "")
+                display_view_df["매입액(원)"] = display_view_df["매입액(원)"].apply(lambda x: f"{int(x):,} 원" if pd.notna(x) and x != "" else "")
+                display_view_df["Profit(원)"] = display_view_df["Profit(원)"].apply(lambda x: f"{int(x):,} 원" if pd.notna(x) and x != "" else "")
 
                 st.dataframe(display_view_df, use_container_width=True)
 
-                # A4 가로 1페이지 자동 맞춤 사내 매니페스트 엑셀 생성
+                # A4 가로 1페이지 자동 맞춤 + 합계 행 강조 엑셀 생성
                 excel_buffer = io.BytesIO()
                 wb = openpyxl.Workbook()
                 ws = wb.active
@@ -2800,19 +2821,33 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 ws.page_setup.fitToHeight = 0
 
                 header_fill = openpyxl.styles.PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+                summary_fill = openpyxl.styles.PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+                
                 header_font = openpyxl.styles.Font(name="맑은 고딕", size=10, bold=True, color="FFFFFF")
                 data_font = openpyxl.styles.Font(name="맑은 고딕", size=9)
+                summary_font = openpyxl.styles.Font(name="맑은 고딕", size=9.5, bold=True)
+                
                 thin_border = openpyxl.styles.Border(
                     left=openpyxl.styles.Side(style='thin', color='CBD5E1'),
                     right=openpyxl.styles.Side(style='thin', color='CBD5E1'),
                     top=openpyxl.styles.Side(style='thin', color='CBD5E1'),
                     bottom=openpyxl.styles.Side(style='thin', color='CBD5E1')
                 )
+                summary_border = openpyxl.styles.Border(
+                    left=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                    right=openpyxl.styles.Side(style='thin', color='CBD5E1'),
+                    top=openpyxl.styles.Side(style='medium', color='0F172A'),
+                    bottom=openpyxl.styles.Side(style='double', color='0F172A')
+                )
+
                 center_align = openpyxl.styles.Alignment(horizontal='center', vertical='center')
                 right_align = openpyxl.styles.Alignment(horizontal='right', vertical='center')
                 left_align = openpyxl.styles.Alignment(horizontal='left', vertical='center')
 
-                headers = list(manifest_display_df.columns)
+                # 원본 데이터와 합계 행을 결합하여 엑셀로 출력
+                excel_export_df = pd.concat([manifest_display_df, summary_row], ignore_index=True)
+
+                headers = list(excel_export_df.columns)
                 ws.append(headers)
 
                 for cell in ws[1]:
@@ -2820,14 +2855,24 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     cell.font = header_font
                     cell.alignment = center_align
 
-                for row in manifest_display_df.itertuples(index=False):
+                for row in excel_export_df.itertuples(index=False):
                     ws.append(list(row))
 
-                for row_idx in range(2, ws.max_row + 1):
+                max_r = ws.max_row
+                for row_idx in range(2, max_r + 1):
+                    is_summary_row = (row_idx == max_r) # 마지막 행이 합계 행
                     for col_idx in range(1, ws.max_column + 1):
                         cell = ws.cell(row=row_idx, column=col_idx)
-                        cell.font = data_font
-                        cell.border = thin_border
+                        
+                        if is_summary_row:
+                            cell.font = summary_font
+                            cell.fill = summary_fill
+                            cell.border = summary_border
+                        else:
+                            cell.font = data_font
+                            cell.border = thin_border
+
+                        # 열별 정렬 및 숫자 천단위 쉼표 서식
                         if col_idx in [1, 2, 5, 7, 8]:
                             cell.alignment = center_align
                         elif col_idx in [9, 10, 11]:
@@ -2859,7 +2904,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
             st.info("해당 날짜에 등록된 선적 내역이 없습니다.")
 
     # -------------------------------------------------------------
-    # 2️⃣ [탭 2] 거래처 공유용 입고 LIST
+    # 2️⃣ [탭 2] 거래처 공유용 입고 LIST (매입처별 필터 & 전화번호 포함)
     # -------------------------------------------------------------
     with tab_external:
         st.markdown("##### 📦 입고 LIST (매입처별 / 금액 제외 / 전화번호 포함)")
