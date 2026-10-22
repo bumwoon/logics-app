@@ -2711,19 +2711,19 @@ elif selected_menu == "🤝 거래처 미팅 노트":
     )
 
 # ==========================================
-# [7] 금일발송 매니페스트 (엑셀 다운로드 openpyxl 적용 및 인쇄 버튼 포함)
+# [7] 금일발송 매니페스트 (거래처 공유용 - 수화인 전화번호 추가)
 # ==========================================
 elif selected_menu == "📋 금일발송 매니페스트":
     st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px;'>📋"
-        " 날짜별 발송 화물 매니페스트 및 Profit 정산</h3>",
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 10px; font-size: 22px;'>📋 입고 LIST (거래처 공유용)</h3>",
         unsafe_allow_html=True,
     )
+    st.markdown("<p style='color: #475569; font-size: 14px; margin-bottom: 15px;'>거래처 공유를 위해 매출·매입 가격 및 Profit(마진) 정보를 제외하고 필수 항목만 크게 표시합니다.</p>", unsafe_allow_html=True)
 
     m_col_f1, m_col_f2 = st.columns(2)
     with m_col_f1:
         selected_manifest_date = st.date_input(
-            "1️⃣ 조회할 선적 날짜 선택", value=date.today(), key="manifest_date_picker"
+            "1️⃣ 조회할 선적 날짜 선택", value=date.today(), key="manifest_date_picker_share"
         )
     
     target_date_str = str(selected_manifest_date)
@@ -2740,9 +2740,9 @@ elif selected_menu == "📋 금일발송 매니페스트":
         
         with m_col_f2:
             selected_vendor_filter = st.selectbox(
-                "2️⃣ 출력할 매입처 선택 (카스, 윤세형 등 따로 선택)", 
+                "2️⃣ 출력할 매입처 선택", 
                 options=supplier_filter_options, 
-                key="manifest_vendor_filter_select"
+                key="manifest_vendor_filter_select_share"
             )
 
         if selected_vendor_filter == "전체 매입처 보기":
@@ -2757,68 +2757,61 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
         if filtered_shipments:
             st.markdown(
-                f"#### 📦 [{target_date_str}] 선적 내역 (선택 매입처: <span style='color: #2563eb;'>{selected_vendor_filter}</span> - 총 {len(filtered_shipments)}건)", 
+                f"#### 📦 [{target_date_str}] 입고 LIST (총 <span style='color: #2563eb;'>{len(filtered_shipments)}</span>건)", 
                 unsafe_allow_html=True
             )
 
             manifest_rows = []
-            for r_m in filtered_shipments:
+            for idx, r_m in enumerate(filtered_shipments, 1):
                 try:
-                    sales_amt = int(float(str(r_m.get("매출액(원)", 0)).replace(",", "") or 0))
+                    raw_gw = float(r_m.get("실중량(kg)", r_m.get("매출실중량(kg)", 1.0)) or 1.0)
+                    gw_str = f"{raw_gw:.2f}"
                 except:
-                    sales_amt = 0
-                
-                try:
-                    purchase_amt = int(float(str(r_m.get("매입액(원)", 0)).replace(",", "") or 0))
-                except:
-                    purchase_amt = 0
-                    
-                profit_amt = sales_amt - purchase_amt
+                    gw_str = "1.00"
 
                 manifest_rows.append({
-                    "날짜": str(r_m.get("날짜", target_date_str))[:10],
+                    "NO": idx,
+                    "입고날짜": str(r_m.get("날짜", target_date_str))[:10],
                     "B/L 번호": str(r_m.get("B/L 번호", "-")),
-                    "화주명(매출)": str(r_m.get("화주명(매출)", "-")),
-                    "해외수하인": str(r_m.get("해외수하인", "-")),
-                    "박스수": str(r_m.get("박스수", "1 박스")),
-                    "부피규격": str(r_m.get("부피규격", "-")),
-                    "매출청구중량(kg)": float(r_m.get('매출청구중량(kg)', 1.0)),
-                    "매입처": str(r_m.get("매입처", "-")),
-                    "매출액(원)": sales_amt,
-                    "매입액(원)": purchase_amt,
-                    "Profit(원)": profit_amt,
+                    "실중량(kg)": gw_str,
+                    "부피규격(사이즈)": str(r_m.get("부피규격", "-")),
+                    "수하인": str(r_m.get("해외수하인", "-")),
+                    "수하인 전화번호": str(r_m.get("해외수하인전화번호", "-")),
+                    "수하인 주소": str(r_m.get("해외수하인주소", "-")),
                 })
 
             manifest_display_df = pd.DataFrame(manifest_rows)
-            
-            # 화면 표시용 포맷 데이터프레임
-            display_view_df = manifest_display_df.copy()
-            display_view_df["매출청구중량(kg)"] = display_view_df["매출청구중량(kg)"].apply(lambda x: f"{x:.1f} kg")
-            display_view_df["매출액(원)"] = display_view_df["매출액(원)"].apply(lambda x: f"{x:,} 원")
-            display_view_df["매입액(원)"] = display_view_df["매입액(원)"].apply(lambda x: f"{x:,} 원")
-            display_view_df["Profit(원)"] = display_view_df["Profit(원)"].apply(lambda x: f"{x:,} 원")
 
-            st.dataframe(display_view_df, use_container_width=True)
+            st.markdown(
+                """
+                <style>
+                table { font-size: 14px !important; }
+                th { font-size: 14.5px !important; background-color: #1e3a8a !important; color: white !important; text-align: center !important; }
+                td { font-size: 13.5px !important; padding: 10px 8px !important; }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+            
+            st.dataframe(manifest_display_df, use_container_width=True, hide_index=True)
 
             st.markdown("---")
 
-            # 📥 엑셀 다운로드 버튼 추가 영역 (engine='openpyxl' 적용)
             excel_buffer = io.BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                manifest_display_df.to_excel(writer, index=False, sheet_name='금일발송매니페스트')
+                manifest_display_df.to_excel(writer, index=False, sheet_name='입고LIST')
             excel_data = excel_buffer.getvalue()
 
             d_col1, d_col2 = st.columns(2)
             with d_col1:
                 st.download_button(
-                    label="📥 현재 매니페스트 엑셀 다운로드 (.xlsx)",
+                    label="📥 거래처 공유용 입고리스트 엑셀 다운로드 (.xlsx)",
                     data=excel_data,
-                    file_name=f"Bumwoon_Manifest_{target_date_str}_{selected_vendor_filter}.xlsx",
+                    file_name=f"Bumwoon_Inbound_List_{target_date_str}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
 
-            # 선택한 매입처 전용 인쇄용 HTML 팝업 생성
             manifest_html = f"""
             <!DOCTYPE html>
             <html>
@@ -2830,54 +2823,54 @@ elif selected_menu == "📋 금일발송 매니페스트":
                         .no-print {{ display: none !important; }}
                         @page {{ size: A4 landscape; margin: 10mm; }}
                     }}
-                    body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9pt; margin: 0; padding: 10px; background: #fff; }}
-                    .box {{ max-width: 1050px; margin: 0 auto; border: 2px solid #0f172a; padding: 20px; border-radius: 6px; }}
-                    .t-tbl {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-                    .t-tbl th, .t-tbl td {{ border: 1px solid #64748b; padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 8.5pt; }}
-                    .t-tbl th {{ background-color: #0f172a; color: white; }}
-                    .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 10px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 15px; }}
+                    body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 10pt; margin: 0; padding: 15px; background: #fff; }}
+                    .box {{ max-width: 1150px; margin: 0 auto; border: 2px solid #0f172a; padding: 25px; border-radius: 8px; }}
+                    .t-tbl {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                    .t-tbl th, .t-tbl td {{ border: 1px solid #475569; padding: 9px 10px; text-align: left; vertical-align: middle; font-size: 10pt; }}
+                    .t-tbl th {{ background-color: #0f172a; color: white; text-align: center; font-weight: bold; }}
+                    .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 14px; font-size: 13pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }}
                 </style>
             </head>
             <body>
                 <div class="box">
-                    <button class="p-btn no-print" onclick="window.print()">🖨 매니페스트 인쇄 / PDF 저장</button>
-                    <h2 style="text-align: center; color: #1e3a8a; margin-bottom: 5px;">[{target_date_str}] 선적 화물 매니페스트</h2>
-                    <p style="text-align: center; color: #475569; font-size: 9pt; margin-top: 0;">매입처: <b>{selected_vendor_filter}</b> | (주)범운해운항공</p>
+                    <button class="p-btn no-print" onclick="window.print()">🖨 입고리스트 인쇄 / PDF 저장</button>
+                    <h2 style="text-align: center; color: #1e3a8a; margin-bottom: 5px; font-size: 20pt; font-weight: 900;">입 고 LIST</h2>
+                    <p style="text-align: center; color: #475569; font-size: 11pt; margin-top: 0;">선적일자: <b>{target_date_str}</b> | (주)범운해운항공</p>
                     <table class="t-tbl">
                         <tr>
-                            <th>선적일자</th><th>B/L 번호</th><th>화주명(매출)</th><th>해외수하인</th><th>박스수</th><th>부피규격</th><th>청구중량</th><th>매입처</th><th>매출액</th><th>매입액</th><th>Profit</th>
+                            <th style="width: 5%;">NO</th>
+                            <th style="width: 10%;">입고날짜</th>
+                            <th style="width: 11%;">B/L 번호</th>
+                            <th style="width: 9%;">실중량(kg)</th>
+                            <th style="width: 16%;">부피규격(사이즈)</th>
+                            <th style="width: 12%;">수하인</th>
+                            <th style="width: 13%;">전화번호</th>
+                            <th style="width: 24%;">수하인 주소</th>
                         </tr>
             """
-            for r_m in filtered_shipments:
+            for idx, r_m in enumerate(filtered_shipments, 1):
                 try:
-                    s_amt = int(float(str(r_m.get("매출액(원)", 0)).replace(",", "") or 0))
+                    raw_gw = float(r_m.get("실중량(kg)", r_m.get("매출실중량(kg)", 1.0)) or 1.0)
+                    gw_str = f"{raw_gw:.2f}"
                 except:
-                    s_amt = 0
-                try:
-                    p_amt = int(float(str(r_m.get("매입액(원)", 0)).replace(",", "") or 0))
-                except:
-                    p_amt = 0
-                prof_amt = s_amt - p_amt
+                    gw_str = "1.00"
 
                 manifest_html += f"""
                         <tr>
-                            <td>{str(r_m.get("날짜", target_date_str))[:10]}</td>
-                            <td style="font-weight: bold;">{str(r_m.get("B/L 번호", "-"))}</td>
-                            <td>{str(r_m.get("화주명(매출)", "-"))}</td>
-                            <td>{str(r_m.get("해외수하인", "-"))}</td>
-                            <td>{str(r_m.get("박스수", "1 박스"))}</td>
-                            <td>{str(r_m.get("부피규격", "-"))}</td>
-                            <td>{float(r_m.get('매출청구중량(kg)', 1.0)):.1f} kg</td>
-                            <td>{str(r_m.get("매입처", "-"))}</td>
-                            <td style="text-align: right;">{s_amt:,} 원</td>
-                            <td style="text-align: right;">{p_amt:,} 원</td>
-                            <td style="text-align: right; font-weight: bold; color: #2563eb;">{prof_amt:,} 원</td>
+                            <td style="text-align: center; font-weight: bold;">{idx}</td>
+                            <td style="text-align: center;">{str(r_m.get("날짜", target_date_str))[:10]}</td>
+                            <td style="text-align: center; font-weight: bold;">{str(r_m.get("B/L 번호", "-"))}</td>
+                            <td style="text-align: center;">{gw_str} kg</td>
+                            <td style="text-align: center;">{str(r_m.get("부피규격", "-"))}</td>
+                            <td style="font-weight: bold;">{str(r_m.get("해외수하인", "-"))}</td>
+                            <td>{str(r_m.get("해외수하인전화번호", "-"))}</td>
+                            <td>{str(r_m.get("해외수하인주소", "-"))}</td>
                         </tr>
                 """
             manifest_html += """
                     </table>
-                    <div style="margin-top: 20px; text-align: right; font-weight: bold; font-size: 10pt;">
-                        (주)범운해운항공 대표이사 이상복 [직인생략]
+                    <div style="margin-top: 30px; text-align: right; font-weight: bold; font-size: 12pt;">
+                        주식회사 범운해운항공 대표이사 이상복 [직인생략]
                     </div>
                 </div>
             </body>
@@ -2885,10 +2878,10 @@ elif selected_menu == "📋 금일발송 매니페스트":
             """
             
             with d_col2:
-                if st.button("🖨 매니페스트 인쇄 / PDF 보고서", type="primary", use_container_width=True):
-                    components.html(manifest_html, height=700, scrolling=True)
+                if st.button("🖨 입고리스트 인쇄 / PDF 보고서", type="primary", use_container_width=True):
+                    components.html(manifest_html, height=750, scrolling=True)
         else:
-            st.warning("⚠️ 선택하신 매입처에 해당하는 선적 내역이 없습니다.")
+            st.warning("⚠️ 선택하신 조건에 해당하는 선적 내역이 없습니다.")
     else:
         st.info("해당 날짜에 등록된 선적 내역이 없습니다.")
 # ==========================================
