@@ -2366,7 +2366,7 @@ elif selected_menu == "🚢 B/L 운송장 출력":
         st.info("등록된 B/L 데이터가 없습니다.")
 
 # ==========================================
-# [4] 거래처 인보이스 발행
+# [4] 거래처 인보이스 발행 (기간 선택 기능 추가 완료)
 # ==========================================
 elif selected_menu == "📑 거래처 인보이스 발행":
   st.markdown(
@@ -2376,15 +2376,33 @@ elif selected_menu == "📑 거래처 인보이스 발행":
   )
 
   if st.session_state.client_list:
-    col_inv1, col_inv2, col_inv3 = st.columns([1.5, 1.5, 1])
+    col_inv1, col_inv2, col_inv3 = st.columns([1.5, 1.8, 1])
     with col_inv1:
       selected_invoice_client = st.selectbox(
           "인보이스를 발행할 거래처 선택", options=st.session_state.client_list
       )
     with col_inv2:
-      selected_invoice_date = st.date_input(
-          "조회할 선적 날짜 선택", value=date.today(), key="invoice_target_date"
+      # 📅 단일 날짜가 아닌 [시작일, 종료일] 범위 선택 기능 적용
+      today_val = date.today()
+      default_start = today_val.replace(day=1) # 해당 월 1일
+      
+      date_range = st.date_input(
+          "조회할 선적 기간 선택 (시작일 ~ 종료일)",
+          value=(default_start, today_val),
+          key="invoice_target_date_range"
       )
+      
+      # 기간 선택 처리 (시작일과 종료일 분리)
+      if isinstance(date_range, (list, tuple)):
+          if len(date_range) == 2:
+              start_date, end_date = date_range[0], date_range[1]
+          elif len(date_range) == 1:
+              start_date, end_date = date_range[0], date_range[0]
+          else:
+              start_date = end_date = today_val
+      else:
+          start_date = end_date = date_range
+
     with col_inv3:
       tax_mode = st.selectbox(
           "영세율 / 세금계산서 설정",
@@ -2394,22 +2412,30 @@ elif selected_menu == "📑 거래처 인보이스 발행":
           ],
       )
 
-    target_date_str = str(selected_invoice_date)
+    start_date_str = str(start_date)
+    end_date_str = str(end_date)
+    date_display_text = f"{start_date_str} ~ {end_date_str}" if start_date != end_date else start_date_str
+
     client_infos = st.session_state.client_infos.get(
         selected_invoice_client, {}
     )
 
+    # 지정한 기간(start_date ~ end_date) 내의 B/L 필터링
     client_bl_list = []
     if "bl_data_list" in st.session_state and st.session_state.bl_data_list:
       for j in st.session_state.bl_data_list:
-        if (
-            j.get("화주명(매출)") == selected_invoice_client
-            and str(j.get("날짜", "")) == target_date_str
-        ):
-          client_bl_list.append(j)
+        if j.get("화주명(매출)") == selected_invoice_client:
+          ship_d_str = str(j.get("날짜", ""))[:10]
+          try:
+            ship_d = datetime.strptime(ship_d_str, "%Y-%m-%d").date()
+            if start_date <= ship_d <= end_date:
+              client_bl_list.append(j)
+          except Exception:
+            if start_date_str <= ship_d_str <= end_date_str:
+              client_bl_list.append(j)
 
     st.markdown(
-        f"#### 📌 [{selected_invoice_client}] [{target_date_str}] 청구 대상"
+        f"#### 📌 [{selected_invoice_client}] [{date_display_text}] 청구 대상"
         f" B/L 목록 (총 {len(client_bl_list)}건)"
     )
 
@@ -2473,7 +2499,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                     <div class="inv-box">
                         <button class="p-btn no-print" onclick="window.print()">🖨 인보이스 인쇄 및 PDF 저장</button>
                         <h1 style="text-align: center; color: #1e3a8a; margin-bottom: 5px; font-size: 18pt; font-weight: 900;">청 구 서 (INVOICE)</h1>
-                        <p style="text-align: center; color: #475569; font-size: 8.5pt; margin-top: 0;">(주)범운해운항공 | 발행일자: {date.today()} | 선적기준일: {target_date_str}</p>
+                        <p style="text-align: center; color: #475569; font-size: 8.5pt; margin-top: 0;">(주)범운해운항공 | 발행일자: {date.today()} | 선적기간: <b>{date_display_text}</b></p>
                         <table style="width: 100%; margin-top: 12px; border-collapse: collapse;">
                             <tr>
                                 <td style="border: 1px solid #64748b; padding: 8px; background: #fff; font-size: 9pt;">
@@ -2489,7 +2515,7 @@ elif selected_menu == "📑 거래처 인보이스 발행":
         for r in client_bl_list:
           invoice_html += f"""
                     <tr>
-                        <td>{r.get("날짜", target_date_str)}</td>
+                        <td>{r.get("날짜", "-")}</td>
                         <td style="font-weight: bold;">{r.get("B/L 번호", "-")}</td>
                         <td>{r.get("국가", "-")}</td>
                         <td>{r.get("해외수하인", "-")}</td>
@@ -2517,10 +2543,9 @@ elif selected_menu == "📑 거래처 인보이스 발행":
         components.html(invoice_html, height=850, scrolling=True)
     else:
       st.info(
-          f"[{selected_invoice_client}] 거래처의 [{target_date_str}] 선적"
-          " 데이터가 없습니다."
+          f"[{selected_invoice_client}] 거래처의 [{date_display_text}] 기간 내"
+          " 선적 데이터가 없습니다."
       )
-
 
 # ==========================================
 # [5] 화물 견적서 발행
