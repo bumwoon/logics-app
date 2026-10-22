@@ -2805,7 +2805,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
             st.info("해당 날짜에 등록된 선적 내역이 없습니다.")
 
     # -------------------------------------------------------------
-    # 2️⃣ [탭 2] 거래처 공유용 입고 LIST (금액 제외, 수정 없이 바로 송부 가능)
+    # 2️⃣ [탭 2] 거래처 공유용 입고 LIST (A4 인쇄 자동 맞춤 & nan 완벽 제거)
     # -------------------------------------------------------------
     with tab_external:
         st.markdown("##### 📦 거래처 제출용 입고 LIST (매출/매입 단가 및 Profit 제외)")
@@ -2839,25 +2839,37 @@ elif selected_menu == "📋 금일발송 매니페스트":
 
                 share_rows = []
                 for idx, r_m in enumerate(filtered_share_shipments, 1):
-                    try:
-                        raw_gw = float(r_m.get("실중량(kg)", r_m.get("매출실중량(kg)", 1.0)) or 1.0)
-                        gw_str = f"{raw_gw:.2f}"
-                    except:
-                        gw_str = "1.00"
+                    # nan 처리 로직 (비어있는 경우 빈칸 또는 - 표시)
+                    def clean_val(v):
+                        if v is None:
+                            return ""
+                        s = str(v).strip()
+                        if s.lower() in ["nan", "none", "", "null"]:
+                            return ""
+                        return s
+
+                    gw_val = clean_val(r_m.get("실중량(kg)", r_m.get("매출실중량(kg)")))
+                    if gw_val:
+                        try:
+                            gw_str = f"{float(gw_val):.2f}"
+                        except:
+                            gw_str = gw_val
+                    else:
+                        gw_str = ""
 
                     share_rows.append({
                         "NO": idx,
                         "입고날짜": str(r_m.get("날짜", share_date_str))[:10],
-                        "B/L 번호": str(r_m.get("B/L 번호", "-")),
+                        "B/L 번호": clean_val(r_m.get("B/L 번호")),
                         "실중량(kg)": gw_str,
-                        "부피규격(사이즈)": str(r_m.get("부피규격", "-")),
-                        "수하인": str(r_m.get("해외수하인", "-")),
-                        "수하인 전화번호": str(r_m.get("해외수하인전화번호", "-")),
-                        "수하인 주소": str(r_m.get("해외수하인주소", "-")),
+                        "부피규격(사이즈)": clean_val(r_m.get("부피규격")),
+                        "수하인": clean_val(r_m.get("해외수하인")),
+                        "수하인 주소": clean_val(r_m.get("해외수하인주소")),
                     })
 
                 share_display_df = pd.DataFrame(share_rows)
 
+                # 화면 표시 스타일 (글씨 크게 & 깔끔하게)
                 st.markdown(
                     """
                     <style>
@@ -2871,11 +2883,66 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 
                 st.dataframe(share_display_df, use_container_width=True, hide_index=True)
 
+                # ---------------------------------------------------------
+                # 📥 A4 용지 자동 맞춤 엑셀 생성 로직 (openpyxl 활용)
+                # ---------------------------------------------------------
                 excel_buffer_share = io.BytesIO()
-                with pd.ExcelWriter(excel_buffer_share, engine='openpyxl') as writer:
-                    share_display_df.to_excel(writer, index=False, sheet_name='입고LIST')
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                ws.title = "입고LIST"
+
+                # A4 가로 인쇄 설정
+                ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
+                ws.page_setup.paperSize = ws.PAPERSIZE_A4
+                ws.sheet_properties.pageSetUpPr.fitToPage = True
+                ws.page_setup.fitToWidth = 1
+                ws.page_setup.fitToHeight = 0
+
+                # 헤더 스타일 정의
+                header_fill = openpyxl.styles.PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+                header_font = openpyxl.styles.Font(name="맑은 고딕", size=11, bold=True, color="FFFFFF")
+                data_font = openpyxl.styles.Font(name="맑은 고딕", size=10)
+                thin_border = openpyxl.styles.Border(
+                    left=openpyxl.styles.Side(style='thin', color='D9D9D9'),
+                    right=openpyxl.styles.Side(style='thin', color='D9D9D9'),
+                    top=openpyxl.styles.Side(style='thin', color='D9D9D9'),
+                    bottom=openpyxl.styles.Side(style='thin', color='D9D9D9')
+                )
+                center_align = openpyxl.styles.Alignment(horizontal='center', vertical='center')
+                left_align = openpyxl.styles.Alignment(horizontal='left', vertical='center')
+
+                # 제목 행 및 데이터 작성
+                headers = list(share_display_df.columns)
+                ws.append(headers)
+
+                for cell in ws[1]:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = center_align
+
+                for row in share_display_df.itertuples(index=False):
+                    ws.append(list(row))
+
+                # 데이터 행 스타일 적용 및 열 너비 자동 조정
+                for row_idx in range(2, ws.max_row + 1):
+                    for col_idx in range(1, ws.max_column + 1):
+                        cell = ws.cell(row=row_idx, column=col_idx)
+                        cell.font = data_font
+                        cell.border = thin_border
+                        if col_idx in [1, 2, 3, 4]:  # NO, 입고날짜, B/L번호, 실중량
+                            cell.alignment = center_align
+                        else:
+                            cell.alignment = left_align
+
+                # 열 너비 설정
+                col_widths = {'A': 6, 'B': 13, 'C': 15, 'D': 12, 'E': 25, 'F': 20, 'G': 45}
+                for col_letter, width in col_widths.items():
+                    ws.column_dimensions[col_letter].width = width
+
+                wb.save(excel_buffer_share)
                 excel_data_share = excel_buffer_share.getvalue()
 
+                # 다운로드 버튼
                 st.download_button(
                     label="📥 거래처 공유용 입고리스트 엑셀 다운로드 (.xlsx)",
                     data=excel_data_share,
@@ -2886,7 +2953,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
             else:
                 st.warning("⚠️ 선택하신 조건에 해당하는 선적 내역이 없습니다.")
         else:
-            st.info("해당 날짜에 등록된 선적 내역이 없습니다.")
+            st.info("해당 날짜에 등록된 선적 내역이 없습니다.")    
 # ==========================================
 # [8] 매출 거래처(화주) 관리 (메인 메뉴 독립)
 # ==========================================
