@@ -3620,11 +3620,11 @@ elif selected_menu == "💵 거래처 미수금관리":
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [일계표 및 입출금 장부] 메뉴 (달력 선택 방식 적용)
+# [💳 일계표 및 입출금 장부] 메뉴 (지급상태 추가 버전)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📊 일계표 및 입출금 장부</h3>",
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📊 일계표 및 입출금 장부 (지급 상태 관리)</h3>",
         unsafe_allow_html=True,
     )
 
@@ -3633,7 +3633,13 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     cashbook_data = st.session_state.cashbook_list
 
-    # --- 1. 상단: 날짜별 필터 (달력 위젯 표시) 및 인쇄/다운로드 버튼 ---
+    # 1. 데이터에 '지급상태' 컬럼이 없으면 기본값('미지급') 자동 채우기
+    for item in cashbook_data:
+        if "지급상태" not in item:
+            # 수입인 경우는 보통 '지급완료' 또는 빈값, 지출인 경우는 '미지급' 기본 세팅
+            item["지급상태"] = "지급완료" if "수입" in str(item.get("구분", "")) else "미지급"
+
+    # --- 2. 상단: 날짜별 필터 (달력 위젯 표시) 및 인쇄/다운로드 버튼 ---
     st.markdown("#### 📅 날짜별 조회 및 인쇄")
     
     col_f1, col_f2 = st.columns([1.5, 2])
@@ -3643,7 +3649,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     selected_target_date = str(date.today())
     if date_filter_mode == "특정 날짜 선택":
         with col_f2:
-            # 📅 클릭하여 날짜를 고를 수 있는 달력 위젯 적용
             picked_date = st.date_input("📅 조회할 날짜 선택 (달력)", value=date.today(), key="cash_date_picker_calendar")
             selected_target_date = str(picked_date)
 
@@ -3654,7 +3659,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         if date_filter_mode == "전체 기간" or item_date == selected_target_date:
             filtered_cash_data.append(item)
 
-    # --- 2. 통장 잔액 및 수입/지출 총액 요약 (선택한 조건 기준) ---
+    # --- 3. 통장 잔액 및 수입/지출 총액 요약 ---
     total_income = sum(
         float(str(item.get("금액(원)", 0)).replace(",", ""))
         for item in filtered_cash_data
@@ -3677,7 +3682,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     st.markdown("---")
 
-    # --- 3. 중단: 장부 내역 조회 및 편집/삭제 ---
+    # --- 4. 중단: 장부 내역 조회 및 편집/삭제 (지급상태 컬럼 셀렉트박스 지원) ---
     print_title = "전체 일계표" if date_filter_mode == "전체 기간" else f"{selected_target_date} 일계표"
     title_label = f"📋 등록된 장부 내역 (전체)" if date_filter_mode == "전체 기간" else f"📋 [{selected_target_date}] 일일 장부 내역"
     st.markdown(f"#### {title_label}")
@@ -3692,9 +3697,14 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             hide_index=True,
             use_container_width=True,
             column_config={
-                "선택": st.column_config.CheckboxColumn("삭제 선택", default=False)
+                "선택": st.column_config.CheckboxColumn("삭제 선택", default=False),
+                "지급상태": st.column_config.SelectboxColumn(
+                    "지급상태",
+                    options=["지급완료", "미지급", ""],
+                    required=False
+                )
             },
-            key=f"cashbook_table_editor_{date_filter_mode}_{selected_target_date}",
+            key=f"cashbook_table_editor_v2_{date_filter_mode}_{selected_target_date}",
             height=320,
         )
 
@@ -3716,7 +3726,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
                     st.session_state.cashbook_list = edited_records
                     save_account_data(edited_records)
-                    st.success("일계표 변경 내용이 저장되었습니다.")
+                    st.success("일계표 변경 내용(지급상태 포함)이 저장되었습니다.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"저장 중 오류 발생: {e}")
@@ -3742,7 +3752,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 else:
                     st.warning("⚠️ 삭제할 행의 체크박스를 선택해주세요.")
         with c_btn3:
-            # 회사 보고용 격식 있는 고급 일계표 HTML 양식 생성
+            # 보고서 인쇄 HTML 생성 (지급상태 포함)
             print_html = f"""
             <!DOCTYPE html>
             <html>
@@ -3755,35 +3765,29 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                         @page {{ size: A4 portrait; margin: 12mm; }}
                     }}
                     body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9.5pt; margin: 0; padding: 15px; background: #fff; }}
-                    .report-box {{ max-width: 780px; margin: 0 auto; border: 1.5px solid #cbd5e1; padding: 25px; border-radius: 8px; background: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }}
-                    
+                    .report-box {{ max-width: 780px; margin: 0 auto; border: 1.5px solid #cbd5e1; padding: 25px; border-radius: 8px; background: #ffffff; }}
                     .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
                     .header-table td {{ border: none; vertical-align: middle; }}
-                    
                     .approval-table {{ border-collapse: collapse; float: right; }}
                     .approval-table th, .approval-table td {{ border: 1px solid #64748b; font-size: 8pt; text-align: center; padding: 4px 8px; }}
                     .approval-table th {{ background-color: #f1f5f9; color: #334155; }}
                     .approval-sign {{ height: 40px; }}
-
                     .summary-card {{ flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; text-align: center; }}
                     .summary-card.income {{ border-left: 4px solid #2563eb; }}
                     .summary-card.expense {{ border-left: 4px solid #dc2626; }}
                     .summary-card.balance {{ border-left: 4px solid #0f172a; background: #f1f5f9; }}
                     .card-title {{ font-size: 8pt; color: #64748b; font-weight: bold; margin-bottom: 4px; }}
                     .card-val {{ font-size: 11pt; font-weight: bold; color: #0f172a; }}
-
                     .data-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
                     .data-table th, .data-table td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: center; font-size: 9pt; }}
                     .data-table th {{ background-color: #0f172a; color: white; font-weight: 600; font-size: 9.5pt; }}
                     .data-table tr:nth-child(even) {{ background-color: #f8fafc; }}
-                    
                     .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 12px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }}
                 </style>
             </head>
             <body>
                 <div class="report-box">
-                    <button class="p-btn no-print" onclick="window.print()">🖨 격식 있는 일계표 보고서 인쇄 / PDF 저장</button>
-                    
+                    <button class="p-btn no-print" onclick="window.print()">🖨 일계표 보고서 인쇄 / PDF 저장</button>
                     <table class="header-table">
                         <tr>
                             <td>
@@ -3799,7 +3803,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                             </td>
                         </tr>
                     </table>
-
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: none;">
                         <tr>
                             <td style="border: none; padding: 0 6px 0 0; width: 33%;">
@@ -3822,23 +3825,25 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                             </td>
                         </tr>
                     </table>
-
                     <table class="data-table">
                         <tr>
-                            <th style="width: 15%;">거래일자</th>
-                            <th style="width: 15%;">구분</th>
-                            <th style="width: 20%;">항목</th>
-                            <th style="width: 20%;">금액 (원)</th>
-                            <th style="width: 30%;">적요 및 메모</th>
+                            <th style="width: 13%;">거래일자</th>
+                            <th style="width: 12%;">구분</th>
+                            <th style="width: 12%;">지급상태</th>
+                            <th style="width: 18%;">항목</th>
+                            <th style="width: 18%;">금액 (원)</th>
+                            <th style="width: 27%;">적요 및 메모</th>
                         </tr>
             """
             for row in filtered_cash_data:
                 io_gubun = str(row.get("구분", "-"))
                 gubun_color = "#2563eb" if "수입" in io_gubun else "#dc2626"
+                pay_status = str(row.get("지급상태", "미지급"))
                 print_html += f"""
                         <tr>
                             <td>{row.get("날짜", "-")}</td>
                             <td style="font-weight: bold; color: {gubun_color};">{io_gubun}</td>
+                            <td style="font-weight: bold;">{pay_status}</td>
                             <td>{row.get("항목", "-")}</td>
                             <td style="text-align: right; font-weight: bold;">{int(float(str(row.get("금액(원)", 0)).replace(",", "") or 0)):,} 원</td>
                             <td style="text-align: left; padding-left: 10px;">{row.get("적요", "-")}</td>
@@ -3846,7 +3851,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 """
             print_html += f"""
                     </table>
-                    
                     <div style="margin-top: 35px; text-align: center; font-size: 10pt; color: #475569;">
                         상기와 같이 자금 입출금 내역을 보고합니다.<br><br>
                         <b style="font-size: 11pt; color: #0f172a;">주식회사 범운해운항공 대표이사 이상복 [직인생략]</b>
@@ -3863,15 +3867,18 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     st.markdown("---")
 
-    # --- 4. 하단: 새로운 수입 / 지출 등록 폼 ---
+    # --- 5. 하단: 새로운 수입 / 지출 등록 폼 (지급상태 선택 추가) ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form_v6"):
-        f_col1, f_col2 = st.columns(2)
+    with st.form("cashbook_register_form_v7"):
+        f_col1, f_col2, f_col3 = st.columns(3)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
             io_gb = st.selectbox("입출금 구분", ["지출 (-)", "수입 (+)"])
         with f_col2:
+            pay_status_input = st.selectbox("지급 상태", ["미지급", "지급완료", ""])
+            amount = st.number_input("금액 (원)", min_value=0, step=1000, format="%d")
+        with f_col3:
             cat_options = [
                 "접대비",
                 "주유비(차량유지비)",
@@ -3882,7 +3889,6 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 "운송료수입",
             ]
             category = st.selectbox("비용/수입 항목", cat_options)
-            amount = st.number_input("금액 (원)", min_value=0, step=1000, format="%d")
 
         memo = st.text_input(
             "적요 및 메모", placeholder="예: 사무실 소모품 구입 등"
@@ -3896,12 +3902,13 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 st.session_state.cashbook_list.append({
                     "날짜": str(reg_date),
                     "구분": io_gb,
+                    "지급상태": pay_status_input,
                     "항목": category,
                     "금액(원)": int(amount),
                     "적요": memo if memo else "-",
                 })
                 save_account_data(st.session_state.cashbook_list)
-                st.success("✅ 장부 내역이 등록되었습니다.")
+                st.success("✅ 장부 내역이 지급 상태와 함께 등록되었습니다.")
                 st.rerun()
             else:
                 st.warning("⚠️ 금액은 0원보다 커야 합니다.")
