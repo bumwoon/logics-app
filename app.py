@@ -3994,20 +3994,19 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
       })
     st.dataframe(pd.DataFrame(acc_list), use_container_width=True)
 # ==========================================
-# 🚢 [고객 전용 입고 리스트 작성 및 연동 모듈]
+# 📦 [고객 전용 입고 리스트 직접 작성 및 연동 시스템 (화면 노출용)]
 # ==========================================
-
 st.markdown("---")
 st.markdown(
-    "<div style='background-color: #f1f5f9; padding: 15px; border-radius: 8px; border-left: 5px solid #2563eb;'>"
-    "<h4 style='color: #1e3a8a; margin: 0 0 5px 0;'>📦 화주(고객) 전용 화물 입고 리스트 직접 작성 칸</h4>"
-    "<p style='color: #475569; font-size: 13px; margin: 0;'>고객 계정으로 로그인하시면, 카톤수·실중량·5000 부피중량·수하인 정보를 직접 입력하고 사내 시스템에 바로 등록하실 수 있습니다.</p>"
+    "<div style='background-color: #f1f5f9; padding: 18px; border-radius: 10px; border-left: 6px solid #2563eb; margin-top: 20px;'>"
+    "<h3 style='color: #1e3a8a; margin: 0 0 5px 0;'>📦 화주(고객) 전용 화물 입고 리스트 직접 작성 시스템</h3>"
+    "<p style='color: #475569; font-size: 13.5px; margin: 0;'>고객 계정으로 로그인하시면, 카톤수·실중량·5000 부피중량·수하인 주소 및 전화번호를 직접 입력하고 사내 시스템에 즉시 등록하실 수 있습니다.</p>"
     "</div>",
     unsafe_allow_html=True
 )
 st.markdown("<br>", unsafe_allow_html=True)
 
-# 1. 고객 로그인 세션 상태 초기화
+# 고객 로그인 세션 초기화
 if "client_logged_in" not in st.session_state:
     st.session_state.client_logged_in = False
 if "client_user_id" not in st.session_state:
@@ -4022,7 +4021,7 @@ for uid, info in st.session_state.get("user_db", {}).items():
 if not client_user_db:
     client_user_db = {"ako": {"pw": "1234", "role": "화주(고객)", "name": "아코글로벌"}}
 
-# 2. [로그인 전] 화주 아이디 / 비밀번호 입력 폼
+# 1. [로그인 전] 화주 아이디 / 비밀번호 입력 폼
 if not st.session_state.get("client_logged_in"):
     col_lf1, col_lf2, col_lf3 = st.columns([1, 1.5, 1])
     with col_lf2:
@@ -4041,7 +4040,7 @@ if not st.session_state.get("client_logged_in"):
                 else:
                     st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-# 3. [로그인 후] 고객이 직접 입고 리스트를 작성하는 폼
+# 2. [로그인 후] 고객이 직접 입고 리스트를 작성하는 칸 표출
 else:
     c_uid = st.session_state.client_user_id
     c_info = client_user_db.get(c_uid, {"name": "고객사"})
@@ -4102,6 +4101,7 @@ else:
                 
                 new_record = {
                     "구분": "수출 (Export)",
+                    "날지요청": str(inbound_date),
                     "날짜": str(inbound_date),
                     "Job 번호": f"INB-{date.today().strftime('%Y%m%d')}-{len(bl_list)+1:03d}",
                     "B/L 번호": "접수대기 (사내확인)",
@@ -4140,7 +4140,7 @@ else:
                 st.success("🎉 입고 리스트가 성공적으로 등록되어 사내 시스템에 연동되었습니다!")
                 st.rerun()
 
-    # 4. 고객이 본인이 등록한 내역 확인하는 표
+    # 3. 고객이 본인이 등록한 내역 확인하는 표
     st.markdown("---")
     st.markdown(f"#### 📋 [{c_name}] 내 입고 등록 및 처리 내역")
     my_inbound_list = [
