@@ -4041,8 +4041,9 @@ if client_query_mode == "client" or st.session_state.get("user_role") == "화주
                     else:
                         st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-            if st.button("⬅ 사내 관리자 로그인 화면으로 돌아가기", use_container_width=True):
+            if st.button("⬅ 사내 관리자 화면으로 돌아가기", use_container_width=True):
                 st.query_params.clear()
+                st.session_state.user_role = None
                 st.rerun()
         st.stop()
 
