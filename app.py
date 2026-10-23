@@ -317,7 +317,6 @@ def save_note_data(data_list):
     if os.path.exists(NOTE_FILE):
       os.remove(NOTE_FILE)
 
-
 # ==========================================
 # [매출 거래처(화주)] 데이터 관리
 # ==========================================
