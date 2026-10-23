@@ -206,117 +206,77 @@ if LOGO_FILE and os.path.exists(LOGO_FILE):
     pass
 
 
-def load_bl_data():
+def load_client_data():
+  # 1. 기존에 저장된 CSV 파일이 있으면 우선적으로 로드
+  if os.path.exists(CLIENT_FILE):
+    try:
+      df = pd.read_csv(CLIENT_FILE)
+      clients = df["거래처명"].unique().tolist()
+      rates = {}
+      client_infos = {}
+      for client in clients:
+        rates[client] = {}
+        sub_df = df[df["거래처명"] == client]
+        first_row = sub_df.iloc[0]
+        client_infos[client] = {
+            "사업자등록번호": str(first_row.get("사업자등록번호", "")),
+            "이메일": str(first_row.get("이메일", "")),
+            "담당자": str(first_row.get("담당자", "")),
+            "전화번호": str(first_row.get("전화번호", "")),
+            "주소": str(first_row.get("주소", "")),
+        }
+        for _, row in sub_df.iterrows():
+          country = row.get("국가", "미국")
+          transport = str(row.get("운송형태", "항공(Air)")).strip()
+          item = str(row.get("품명", "일반공산품")).strip()
+          if country not in rates[client]:
+            rates[client][country] = {}
+          if transport not in rates[client][country]:
+            rates[client][country][transport] = {}
+          rates[client][country][transport][item] = {
+              "기본중량": float(row.get("기본중량", 1.0)),
+              "기본요금": int(row.get("기본요금", 38000)),
+              "추가단가": int(row.get("추가단가", 25000)),
+              "1CBM당단가": int(row.get("1CBM당단가", 3700000)),
+          }
+      if clients:
+        return clients, rates, client_infos
+    except Exception:
+      pass
+
+  # 2. 💡 B/L 데이터 파일(bl_history_data.csv)에 입력된 화주명(매출)을 자동으로 수집하여 거래처 목록에 함께 포함
+  bl_clients = []
   if os.path.exists(DATA_FILE):
     try:
-      df = pd.read_csv(DATA_FILE)
-      if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
-        df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
-      if "수금상태" not in df.columns:
-        df["수금상태"] = "미수"
-      if "매출액(원)" not in df.columns:
-        df["매출액(원)"] = 0
-      if "매입액(원)" not in df.columns:
-        df["매입액(원)"] = 0
-      if "최종작성자" not in df.columns:
-        df["최종작성자"] = "이상복"
-      if "최종수정자" not in df.columns:
-        df["최종수정자"] = "-"
-      return df.to_dict("records")
+      df_bl_temp = pd.read_csv(DATA_FILE)
+      if "화주명(매출)" in df_bl_temp.columns:
+        bl_clients = df_bl_temp["화주명(매출)"].dropna().astype(str).str.strip().unique().tolist()
     except Exception:
-      return []
-  return []
+      pass
 
-
-def save_bl_data(data_list):
-  if data_list:
-    df = pd.DataFrame(data_list)
-    if "예상마진(원)" in df.columns and "예상Profit(원)" not in df.columns:
-      df = df.rename(columns={"예상마진(원)": "예상Profit(원)"})
-    if "수금상태" not in df.columns:
-      df["수금상태"] = "미수"
-    if "최종작성자" not in df.columns:
-      df["최종작성자"] = "이상복"
-    if "최종수정자" not in df.columns:
-      df["최종수정자"] = "-"
-    df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
-  else:
-    if os.path.exists(DATA_FILE):
-      os.remove(DATA_FILE)
-
-
-def load_meeting_data():
-  if os.path.exists(MEETING_FILE):
-    try:
-      return pd.read_csv(MEETING_FILE).to_dict("records")
-    except:
-      return []
-  return []
-
-
-def save_meeting_data(data_list):
-  if data_list:
-    pd.DataFrame(data_list).to_csv(
-        MEETING_FILE, index=False, encoding="utf-8-sig"
-    )
-  else:
-    if os.path.exists(MEETING_FILE):
-      os.remove(MEETING_FILE)
-
-
-def load_expense_data():
-  if os.path.exists(EXPENSE_FILE):
-    try:
-      return pd.read_csv(EXPENSE_FILE).to_dict("records")
-    except:
-      return []
-  return []
-
-
-def save_expense_data(data_list):
-  if data_list:
-    pd.DataFrame(data_list).to_csv(
-        EXPENSE_FILE, index=False, encoding="utf-8-sig"
-    )
-  else:
-    if os.path.exists(EXPENSE_FILE):
-      os.remove(EXPENSE_FILE)
-
-
-def load_account_data():
-  """일계표 전용 CSV 장부 데이터를 불러옵니다."""
-  if os.path.exists(ACCOUNT_FILE):
-    try:
-      return pd.read_csv(ACCOUNT_FILE).fillna("").to_dict("records")
-    except Exception as e:
-      print(f"일계표 데이터 읽기 오류: {e}")
-  return []
-
-
-def save_account_data(data_list):
-  """일계표 장부를 ACCOUNT_FILE에 저장합니다."""
-  if data_list:
-    pd.DataFrame(data_list).to_csv(ACCOUNT_FILE, index=False, encoding="utf-8-sig")
-  elif os.path.exists(ACCOUNT_FILE):
-    os.remove(ACCOUNT_FILE)
-
-
-def load_note_data():
-  if os.path.exists(NOTE_FILE):
-    try:
-      return pd.read_csv(NOTE_FILE).to_dict("records")
-    except:
-      return []
-  return []
-
-
-def save_note_data(data_list):
-  if data_list:
-    pd.DataFrame(data_list).to_csv(NOTE_FILE, index=False, encoding="utf-8-sig")
-  else:
-    if os.path.exists(NOTE_FILE):
-      os.remove(NOTE_FILE)
-
+  # 기본 거래처 + B/L 내역에 있는 거래처들을 병합하여 누락 방지
+  default_clients = list(dict.fromkeys(["아코글로벌", "주식회사 조은로직스"] + bl_clients))
+  
+  default_rates = {}
+  default_infos = {}
+  for client in default_clients:
+    default_rates[client] = {
+        "미국": {
+            "항공(Air)": {
+                "보톡스": {"기본중량": 1.0, "기본요금": 38000, "추가단가": 25000, "1CBM당단가": 3700000},
+                "필러": {"기본중량": 1.0, "기본요금": 38000, "추가단가": 25000, "1CBM당단가": 3700000},
+                "일반화물": {"기본중량": 1.0, "기본요금": 38000, "추가단가": 25000, "1CBM당단가": 3700000}
+            }
+        }
+    }
+    default_infos[client] = {
+        "사업자등록번호": "",
+        "이메일": "",
+        "담당자": "",
+        "전화번호": "",
+        "주소": "",
+    }
+  return default_clients, default_rates, default_infos
 
 # ==========================================
 # [매출 거래처(화주)] 데이터 관리
