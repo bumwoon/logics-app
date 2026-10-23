@@ -3993,3 +3993,176 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
           "권한": info.get("role", "직원")
       })
     st.dataframe(pd.DataFrame(acc_list), use_container_width=True)
+# ==========================================
+# 🚢 [고객(화주) 전용 로그인 및 입고 연동 시스템]
+# ==========================================
+client_query_mode = st.query_params.get("mode", "")
+
+if client_query_mode == "client" or st.session_state.get("user_role") == "화주(고객)":
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    if "client_logged_in" not in st.session_state:
+        st.session_state.client_logged_in = False
+    if "client_user_id" not in st.session_state:
+        st.session_state.client_user_id = ""
+
+    client_user_db = {}
+    for uid, info in st.session_state.get("user_db", {}).items():
+        if info.get("role") == "화주(고객)":
+            client_user_db[uid] = info
+    
+    if not client_user_db:
+        client_user_db = {"ako": {"pw": "1234", "role": "화주(고객)", "name": "아코글로벌"}}
+
+    # 1. 고객 로그인 화면
+    if not st.session_state.get("client_logged_in"):
+        st.markdown(
+            "<h2 style='text-align: center; color: #1e3a8a;'>📦 (주)범운해운항공<br>고객 화물 입고 등록 시스템</h2>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<p style='text-align: center; color: #64748b;'>배정받으신 화주(고객) 아이디로 로그인해 주세요.</p><br>",
+            unsafe_allow_html=True,
+        )
+        
+        col_cl1, col_cl2, col_cl3 = st.columns([1, 1.2, 1])
+        with col_cl2:
+            with st.form("client_standalone_login_form"):
+                input_c_id = st.text_input("고객 아이디 (ID)")
+                input_c_pw = st.text_input("비밀번호 (Password)", type="password")
+                submit_c_login = st.form_submit_button("로그인", use_container_width=True)
+                
+                if submit_c_login:
+                    if input_c_id in client_user_db and client_user_db[input_c_id]["pw"] == input_c_pw:
+                        st.session_state.client_logged_in = True
+                        st.session_state.client_user_id = input_c_id
+                        st.success("로그인 성공!")
+                        st.rerun()
+                    else:
+                        st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
+
+            if st.button("⬅ 사내 관리자 로그인 화면으로 돌아가기", use_container_width=True):
+                st.query_params.clear()
+                st.rerun()
+        st.stop()
+
+    # 2. 고객 로그인 후 입고 등록 및 조회 화면
+    c_uid = st.session_state.client_user_id
+    c_info = client_user_db.get(c_uid, st.session_state.get("user_db", {}).get(c_uid, {"name": "고객사"}))
+    c_name = c_info.get("name", "고객사")
+
+    top_cc1, top_cc2 = st.columns([5, 1])
+    with top_cc1:
+        st.markdown(f"### 📦 [{c_name}] 고객 전용 화물 입고 등록 및 실시간 조회")
+        st.markdown("<p style='color: #64748b; font-size: 13px;'>카톤수, 실중량, 5000 기준 부피중량 및 수하인 정보를 입력하시면 (주)범운해운항공 사내 시스템으로 즉시 연동됩니다.</p>", unsafe_allow_html=True)
+    with top_cc2:
+        if st.button("로그아웃", use_container_width=True):
+            st.session_state.client_logged_in = False
+            st.session_state.client_user_id = ""
+            st.query_params.clear()
+            st.rerun()
+
+    st.markdown("---")
+
+    with st.form("client_direct_inbound_form"):
+        st.markdown("#### 📝 신규 화물 입고 리스트 작성")
+        
+        cc1, cc2 = st.columns(2)
+        with cc1:
+            inbound_date = st.date_input("입고 예정일", value=date.today())
+            item_category = st.selectbox("품목 선택", ["보톡스", "필러", "화장품", "일반공산품", "기타"])
+            consignee_name = st.text_input("해외 수하인 성명 (Consignee)", placeholder="예: John Doe")
+            consignee_tel = st.text_input("해외 수하인 전화번호", placeholder="예: +1-212-555-0199")
+            
+        with cc2:
+            carton_cnt = st.number_input("카톤 수 (박스 수 CTN)", min_value=1, value=1, step=1)
+            gross_weight = st.number_input("실중량 (kg) [소수점 입력 가능]", min_value=0.0, value=1.0, step=0.01, format="%.2f")
+            consignee_addr = st.text_input("해외 수하인 상세 주소", placeholder="예: 123 Main St, New York, NY 10001")
+
+        st.markdown("---")
+        st.markdown("#### 📐 박스 규격 입력 (부피중량 5000 Divisor 자동 계산)")
+        
+        dim_c1, dim_c2, dim_c3 = st.columns(3)
+        with dim_c1:
+            w_cm = st.number_input("가로 (cm)", min_value=0.0, value=0.0)
+        with dim_c2:
+            l_cm = st.number_input("세로 (cm)", min_value=0.0, value=0.0)
+        with dim_c3:
+            h_cm = st.number_input("높이 (cm)", min_value=0.0, value=0.0)
+
+        cbm_calc = 0.0
+        vol_weight_5000 = 0.0
+        if w_cm > 0 and l_cm > 0 and h_cm > 0:
+            cbm_calc = ((w_cm * l_cm * h_cm) / 1000000.0) * carton_cnt
+            vol_weight_5000 = ((w_cm * l_cm * h_cm) / 5000.0) * carton_cnt
+
+        st.info(f"💡 부피 계산 결과: CBM = {cbm_calc:.3f} CBM | 5000기준 부피중량 = {vol_weight_5000:.2f} kg")
+
+        request_memo = st.text_area("요청사항 및 메모")
+
+        submit_client_inbound = st.form_submit_button("🚀 입고 리스트 제출하기", type="primary", use_container_width=True)
+
+        if submit_client_inbound:
+            if not consignee_name.strip() or not consignee_addr.strip():
+                st.warning("⚠️ 해외 수하인 성명과 상세 주소는 필수 입력 사항입니다.")
+            else:
+                dim_result_str = f"{int(w_cm)}×{int(l_cm)}×{int(h_cm)}cm({carton_cnt}CTN)" if w_cm > 0 else "-"
+                
+                current_bl_len = len(st.session_state.get("bl_data_list", []))
+                new_inbound_record = {
+                    "구분": "수출 (Export)",
+                    "날짜": str(inbound_date),
+                    "Job 번호": f"INB-{date.today().strftime('%Y%m%d')}-{current_bl_len+1:03d}",
+                    "B/L 번호": "접수대기 (사내확인)",
+                    "국가": "미국",
+                    "출발지": "대한민국 (KOREA)",
+                    "화주명(매출)": c_name,
+                    "해외수하인": consignee_name,
+                    "해외수하인주소": consignee_addr,
+                    "해외수하인전화번호": consignee_tel,
+                    "매입처": "-",
+                    "운송형태": "항공(Air)",
+                    "서비스옵션": "Door To Door",
+                    "품목": item_category,
+                    "박스수": f"{carton_cnt} 박스(CTN)",
+                    "부피규격": dim_result_str,
+                    "실중량(kg)": float(gross_weight),
+                    "매출실중량(kg)": float(gross_weight),
+                    "매입실중량(kg)": float(gross_weight),
+                    "매출청구중량(kg)": float(math.ceil(max(gross_weight, vol_weight_5000))),
+                    "매입청구중량(kg)": float(math.ceil(max(gross_weight, vol_weight_5000))),
+                    "CBM": f"{cbm_calc:.3f} CBM",
+                    "현재 상태": "📦 고객 입고 제출 완료",
+                    "수금상태": "미수",
+                    "매출액(원)": 0,
+                    "매입액(원)": 0,
+                    "예상Profit(원)": 0,
+                    "비고": request_memo,
+                    "최종작성자": f"고객({c_name})",
+                    "최종수정자": "-",
+                }
+
+                if "bl_data_list" not in st.session_state:
+                    st.session_state.bl_data_list = []
+                st.session_state.bl_data_list.append(new_inbound_record)
+                save_bl_data(st.session_state.bl_data_list)
+                st.success("🎉 입고 신청이 정상적으로 완료되었습니다! 사내 시스템으로 즉시 연동되었습니다.")
+                st.rerun()
+
+    st.markdown("---")
+    st.markdown(f"#### 📋 [{c_name}] 화물 입고 및 처리 현황")
+    
+    my_inbound_list = [
+        item for item in st.session_state.get("bl_data_list", [])
+        if str(item.get("화주명(매출)", "")).strip() == c_name
+    ]
+
+    if my_inbound_list:
+        df_my_view = pd.DataFrame(my_inbound_list)[
+            ["날짜", "Job 번호", "B/L 번호", "해외수하인", "해외수하인전화번호", "해외수하인주소", "박스수", "부피규격", "실중량(kg)", "현재 상태"]
+        ]
+        st.dataframe(df_my_view, use_container_width=True, hide_index=True)
+    else:
+        st.info("📌 등록된 입고 내역이 없습니다. 위의 양식을 작성해 입력해 주세요.")
+
+    st.stop()
