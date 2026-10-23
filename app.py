@@ -776,13 +776,329 @@ TRACKING_STATUS_OPTIONS = [
     "⚠ 운송 지연 또는 보류",
 ]
 
+# ==========================================
+# 고객사 전용 화물 접수 / 수정 시스템
+# ==========================================
+CUSTOMER_ACCOUNT_FILE = "customer_accounts.csv"
+CUSTOMER_REQUEST_FILE = "customer_freight_requests.csv"
+CUSTOMER_HISTORY_FILE = "customer_freight_edit_history.csv"
+
+
+def _read_customer_csv(path):
+    if not os.path.exists(path):
+        return []
+    try:
+        return pd.read_csv(path, dtype=str, keep_default_na=False).to_dict("records")
+    except Exception:
+        return []
+
+
+def _write_customer_csv(path, rows):
+    pd.DataFrame(rows).to_csv(path, index=False, encoding="utf-8-sig")
+
+
+def _customer_accounts():
+    return _read_customer_csv(CUSTOMER_ACCOUNT_FILE)
+
+
+def _customer_requests():
+    return _read_customer_csv(CUSTOMER_REQUEST_FILE)
+
+
+def _customer_history_append(record):
+    rows = _read_customer_csv(CUSTOMER_HISTORY_FILE)
+    rows.append(record)
+    _write_customer_csv(CUSTOMER_HISTORY_FILE, rows)
+
+
+def _customer_hash_password(password):
+    import hashlib
+    return hashlib.sha256(str(password).encode("utf-8")).hexdigest()
+
+
+def _customer_is_active(account):
+    return str(account.get("상태", "승인")).strip() == "승인"
+
+
+def _customer_request_is_billed(item):
+    return bool(str(item.get("연결 B/L 번호", "")).strip()) or str(item.get("상태", "접수")).startswith("B/L 등록")
+
+
+def _customer_portal():
+    st.markdown("<div style='text-align:center;padding:14px 4px;'>", unsafe_allow_html=True)
+    st.markdown("## 📦 고객사 화물 접수 / 내역 수정")
+    st.caption("고객사별 아이디로 로그인하면 해당 회사의 접수 내역만 확인할 수 있습니다.")
+    st.markdown("</div>", unsafe_allow_html=True)
+    accounts = _customer_accounts()
+    if not st.session_state.get("customer_logged_in"):
+        login_tab, help_tab = st.tabs(["🔐 고객사 로그인", "ℹ️ 계정 안내"])
+        with login_tab:
+            with st.form("customer_login_form"):
+                cid = st.text_input("고객사 아이디")
+                cpw = st.text_input("비밀번호", type="password")
+                login = st.form_submit_button("로그인", use_container_width=True, type="primary")
+            if login:
+                found = next((a for a in accounts if a.get("아이디", "").strip() == cid.strip()), None)
+                if found and _customer_is_active(found) and found.get("비밀번호해시", "") == _customer_hash_password(cpw):
+                    st.session_state.customer_logged_in = True
+                    st.session_state.customer_account_id = found.get("아이디", "")
+                    st.session_state.customer_company = found.get("고객사상호", "")
+                    st.rerun()
+                elif found and not _customer_is_active(found):
+                    st.error("아직 관리자 승인이 완료되지 않은 계정입니다. 범운해운항공에 문의해 주세요.")
+                else:
+                    st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
+        with help_tab:
+            st.info("고객사 계정은 범운해운항공 사내 관리자가 발급합니다. 아이디·비밀번호 발급을 요청해 주세요.")
+        if st.button("⬅ 화물 추적 홈으로 돌아가기", use_container_width=True):
+            st.query_params.clear()
+            st.rerun()
+        return
+
+    cid = st.session_state.get("customer_account_id", "")
+    account = next((a for a in accounts if a.get("아이디", "") == cid and _customer_is_active(a)), None)
+    if not account:
+        st.session_state.customer_logged_in = False
+        st.session_state.customer_account_id = ""
+        st.session_state.customer_company = ""
+        st.error("계정이 비활성화되었습니다. 다시 로그인해 주세요.")
+        st.rerun()
+    company = account.get("고객사상호", "")
+    head_l, head_r = st.columns([4, 1])
+    head_l.success(f"로그인: {company}")
+    if head_r.button("로그아웃", use_container_width=True):
+        st.session_state.customer_logged_in = False
+        st.session_state.customer_account_id = ""
+        st.session_state.customer_company = ""
+        st.rerun()
+
+    all_requests = _customer_requests()
+    mine = [r for r in all_requests if r.get("고객사아이디", "") == cid]
+    tab_new, tab_list = st.tabs(["➕ 새 화물 접수", "📋 내 접수 내역 / 수정"])
+    with tab_new:
+        st.markdown("#### 화물 접수 정보")
+        with st.form("customer_new_freight_form"):
+            shipper = st.text_input("화주 상호 *", value=company)
+            shipper_address = st.text_input("화주 주소 *")
+            shipper_phone = st.text_input("화주 전화번호 *")
+            consignee = st.text_input("해외 수하인 상호 *")
+            consignee_address = st.text_input("해외 수하인 주소 *")
+            consignee_phone = st.text_input("해외 수하인 전화번호")
+            dest_country = st.text_input("도착 국가 *")
+            item_name = st.text_input("품목 / 화물 내용 *")
+            transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"])
+            weight = st.number_input("실제 중량 (kg) *", min_value=0.0, value=1.0, step=0.5, format="%.2f")
+            d1, d2, d3 = st.columns(3)
+            with d1: width = st.number_input("가로 (cm) *", min_value=0.0, value=1.0, step=1.0)
+            with d2: length = st.number_input("세로 (cm) *", min_value=0.0, value=1.0, step=1.0)
+            with d3: height = st.number_input("높이 (cm) *", min_value=0.0, value=1.0, step=1.0)
+            cartons = st.number_input("박스 수량 (CTN) ", min_value=1, value=1, step=1)
+            note = st.text_area("추가 요청 사항")
+            submitted = st.form_submit_button("📨 화물 접수 제출", use_container_width=True, type="primary")
+        if submitted:
+            required = [shipper, shipper_address, shipper_phone, consignee, consignee_address, dest_country, item_name]
+            if not all(str(v).strip() for v in required):
+                st.error(" 표시된 필수 항목을 모두 입력해 주세요.")
+            elif weight <= 0 or min(width, length, height) <= 0 or cartons <= 0:
+                st.error("실제 중량, 가로·세로·높이, 박스 수량은 0보다 커야 합니다.")
+            else:
+                import uuid
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                cbm = (width * length * height * cartons) / 1000000.0
+                vol_weight = (width * length * height * cartons) / (5000 if transport == "항공(Air)" else 6000)
+                req_id = "REQ-" + uuid.uuid4().hex[:10].upper()
+                new_req = {
+                    "접수번호": req_id, "접수일시": now, "고객사아이디": cid, "고객사상호": company,
+                    "화주상호": shipper.strip(), "화주주소": shipper_address.strip(), "화주전화번호": shipper_phone.strip(),
+                    "해외수하인": consignee.strip(), "해외수하인주소": consignee_address.strip(), "해외수하인전화번호": consignee_phone.strip(),
+                    "도착국가": dest_country.strip(), "품목": item_name.strip(), "운송형태": transport,
+                    "실제중량kg": f"{weight:.2f}", "가로cm": f"{width:.2f}", "세로cm": f"{length:.2f}", "높이cm": f"{height:.2f}",
+                    "박스수량": str(int(cartons)), "CBM": f"{cbm:.4f}", "부피중량kg": f"{vol_weight:.2f}",
+                    "추가요청": note.strip(), "상태": "접수", "연결 B/L 번호": "", "변경요청JSON": "", "관리자메모": ""
+                }
+                all_requests.append(new_req)
+                _write_customer_csv(CUSTOMER_REQUEST_FILE, all_requests)
+                _customer_history_append({"일시": now, "접수번호": req_id, "고객사아이디": cid, "작업자": company, "작업": "신규 접수", "변경내용": json.dumps(new_req, ensure_ascii=False)})
+                st.success(f"접수가 완료되었습니다. 접수번호: {req_id}")
+                st.rerun()
+
+    with tab_list:
+        if not mine:
+            st.info("아직 접수한 화물이 없습니다.")
+        else:
+            display_rows = [{"접수번호": r.get("접수번호", ""), "접수일시": r.get("접수일시", ""), "화주상호": r.get("화주상호", ""), "품목": r.get("품목", ""), "실제중량kg": r.get("실제중량kg", ""), "CBM": r.get("CBM", ""), "상태": r.get("상태", ""), "연결 B/L 번호": r.get("연결 B/L 번호", "")} for r in mine]
+            st.dataframe(pd.DataFrame(display_rows), use_container_width=True, hide_index=True)
+            choice = st.selectbox("수정할 접수 건 선택", options=[r.get("접수번호", "") for r in mine], key="customer_request_select")
+            target = next((r for r in mine if r.get("접수번호", "") == choice), None)
+            if target:
+                billed = _customer_request_is_billed(target)
+                if billed:
+                    st.warning("이 건은 B/L 등록 후입니다. 아래에서 수정 요청을 제출하면 사내 관리자가 승인한 뒤 반영합니다.")
+                else:
+                    st.info("B/L 등록 전이므로 고객사가 직접 수정할 수 있습니다.")
+                try:
+                    edit_dims = [float(target.get(k, 0) or 0) for k in ("가로cm", "세로cm", "높이cm")]
+                    edit_weight = float(target.get("실제중량kg", 0) or 0)
+                    edit_cartons = int(float(target.get("박스수량", 1) or 1))
+                except Exception:
+                    edit_dims, edit_weight, edit_cartons = [1.0, 1.0, 1.0], 1.0, 1
+                with st.form("customer_edit_freight_form"):
+                    e_shipper = st.text_input("화주 상호 *", value=target.get("화주상호", ""))
+                    e_address = st.text_input("화주 주소 *", value=target.get("화주주소", ""))
+                    e_phone = st.text_input("화주 전화번호 *", value=target.get("화주전화번호", ""))
+                    e_consignee = st.text_input("해외 수하인 상호 *", value=target.get("해외수하인", ""))
+                    e_caddr = st.text_input("해외 수하인 주소 *", value=target.get("해외수하인주소", ""))
+                    e_ctel = st.text_input("해외 수하인 전화번호", value=target.get("해외수하인전화번호", ""))
+                    e_country = st.text_input("도착 국가 *", value=target.get("도착국가", ""))
+                    e_item = st.text_input("품목 *", value=target.get("품목", ""))
+                    e_transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"], index=0 if target.get("운송형태", "항공(Air)") == "항공(Air)" else 1)
+                    e_weight = st.number_input("실제 중량 (kg) *", min_value=0.0, value=max(0.0, edit_weight), step=0.5, format="%.2f")
+                    ec1, ec2, ec3 = st.columns(3)
+                    with ec1: e_width = st.number_input("가로 (cm) *", min_value=0.0, value=max(0.0, edit_dims[0]), step=1.0)
+                    with ec2: e_length = st.number_input("세로 (cm) *", min_value=0.0, value=max(0.0, edit_dims[1]), step=1.0)
+                    with ec3: e_height = st.number_input("높이 (cm) *", min_value=0.0, value=max(0.0, edit_dims[2]), step=1.0)
+                    e_cartons = st.number_input("박스 수량 (CTN) *", min_value=1, value=max(1, edit_cartons), step=1)
+                    e_note = st.text_area("추가 요청 사항", value=target.get("추가요청", ""))
+                    save_edit = st.form_submit_button("💾 수정 저장 / 수정 요청", use_container_width=True, type="primary")
+                if save_edit:
+                    required = [e_shipper, e_address, e_phone, e_consignee, e_caddr, e_country, e_item]
+                    if not all(str(v).strip() for v in required) or e_weight <= 0 or min(e_width, e_length, e_height) <= 0 or e_cartons <= 0:
+                        st.error("필수 항목을 확인해 주세요. 중량·규격·수량은 0보다 커야 합니다.")
+                    else:
+                        cbm = e_width * e_length * e_height * e_cartons / 1000000.0
+                        vol = e_width * e_length * e_height * e_cartons / (5000 if e_transport == "항공(Air)" else 6000)
+                        updated = dict(target)
+                        updated.update({"화주상호":e_shipper.strip(), "화주주소":e_address.strip(), "화주전화번호":e_phone.strip(), "해외수하인":e_consignee.strip(), "해외수하인주소":e_caddr.strip(), "해외수하인전화번호":e_ctel.strip(), "도착국가":e_country.strip(), "품목":e_item.strip(), "운송형태":e_transport, "실제중량kg":f"{e_weight:.2f}", "가로cm":f"{e_width:.2f}", "세로cm":f"{e_length:.2f}", "높이cm":f"{e_height:.2f}", "박스수량":str(int(e_cartons)), "CBM":f"{cbm:.4f}", "부피중량kg":f"{vol:.2f}", "추가요청":e_note.strip()})
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        if billed:
+                            target["변경요청JSON"] = json.dumps({"요청일시":now,"요청자":company,"변경후":updated}, ensure_ascii=False)
+                            target["상태"] = "B/L 등록 후 수정 승인 대기"
+                            action = "B/L 등록 후 수정 승인 요청"
+                        else:
+                            idx = next(i for i, r in enumerate(all_requests) if r.get("접수번호", "") == choice and r.get("고객사아이디", "") == cid)
+                            all_requests[idx] = updated
+                            action = "B/L 등록 전 고객 수정"
+                        _write_customer_csv(CUSTOMER_REQUEST_FILE, all_requests)
+                        _customer_history_append({"일시":now,"접수번호":choice,"고객사아이디":cid,"작업자":company,"작업":action,"변경내용":json.dumps(updated, ensure_ascii=False)})
+                        st.success("수정 요청을 관리자에게 전달했습니다." if billed else "접수 내용이 수정되었습니다.")
+                        st.rerun()
+    if st.button("⬅ 화물 추적 홈으로 돌아가기", use_container_width=True):
+        st.session_state.customer_logged_in = False
+        st.query_params.clear()
+        st.rerun()
+
+
+def _admin_customer_freight_menu():
+    if st.session_state.user_role != "관리자(대표)":
+        st.error("대표 관리자만 고객사 계정과 접수 내용을 관리할 수 있습니다.")
+        st.stop()
+    st.markdown("### 🏢 고객사 계정 및 화물 접수 관리")
+    accounts = _customer_accounts()
+    requests = _customer_requests()
+    t_accounts, t_requests, t_history = st.tabs(["고객사 계정 발급", "화물 접수 / 수정 승인", "수정 이력"])
+    with t_accounts:
+        with st.form("create_customer_account_form"):
+            new_id = st.text_input("고객사 아이디")
+            new_pw = st.text_input("초기 비밀번호", type="password")
+            new_company = st.text_input("고객사 상호")
+            new_contact = st.text_input("담당자 / 연락처 (선택)")
+            make_account = st.form_submit_button("➕ 고객사 계정 생성", type="primary")
+        if make_account:
+            new_id, new_company = new_id.strip(), new_company.strip()
+            if not new_id or not new_pw or not new_company:
+                st.error("아이디, 비밀번호, 고객사 상호는 필수입니다.")
+            elif any(a.get("아이디", "") == new_id for a in accounts):
+                st.error("이미 사용 중인 아이디입니다.")
+            else:
+                accounts.append({"아이디":new_id,"비밀번호해시":_customer_hash_password(new_pw),"고객사상호":new_company,"담당자연락처":new_contact.strip(),"상태":"승인","생성일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+                _write_customer_csv(CUSTOMER_ACCOUNT_FILE, accounts)
+                st.success("고객사 계정이 생성되었습니다. 고객사에 아이디와 초기 비밀번호를 안전하게 전달해 주세요.")
+                st.rerun()
+        if accounts:
+            st.dataframe(pd.DataFrame([{k:a.get(k,"") for k in ["아이디","고객사상호","담당자연락처","상태","생성일시"]} for a in accounts]), use_container_width=True, hide_index=True)
+            chosen_id = st.selectbox("계정 상태 변경 대상", [a.get("아이디","") for a in accounts], key="cust_account_status_select")
+            chosen_acc = next(a for a in accounts if a.get("아이디","") == chosen_id)
+            new_status = st.selectbox("상태", ["승인","중지"], index=0 if chosen_acc.get("상태","승인")=="승인" else 1, key="cust_account_status_value")
+            if st.button("계정 상태 저장"):
+                for a in accounts:
+                    if a.get("아이디","")==chosen_id: a["상태"] = new_status
+                _write_customer_csv(CUSTOMER_ACCOUNT_FILE, accounts)
+                st.success("계정 상태를 저장했습니다.")
+                st.rerun()
+    with t_requests:
+        if not requests:
+            st.info("고객사 화물 접수 내역이 없습니다.")
+        else:
+            st.dataframe(pd.DataFrame([{k:r.get(k,"") for k in ["접수번호","접수일시","고객사상호","화주상호","품목","실제중량kg","CBM","상태","연결 B/L 번호"]} for r in requests]), use_container_width=True, hide_index=True)
+            req_id = st.selectbox("관리할 접수 건", [r.get("접수번호","") for r in requests], key="admin_customer_request_select")
+            target = next(r for r in requests if r.get("접수번호","")==req_id)
+            st.write("접수 상세")
+            st.json({k:v for k,v in target.items() if k not in ("변경요청JSON",)})
+            pending = target.get("변경요청JSON", "")
+            if pending:
+                try:
+                    change = json.loads(pending)
+                    st.warning(f"수정 승인 대기: {change.get('요청일시','')} / {change.get('요청자','')}")
+                    st.json(change.get("변경후", {}))
+                    ac1, ac2 = st.columns(2)
+                    with ac1:
+                        if st.button("✅ 수정 승인", use_container_width=True):
+                            changed = change.get("변경후", {})
+                            for i, r in enumerate(requests):
+                                if r.get("접수번호","")==req_id:
+                                    preserved_bl = r.get("연결 B/L 번호", "")
+                                    requests[i] = changed
+                                    requests[i]["연결 B/L 번호"] = preserved_bl
+                                    requests[i]["상태"] = "B/L 등록" if preserved_bl else "접수"
+                                    requests[i]["변경요청JSON"] = ""
+                                    break
+                            _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                            _customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req_id,"고객사아이디":target.get("고객사아이디",""),"작업자":st.session_state.logged_in_user,"작업":"관리자 수정 승인","변경내용":pending})
+                            st.success("수정 내용을 승인했습니다.")
+                            st.rerun()
+                    with ac2:
+                        if st.button("❌ 수정 반려", use_container_width=True):
+                            for r in requests:
+                                if r.get("접수번호","")==req_id:
+                                    r["변경요청JSON"] = ""
+                                    r["상태"] = "B/L 등록" if r.get("연결 B/L 번호","") else "접수"
+                                    break
+                            _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                            _customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req_id,"고객사아이디":target.get("고객사아이디",""),"작업자":st.session_state.logged_in_user,"작업":"관리자 수정 반려","변경내용":pending})
+                            st.success("수정 요청을 반려했습니다.")
+                            st.rerun()
+                except Exception:
+                    st.error("수정 요청 내용을 읽지 못했습니다. 이력을 확인해 주세요.")
+            st.markdown("---")
+            st.markdown("#### B/L 등록 상태 연결")
+            bl_no = st.text_input("연결할 B/L 번호 (비워두면 B/L 등록 전)", value=target.get("연결 B/L 번호", ""), key="admin_customer_link_bl")
+            if st.button("B/L 번호 / 상태 저장"):
+                for r in requests:
+                    if r.get("접수번호","")==req_id:
+                        r["연결 B/L 번호"] = bl_no.strip()
+                        r["상태"] = "B/L 등록" if bl_no.strip() else "접수"
+                        break
+                _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                _customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req_id,"고객사아이디":target.get("고객사아이디",""),"작업자":st.session_state.logged_in_user,"작업":"B/L 연결 상태 변경","변경내용":bl_no.strip()})
+                st.success("B/L 연결 상태를 저장했습니다.")
+                st.rerun()
+    with t_history:
+        history = _read_customer_csv(CUSTOMER_HISTORY_FILE)
+        if history:
+            st.dataframe(pd.DataFrame(history).sort_values("일시", ascending=False), use_container_width=True, hide_index=True)
+        else:
+            st.info("아직 수정 이력이 없습니다.")
+
 query_params = st.query_params
 mode_param = query_params.get("mode", "")
 
 # ==========================================
-# [관리자 로그인 모드 (?mode=admin)]
+# [고객사 포털 / 관리자 로그인 분기]
 # ==========================================
-if mode_param == "admin":
+if mode_param == "customer":
+  _customer_portal()
+  st.stop()
+elif mode_param == "admin":
   if not st.session_state.logged_in_user:
     login_screen()
     st.stop()
@@ -808,8 +1124,16 @@ else:
       unsafe_allow_html=True,
   )
 
+  customer_btn_col1, customer_btn_col2 = st.columns([1, 1])
+  with customer_btn_col1:
+    if st.button("🏢 고객사 화물 접수 / 내역 수정", use_container_width=True, type="primary"):
+      st.query_params["mode"] = "customer"
+      st.rerun()
+  with customer_btn_col2:
+    st.caption("고객사 아이디 로그인 후 접수·수정")
+
   current_bl_data = load_bl_data()
-  st.markdown("#### **📦 B/L & 화물 실시간 통합 조회**")
+  st.markdown("#### 📦 B/L & 화물 실시간 통합 조회")
   search_query = st.text_input(
       "B/L 번호 또는 UPS 송장번호를 정확히 입력하세요",
       placeholder="예: BW260001 또는 1ZRR4352...",
@@ -1129,6 +1453,9 @@ def generate_integrated_backup_bytes():
     expense_data = st.session_state.get("expense_data_list", [])
     meeting_data = st.session_state.get("meeting_data_list", [])
     note_data = st.session_state.get("note_data_list", [])
+    customer_accounts = _customer_accounts()
+    customer_requests = _customer_requests()
+    customer_history = _read_customer_csv(CUSTOMER_HISTORY_FILE)
 
     meta_dict = {
         "backup_version": 2,
@@ -1142,6 +1469,9 @@ def generate_integrated_backup_bytes():
         "expense_data": expense_data or [],
         "meeting_data": meeting_data or [],
         "note_data": note_data or [],
+        "customer_accounts": customer_accounts or [],
+        "customer_requests": customer_requests or [],
+        "customer_history": customer_history or [],
     }
 
     output = io.BytesIO()
@@ -1166,10 +1496,19 @@ def generate_integrated_backup_bytes():
         pd.DataFrame(note_data or []).to_excel(
             writer, index=False, sheet_name="업무용일지"
         )
+        pd.DataFrame(customer_accounts or []).to_excel(
+            writer, index=False, sheet_name="고객사계정"
+        )
+        pd.DataFrame(customer_requests or []).to_excel(
+            writer, index=False, sheet_name="고객화물접수"
+        )
+        pd.DataFrame(customer_history or []).to_excel(
+            writer, index=False, sheet_name="고객수정이력"
+        )
 
         # 기존 거래처/요율 구조 등은 메타 시트에 보관해 손실 없이 복원합니다.
         pd.DataFrame([{
-            "__SYSTEM_META__": json.dumps(meta_dict, ensure_ascii=False)
+            "SYSTEM_META": json.dumps(meta_dict, ensure_ascii=False)
         }]).to_excel(writer, index=False, sheet_name="시스템설정")
 
     return output.getvalue()
@@ -1208,8 +1547,8 @@ if uploaded_integrated_file is not None:
 
         # 시스템 메타데이터 읽기
         for df_meta in sheets.values():
-            if "__SYSTEM_META__" in df_meta.columns and not df_meta.empty:
-                meta_val = df_meta["__SYSTEM_META__"].iloc[0]
+            if "SYSTEM_META" in df_meta.columns and not df_meta.empty:
+                meta_val = df_meta["SYSTEM_META"].iloc[0]
                 if pd.notna(meta_val) and str(meta_val).strip():
                     try:
                         parsed_meta = json.loads(str(meta_val))
@@ -1231,7 +1570,7 @@ if uploaded_integrated_file is not None:
         for sheet_name in ("일계표_입출금장부", "일계표", "입출금장부", "계정장부"):
             if sheet_name in sheets:
                 df_ledger = sheets[sheet_name].copy()
-                df_ledger = df_ledger.drop(columns=["__SYSTEM_META__"], errors="ignore")
+                df_ledger = df_ledger.drop(columns=["SYSTEM_META"], errors="ignore")
                 if not df_ledger.empty:
                     st.session_state.cashbook_list = df_ledger.fillna("").to_dict("records")
                     ledger_restored = True
@@ -1265,10 +1604,28 @@ if uploaded_integrated_file is not None:
                     break
 
         if bl_df is not None:
-            bl_df = bl_df.drop(columns=["__SYSTEM_META__"], errors="ignore")
+            bl_df = bl_df.drop(columns=["SYSTEM_META"], errors="ignore")
             bl_df = bl_df[bl_df["B/L 번호"].notna()]
             st.session_state.bl_data_list = bl_df.fillna("").to_dict("records")
             save_bl_data(st.session_state.bl_data_list)
+
+        # 고객사 계정 / 접수 내역 / 수정 이력 복원 (새 시트가 있는 경우에만 기존 파일을 갱신)
+        customer_sheet_map = {
+            "고객사계정": CUSTOMER_ACCOUNT_FILE,
+            "고객화물접수": CUSTOMER_REQUEST_FILE,
+            "고객수정이력": CUSTOMER_HISTORY_FILE,
+        }
+        for customer_sheet, customer_path in customer_sheet_map.items():
+            if customer_sheet in sheets:
+                customer_df = sheets[customer_sheet].copy().drop(columns=["SYSTEM_META"], errors="ignore")
+                _write_customer_csv(customer_path, customer_df.fillna("").to_dict("records"))
+        if parsed_meta:
+            if "customer_accounts" in parsed_meta:
+                _write_customer_csv(CUSTOMER_ACCOUNT_FILE, parsed_meta.get("customer_accounts") or [])
+            if "customer_requests" in parsed_meta:
+                _write_customer_csv(CUSTOMER_REQUEST_FILE, parsed_meta.get("customer_requests") or [])
+            if "customer_history" in parsed_meta:
+                _write_customer_csv(CUSTOMER_HISTORY_FILE, parsed_meta.get("customer_history") or [])
 
         # 거래처 데이터 동기화 저장
         if parsed_meta:
@@ -1304,6 +1661,7 @@ menu_options = [
 ]
 
 if st.session_state.user_role == "관리자(대표)":
+  menu_options.append("🏢 고객사 계정 및 화물 접수 관리")
   menu_options.append("🔑 직원 계정 관리 (대표님 전용)")
 
 selected_menu = st.sidebar.radio("📌 메인 메뉴 이동", menu_options)
@@ -1784,6 +2142,36 @@ if selected_menu == "📊 수출입 B/L 등록":
                     "최종수정자": "-",
                 })
                 save_bl_data(st.session_state.bl_data_list)
+
+                # 고객 접수 내역과 B/L을 안전하게 연결: 화주/수하인/국가가 일치하는 미연결 접수가 정확히 1건일 때만 자동 연결
+                try:
+                    customer_reqs = _customer_requests()
+                    candidate_indices = [
+                        i for i, req in enumerate(customer_reqs)
+                        if not str(req.get("연결 B/L 번호", "")).strip()
+                        and str(req.get("화주상호", "")).strip().casefold() == str(shipper_name).strip().casefold()
+                        and str(req.get("해외수하인", "")).strip().casefold() == str(consignee_name).strip().casefold()
+                        and str(req.get("도착국가", "")).strip().casefold() == str(dest_country).strip().casefold()
+                    ]
+                    if len(candidate_indices) == 1:
+                        req = customer_reqs[candidate_indices[0]]
+                        req["연결 B/L 번호"] = str(bl_no).strip()
+                        req["상태"] = "B/L 등록"
+                        _write_customer_csv(CUSTOMER_REQUEST_FILE, customer_reqs)
+                        _customer_history_append({
+                            "일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "접수번호": req.get("접수번호", ""),
+                            "고객사아이디": req.get("고객사아이디", ""),
+                            "작업자": current_user_name,
+                            "작업": "B/L 등록과 자동 연결",
+                            "변경내용": str(bl_no).strip(),
+                        })
+                        st.info(f"고객 접수 {req.get('접수번호', '')}와 B/L {bl_no}를 자동 연결했습니다.")
+                    elif len(candidate_indices) > 1:
+                        st.warning("동일한 화주·수하인·국가의 고객 접수가 여러 건입니다. '고객사 계정 및 화물 접수 관리'에서 해당 접수와 B/L 번호를 직접 연결해 주세요.")
+                except Exception as link_error:
+                    st.warning(f"B/L은 저장됐지만 고객 접수 자동 연결은 완료되지 않았습니다. 고객 접수 관리 메뉴에서 연결해 주세요. ({link_error})")
+
                 st.success(
                     f"🎉 [성공] B/L 및 Job 번호({job_no})가 소수점 실중량({gross_weight_sales}kg) 포함하여 정상 등록되었습니다!"
                 )
@@ -1842,7 +2230,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                     mask |= filtered_df[col].astype(str).str.lower().str.contains(kw, na=False)
             filtered_df = filtered_df[mask]
 
-        st.markdown(f"📌 **조회 결과:** 총 **{len(filtered_df)}** 건의 B/L이 검색되었습니다.")
+        st.markdown(f"📌 조회 결과: 총 {len(filtered_df)} 건의 B/L이 검색되었습니다.")
         
         # 숫자 및 소수점 포맷팅
         for col_name in ["실중량(kg)", "매출실중량(kg)", "매입실중량(kg)"]:
@@ -1852,7 +2240,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
         if "선택" not in filtered_df.columns:
             filtered_df.insert(0, "선택", False)
             
-        st.info("💡 수정할 B/L 행의 **[선택] 체크박스**를 체크하시면, 아래쪽에 내용을 상세히 수정할 수 있는 **[B/L 개별 수정 입력칸]**이 나타납니다.")
+        st.info("💡 수정할 B/L 행의 [선택] 체크박스를 체크하시면, 아래쪽에 내용을 상세히 수정할 수 있는 **[B/L 개별 수정 입력칸]**이 나타납니다.")
         
         edited_bl_table = st.data_editor(
             filtered_df,
@@ -1904,7 +2292,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
             if target_idx is not None:
                 target_item = st.session_state.bl_data_list[target_idx]
                 
-                st.markdown(f"### 📝 선택한 B/L 상세 수정 칸 (Job: **{target_item.get('Job 번호', '')}** / B/L: **{target_item.get('B/L 번호', '')}**)")
+                st.markdown(f"### 📝 선택한 B/L 상세 수정 칸 (Job: {target_item.get('Job 번호', '')} / B/L: {target_item.get('B/L 번호', '')})")
                 
                 with st.form("detail_bl_edit_form_filtered"):
                     d_col1, d_col2, d_col3 = st.columns(3)
@@ -2032,7 +2420,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         st.success("✅ 선택하신 B/L이 성공적으로 수정 저장되었습니다!")
                         st.rerun()
         elif len(selected_rows) > 1:
-            st.warning("⚠️ 상세 수정은 **1개씩만** 선택해서 진행해주세요.")
+            st.warning("⚠️ 상세 수정은 1개씩만 선택해서 진행해주세요.")
         else:
             st.info("📌 수정할 B/L 행의 체크박스를 1개 선택하시면 아래에 상세 수정 입력칸이 나타납니다.")
     else:
@@ -3938,6 +4326,12 @@ elif selected_menu == "📝 업무용 일지":
       st.success("업무 일지가 저장되었습니다!")
       st.rerun()
 
+
+# ==========================================
+# 고객사 계정 및 화물 접수 관리
+# ==========================================
+elif selected_menu == "🏢 고객사 계정 및 화물 접수 관리":
+  _admin_customer_freight_menu()
 
 # ==========================================
 # [13] 직원 계정 관리 (대표님 전용)
