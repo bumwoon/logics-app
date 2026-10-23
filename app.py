@@ -3994,40 +3994,54 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
       })
     st.dataframe(pd.DataFrame(acc_list), use_container_width=True)
 # ==========================================
-# 🚢 [고객(화주) 전용 로그인 및 입고 연동 시스템]
+# 🚢 [고객(화주) 전용 로그인 및 입고 연동 시스템 - 첫 화면 버튼 연동판]
 # ==========================================
-client_query_mode = st.query_params.get("mode", "")
 
-if client_query_mode == "client" or st.session_state.get("user_role") == "화주(고객)":
-    st.markdown("<br>", unsafe_allow_html=True)
+# 1. 세션 상태 초기화
+if "client_logged_in" not in st.session_state:
+    st.session_state.client_logged_in = False
+if "client_user_id" not in st.session_state:
+    st.session_state.client_user_id = ""
+
+# 화주 계정 DB 설정 (없으면 기본 아코글로벌 계정 생성)
+client_user_db = {}
+for uid, info in st.session_state.get("user_db", {}).items():
+    if info.get("role") == "화주(고객)":
+        client_user_db[uid] = info
+
+if not client_user_db:
+    client_user_db = {"ako": {"pw": "1234", "role": "화주(고객)", "name": "아코글로벌"}}
+
+# 2. 첫 화면(추적 홈)에 고객 로그인 버튼 추가 (아직 로그인 안 한 경우)
+if not st.session_state.get("client_logged_in") and st.session_state.get("user_role") != "화주(고객)":
+    st.markdown("---")
     
-    if "client_logged_in" not in st.session_state:
-        st.session_state.client_logged_in = False
-    if "client_user_id" not in st.session_state:
-        st.session_state.client_user_id = ""
+    # 고객들이 쉽게 누를 수 있는 눈에 띄는 안내 박스 및 버튼 생성
+    st.markdown(
+        """
+        <div style="background-color: #eff6ff; border: 2px solid #3b82f6; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
+            <h3 style="color: #1e3a8a; margin-top: 0; font-weight: 800;">📦 화주(고객) 전용 화물 입고 등록 시스템</h3>
+            <p style="color: #475569; font-size: 14px; margin-bottom: 15px;">화물 입고 리스트(카톤수, 5000 부피중량, 수하인 정보)를 직접 등록하시려면 아래 버튼을 눌러 로그인해 주세요.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    client_user_db = {}
-    for uid, info in st.session_state.get("user_db", {}).items():
-        if info.get("role") == "화주(고객)":
-            client_user_db[uid] = info
-    
-    if not client_user_db:
-        client_user_db = {"ako": {"pw": "1234", "role": "화주(고객)", "name": "아코글로벌"}}
+    # 버튼을 누르면 고객 로그인 구역이 펼쳐지도록 세션 토글 생성
+    if "show_client_login_box" not in st.session_state:
+        st.session_state.show_client_login_box = False
 
-    # 1. 고객 로그인 화면
-    if not st.session_state.get("client_logged_in"):
-        st.markdown(
-            "<h2 style='text-align: center; color: #1e3a8a;'>📦 (주)범운해운항공<br>고객 화물 입고 등록 시스템</h2>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            "<p style='text-align: center; color: #64748b;'>배정받으신 화주(고객) 아이디로 로그인해 주세요.</p><br>",
-            unsafe_allow_html=True,
-        )
-        
-        col_cl1, col_cl2, col_cl3 = st.columns([1, 1.2, 1])
-        with col_cl2:
-            with st.form("client_standalone_login_form"):
+    if st.button("🔐 [고객 전용] 입고 등록 로그인하기", type="primary", use_container_width=True):
+        st.session_state.show_client_login_box = True
+        st.rerun()
+
+    # 로그인 버튼을 눌렀을 때 나타나는 입력 폼
+    if st.session_state.show_client_login_box:
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_l1, col_l2, col_l3 = st.columns([1, 1.5, 1])
+        with col_l2:
+            with st.form("home_client_login_form"):
+                st.markdown("#### 🔑 화주 아이디 로그인")
                 input_c_id = st.text_input("고객 아이디 (ID)")
                 input_c_pw = st.text_input("비밀번호 (Password)", type="password")
                 submit_c_login = st.form_submit_button("로그인", use_container_width=True)
@@ -4041,17 +4055,19 @@ if client_query_mode == "client" or st.session_state.get("user_role") == "화주
                     else:
                         st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-            if st.button("⬅ 사내 관리자 화면으로 돌아가기", use_container_width=True):
-                st.query_params.clear()
-                st.session_state.user_role = None
-                st.rerun()
-        st.stop()
+# 3. 고객 로그인이 완료된 경우: 입고 등록 및 조회 화면 출력
+if st.session_state.get("client_logged_in") or st.session_state.get("user_role") == "화주(고객)":
+    # 만약 세션에 아이디가 없으면 기본값 설정
+    if not st.session_state.get("client_user_id"):
+        st.session_state.client_user_id = list(client_user_db.keys())[0]
 
-    # 2. 고객 로그인 후 입고 등록 및 조회 화면
     c_uid = st.session_state.client_user_id
-    c_info = client_user_db.get(c_uid, st.session_state.get("user_db", {}).get(c_uid, {"name": "고객사"}))
+    c_info = client_user_db.get(c_uid, {"name": "고객사"})
     c_name = c_info.get("name", "고객사")
 
+    # 기존 추적 화면 내용을 깔끔하게 덮어쓰고 고객 전용 화면 출력
+    st.empty() # 화면 정돈
+    
     top_cc1, top_cc2 = st.columns([5, 1])
     with top_cc1:
         st.markdown(f"### 📦 [{c_name}] 고객 전용 화물 입고 등록 및 실시간 조회")
@@ -4060,11 +4076,12 @@ if client_query_mode == "client" or st.session_state.get("user_role") == "화주
         if st.button("로그아웃", use_container_width=True):
             st.session_state.client_logged_in = False
             st.session_state.client_user_id = ""
-            st.query_params.clear()
+            st.session_state.show_client_login_box = False
             st.rerun()
 
     st.markdown("---")
 
+    # 고객 전용 입고 등록 폼
     with st.form("client_direct_inbound_form"):
         st.markdown("#### 📝 신규 화물 입고 리스트 작성")
         
