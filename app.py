@@ -1000,7 +1000,16 @@ def _admin_customer_freight_menu():
         with st.form("create_customer_account_form"):
             new_id = st.text_input("고객사 아이디")
             new_pw = st.text_input("초기 비밀번호", type="password")
-            new_company = st.text_input("고객사 상호")
+            
+            # 💡 기존 등록된 매출 거래처 목록(st.session_state.client_list) 연동 및 직접 입력 기능
+            client_options = ["직접 입력"] + st.session_state.get("client_list", [])
+            selected_client_opt = st.selectbox("기존 매출 거래처(화주) 선택", options=client_options)
+            
+            if selected_client_opt == "직접 입력":
+                new_company = st.text_input("고객사 상호 (직접 입력)", value="")
+            else:
+                new_company = selected_client_opt
+                
             new_contact = st.text_input("담당자 / 연락처 (선택)")
             make_account = st.form_submit_button("➕ 고객사 계정 생성", type="primary")
         if make_account:
@@ -1088,9 +1097,6 @@ def _admin_customer_freight_menu():
             st.dataframe(pd.DataFrame(history).sort_values("일시", ascending=False), use_container_width=True, hide_index=True)
         else:
             st.info("아직 수정 이력이 없습니다.")
-
-query_params = st.query_params
-mode_param = query_params.get("mode", "")
 
 # ==========================================
 # [고객사 포털 / 관리자 로그인 분기]
