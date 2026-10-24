@@ -4152,5 +4152,3 @@ else:
             ["날짜", "Job 번호", "B/L 번호", "해외수하인", "해외수하인전화번호", "해외수하인주소", "박스수", "부피규격", "실중량(kg)", "현재 상태"]
         ]
         st.dataframe(df_my, use_container_width=True, hide_index=True)
-    else:
-        st.info("등록된 입고 내역이 없습니다.")
