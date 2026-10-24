@@ -317,6 +317,7 @@ def save_note_data(data_list):
     if os.path.exists(NOTE_FILE):
       os.remove(NOTE_FILE)
 
+
 # ==========================================
 # [매출 거래처(화주)] 데이터 관리
 # ==========================================
@@ -3619,11 +3620,11 @@ elif selected_menu == "💵 거래처 미수금관리":
   else:
     st.info("등록된 B/L 데이터가 없습니다.")
 # ==========================================
-# [💳 일계표 및 입출금 장부] 메뉴 (지급상태 추가 버전)
+# [일계표 및 입출금 장부] 메뉴 (달력 선택 방식 적용)
 # ==========================================
 elif selected_menu == "💳 일계표 및 입출금 장부":
     st.markdown(
-        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📊 일계표 및 입출금 장부 (지급 상태 관리)</h3>",
+        "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📊 일계표 및 입출금 장부</h3>",
         unsafe_allow_html=True,
     )
 
@@ -3632,13 +3633,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     cashbook_data = st.session_state.cashbook_list
 
-    # 1. 데이터에 '지급상태' 컬럼이 없으면 기본값('미지급') 자동 채우기
-    for item in cashbook_data:
-        if "지급상태" not in item:
-            # 수입인 경우는 보통 '지급완료' 또는 빈값, 지출인 경우는 '미지급' 기본 세팅
-            item["지급상태"] = "지급완료" if "수입" in str(item.get("구분", "")) else "미지급"
-
-    # --- 2. 상단: 날짜별 필터 (달력 위젯 표시) 및 인쇄/다운로드 버튼 ---
+    # --- 1. 상단: 날짜별 필터 (달력 위젯 표시) 및 인쇄/다운로드 버튼 ---
     st.markdown("#### 📅 날짜별 조회 및 인쇄")
     
     col_f1, col_f2 = st.columns([1.5, 2])
@@ -3648,6 +3643,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
     selected_target_date = str(date.today())
     if date_filter_mode == "특정 날짜 선택":
         with col_f2:
+            # 📅 클릭하여 날짜를 고를 수 있는 달력 위젯 적용
             picked_date = st.date_input("📅 조회할 날짜 선택 (달력)", value=date.today(), key="cash_date_picker_calendar")
             selected_target_date = str(picked_date)
 
@@ -3658,7 +3654,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
         if date_filter_mode == "전체 기간" or item_date == selected_target_date:
             filtered_cash_data.append(item)
 
-    # --- 3. 통장 잔액 및 수입/지출 총액 요약 ---
+    # --- 2. 통장 잔액 및 수입/지출 총액 요약 (선택한 조건 기준) ---
     total_income = sum(
         float(str(item.get("금액(원)", 0)).replace(",", ""))
         for item in filtered_cash_data
@@ -3681,7 +3677,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     st.markdown("---")
 
-    # --- 4. 중단: 장부 내역 조회 및 편집/삭제 (지급상태 컬럼 셀렉트박스 지원) ---
+    # --- 3. 중단: 장부 내역 조회 및 편집/삭제 ---
     print_title = "전체 일계표" if date_filter_mode == "전체 기간" else f"{selected_target_date} 일계표"
     title_label = f"📋 등록된 장부 내역 (전체)" if date_filter_mode == "전체 기간" else f"📋 [{selected_target_date}] 일일 장부 내역"
     st.markdown(f"#### {title_label}")
@@ -3696,14 +3692,9 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
             hide_index=True,
             use_container_width=True,
             column_config={
-                "선택": st.column_config.CheckboxColumn("삭제 선택", default=False),
-                "지급상태": st.column_config.SelectboxColumn(
-                    "지급상태",
-                    options=["지급완료", "미지급", ""],
-                    required=False
-                )
+                "선택": st.column_config.CheckboxColumn("삭제 선택", default=False)
             },
-            key=f"cashbook_table_editor_v2_{date_filter_mode}_{selected_target_date}",
+            key=f"cashbook_table_editor_{date_filter_mode}_{selected_target_date}",
             height=320,
         )
 
@@ -3725,7 +3716,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
                     st.session_state.cashbook_list = edited_records
                     save_account_data(edited_records)
-                    st.success("일계표 변경 내용(지급상태 포함)이 저장되었습니다.")
+                    st.success("일계표 변경 내용이 저장되었습니다.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"저장 중 오류 발생: {e}")
@@ -3751,7 +3742,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 else:
                     st.warning("⚠️ 삭제할 행의 체크박스를 선택해주세요.")
         with c_btn3:
-            # 보고서 인쇄 HTML 생성 (지급상태 포함)
+            # 회사 보고용 격식 있는 고급 일계표 HTML 양식 생성
             print_html = f"""
             <!DOCTYPE html>
             <html>
@@ -3764,29 +3755,35 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                         @page {{ size: A4 portrait; margin: 12mm; }}
                     }}
                     body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 9.5pt; margin: 0; padding: 15px; background: #fff; }}
-                    .report-box {{ max-width: 780px; margin: 0 auto; border: 1.5px solid #cbd5e1; padding: 25px; border-radius: 8px; background: #ffffff; }}
+                    .report-box {{ max-width: 780px; margin: 0 auto; border: 1.5px solid #cbd5e1; padding: 25px; border-radius: 8px; background: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }}
+                    
                     .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
                     .header-table td {{ border: none; vertical-align: middle; }}
+                    
                     .approval-table {{ border-collapse: collapse; float: right; }}
                     .approval-table th, .approval-table td {{ border: 1px solid #64748b; font-size: 8pt; text-align: center; padding: 4px 8px; }}
                     .approval-table th {{ background-color: #f1f5f9; color: #334155; }}
                     .approval-sign {{ height: 40px; }}
+
                     .summary-card {{ flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; text-align: center; }}
                     .summary-card.income {{ border-left: 4px solid #2563eb; }}
                     .summary-card.expense {{ border-left: 4px solid #dc2626; }}
                     .summary-card.balance {{ border-left: 4px solid #0f172a; background: #f1f5f9; }}
                     .card-title {{ font-size: 8pt; color: #64748b; font-weight: bold; margin-bottom: 4px; }}
                     .card-val {{ font-size: 11pt; font-weight: bold; color: #0f172a; }}
+
                     .data-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
                     .data-table th, .data-table td {{ border: 1px solid #cbd5e1; padding: 8px 10px; text-align: center; font-size: 9pt; }}
                     .data-table th {{ background-color: #0f172a; color: white; font-weight: 600; font-size: 9.5pt; }}
                     .data-table tr:nth-child(even) {{ background-color: #f8fafc; }}
+                    
                     .p-btn {{ display: block; width: 100%; background-color: #2563eb; color: white; text-align: center; padding: 12px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }}
                 </style>
             </head>
             <body>
                 <div class="report-box">
-                    <button class="p-btn no-print" onclick="window.print()">🖨 일계표 보고서 인쇄 / PDF 저장</button>
+                    <button class="p-btn no-print" onclick="window.print()">🖨 격식 있는 일계표 보고서 인쇄 / PDF 저장</button>
+                    
                     <table class="header-table">
                         <tr>
                             <td>
@@ -3802,6 +3799,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                             </td>
                         </tr>
                     </table>
+
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: none;">
                         <tr>
                             <td style="border: none; padding: 0 6px 0 0; width: 33%;">
@@ -3824,25 +3822,23 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                             </td>
                         </tr>
                     </table>
+
                     <table class="data-table">
                         <tr>
-                            <th style="width: 13%;">거래일자</th>
-                            <th style="width: 12%;">구분</th>
-                            <th style="width: 12%;">지급상태</th>
-                            <th style="width: 18%;">항목</th>
-                            <th style="width: 18%;">금액 (원)</th>
-                            <th style="width: 27%;">적요 및 메모</th>
+                            <th style="width: 15%;">거래일자</th>
+                            <th style="width: 15%;">구분</th>
+                            <th style="width: 20%;">항목</th>
+                            <th style="width: 20%;">금액 (원)</th>
+                            <th style="width: 30%;">적요 및 메모</th>
                         </tr>
             """
             for row in filtered_cash_data:
                 io_gubun = str(row.get("구분", "-"))
                 gubun_color = "#2563eb" if "수입" in io_gubun else "#dc2626"
-                pay_status = str(row.get("지급상태", "미지급"))
                 print_html += f"""
                         <tr>
                             <td>{row.get("날짜", "-")}</td>
                             <td style="font-weight: bold; color: {gubun_color};">{io_gubun}</td>
-                            <td style="font-weight: bold;">{pay_status}</td>
                             <td>{row.get("항목", "-")}</td>
                             <td style="text-align: right; font-weight: bold;">{int(float(str(row.get("금액(원)", 0)).replace(",", "") or 0)):,} 원</td>
                             <td style="text-align: left; padding-left: 10px;">{row.get("적요", "-")}</td>
@@ -3850,6 +3846,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 """
             print_html += f"""
                     </table>
+                    
                     <div style="margin-top: 35px; text-align: center; font-size: 10pt; color: #475569;">
                         상기와 같이 자금 입출금 내역을 보고합니다.<br><br>
                         <b style="font-size: 11pt; color: #0f172a;">주식회사 범운해운항공 대표이사 이상복 [직인생략]</b>
@@ -3866,18 +3863,15 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
 
     st.markdown("---")
 
-    # --- 5. 하단: 새로운 수입 / 지출 등록 폼 (지급상태 선택 추가) ---
+    # --- 4. 하단: 새로운 수입 / 지출 등록 폼 ---
     st.markdown("#### ✍️ 새로운 수입 / 지출 장부 등록")
 
-    with st.form("cashbook_register_form_v7"):
-        f_col1, f_col2, f_col3 = st.columns(3)
+    with st.form("cashbook_register_form_v6"):
+        f_col1, f_col2 = st.columns(2)
         with f_col1:
             reg_date = st.date_input("거래 일자", value=date.today())
             io_gb = st.selectbox("입출금 구분", ["지출 (-)", "수입 (+)"])
         with f_col2:
-            pay_status_input = st.selectbox("지급 상태", ["미지급", "지급완료", ""])
-            amount = st.number_input("금액 (원)", min_value=0, step=1000, format="%d")
-        with f_col3:
             cat_options = [
                 "접대비",
                 "주유비(차량유지비)",
@@ -3888,6 +3882,7 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 "운송료수입",
             ]
             category = st.selectbox("비용/수입 항목", cat_options)
+            amount = st.number_input("금액 (원)", min_value=0, step=1000, format="%d")
 
         memo = st.text_input(
             "적요 및 메모", placeholder="예: 사무실 소모품 구입 등"
@@ -3901,13 +3896,12 @@ elif selected_menu == "💳 일계표 및 입출금 장부":
                 st.session_state.cashbook_list.append({
                     "날짜": str(reg_date),
                     "구분": io_gb,
-                    "지급상태": pay_status_input,
                     "항목": category,
                     "금액(원)": int(amount),
                     "적요": memo if memo else "-",
                 })
                 save_account_data(st.session_state.cashbook_list)
-                st.success("✅ 장부 내역이 지급 상태와 함께 등록되었습니다.")
+                st.success("✅ 장부 내역이 등록되었습니다.")
                 st.rerun()
             else:
                 st.warning("⚠️ 금액은 0원보다 커야 합니다.")
@@ -3993,160 +3987,3 @@ elif selected_menu == "🔑 직원 계정 관리 (대표님 전용)":
           "권한": info.get("role", "직원")
       })
     st.dataframe(pd.DataFrame(acc_list), use_container_width=True)
-    # ==========================================
-    # 📦 [추적 화물 화면용] 고객 전용 입고 리스트 작성 시스템
-    # ==========================================
-    st.markdown("---")
-    st.markdown(
-        "<div style='background-color: #f1f5f9; padding: 18px; border-radius: 10px; border-left: 6px solid #2563eb; margin-top: 20px;'>"
-        "<h3 style='color: #1e3a8a; margin: 0 0 5px 0;'>📦 화주(고객) 전용 화물 입고 리스트 직접 작성 시스템</h3>"
-        "<p style='color: #475569; font-size: 13.5px; margin: 0;'>고객 계정으로 로그인하시면, 카톤수·실중량·5000 부피중량·수하인 주소 및 전화번호를 직접 입력하고 사내 시스템에 즉시 등록하실 수 있습니다.</p>"
-        "</div>",
-        unsafe_allow_html=True
-    )
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if "client_logged_in" not in st.session_state:
-        st.session_state.client_logged_in = False
-    if "client_user_id" not in st.session_state:
-        st.session_state.client_user_id = ""
-
-    client_user_db = {}
-    for uid, info in st.session_state.get("user_db", {}).items():
-        if info.get("role") == "화주(고객)":
-            client_user_db[uid] = info
-
-    if not client_user_db:
-        client_user_db = {"ako": {"pw": "1234", "role": "화주(고객)", "name": "아코글로벌"}}
-
-    if not st.session_state.get("client_logged_in"):
-        col_lf1, col_lf2, col_lf3 = st.columns([1, 1.5, 1])
-        with col_lf2:
-            with st.form("home_client_direct_login_form"):
-                st.markdown("##### 🔐 화주(고객) 로그인")
-                input_cid = st.text_input("고객 아이디 (ID)")
-                input_cpw = st.text_input("비밀번호 (Password)", type="password")
-                submit_cl = st.form_submit_button("로그인", use_container_width=True)
-                
-                if submit_cl:
-                    if input_cid in client_user_db and client_user_db[input_cid]["pw"] == input_cpw:
-                        st.session_state.client_logged_in = True
-                        st.session_state.client_user_id = input_cid
-                        st.success("로그인 성공!")
-                        st.rerun()
-                    else:
-                        st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
-    else:
-        c_uid = st.session_state.client_user_id
-        c_info = client_user_db.get(c_uid, {"name": "고객사"})
-        c_name = c_info.get("name", "고객사")
-
-        top_col1, top_col2 = st.columns([4, 1])
-        with top_col1:
-            st.markdown(f"### 🎉 [{c_name}]님 환영합니다! 입고 리스트를 작성해 주세요.")
-        with top_col2:
-            if st.button("로그아웃"):
-                st.session_state.client_logged_in = False
-                st.session_state.client_user_id = ""
-                st.rerun()
-
-        with st.form("client_inline_inbound_form"):
-            st.markdown("#### 📝 입고 정보 및 배송지(수하인) 입력")
-            
-            ic1, ic2 = st.columns(2)
-            with ic1:
-                inbound_date = st.date_input("입고 예정일", value=date.today())
-                item_name = st.selectbox("품목 선택", ["보톡스", "필러", "화장품", "일반공산품", "기타"])
-                consignee_name = st.text_input("해외 수하인 성명 (Consignee)", placeholder="예: John Doe")
-                consignee_tel = st.text_input("해외 수하인 전화번호", placeholder="예: +1-212-555-0199")
-            with ic2:
-                carton_cnt = st.number_input("카톤 수 (박스 수 CTN)", min_value=1, value=1, step=1)
-                gross_weight = st.number_input("실중량 (kg) [소수점 가능]", min_value=0.0, value=1.0, step=0.01, format="%.2f")
-                consignee_addr = st.text_input("해외 수하인 상세 주소", placeholder="예: 123 Main St, New York, NY 10001")
-
-            st.markdown("---")
-            st.markdown("#### 📐 박스 규격 입력 (부피중량 5000 Divisor 자동 계산)")
-            
-            b_c1, b_c2, b_c3 = st.columns(3)
-            with b_c1:
-                w_cm = st.number_input("가로 (cm)", min_value=0.0, value=0.0)
-            with b_c2:
-                l_cm = st.number_input("세로 (cm)", min_value=0.0, value=0.0)
-            with b_c3:
-                h_cm = st.number_input("높이 (cm)", min_value=0.0, value=0.0)
-
-            cbm_calc = 0.0
-            vol_weight_5000 = 0.0
-            if w_cm > 0 and l_cm > 0 and h_cm > 0:
-                cbm_calc = ((w_cm * l_cm * h_cm) / 1000000.0) * carton_cnt
-                vol_weight_5000 = ((w_cm * l_cm * h_cm) / 5000.0) * carton_cnt
-
-            st.info(f"💡 자동 계산 결과: CBM = {cbm_calc:.3f} CBM | 5000기준 부피중량 = {vol_weight_5000:.2f} kg")
-
-            memo = st.text_area("요청사항 및 메모")
-            
-            submit_btn = st.form_submit_button("🚀 입고 리스트 등록 및 사내 시스템 전송", type="primary", use_container_width=True)
-            
-            if submit_btn:
-                if not consignee_name.strip() or not consignee_addr.strip():
-                    st.warning("⚠️ 해외 수하인 성명과 상세 주소는 필수 입력 사항입니다.")
-                else:
-                    bl_list = st.session_state.get("bl_data_list", [])
-                    dim_str = f"{int(w_cm)}×{int(l_cm)}×{int(h_cm)}cm({carton_cnt}CTN)" if w_cm > 0 else "-"
-                    
-                    new_record = {
-                        "구분": "수출 (Export)",
-                        "날지요청": str(inbound_date),
-                        "날짜": str(inbound_date),
-                        "Job 번호": f"INB-{date.today().strftime('%Y%m%d')}-{len(bl_list)+1:03d}",
-                        "B/L 번호": "접수대기 (사내확인)",
-                        "국가": "미국",
-                        "출발지": "대한민국 (KOREA)",
-                        "화주명(매출)": c_name,
-                        "해외수하인": consignee_name,
-                        "해외수하인주소": consignee_addr,
-                        "해외수하인전화번호": consignee_tel,
-                        "매입처": "-",
-                        "운송형태": "항공(Air)",
-                        "서비스옵션": "Door To Door",
-                        "품목": item_name,
-                        "박스수": f"{carton_cnt} 박스(CTN)",
-                        "부피규격": dim_str,
-                        "실중량(kg)": float(gross_weight),
-                        "매출실중량(kg)": float(gross_weight),
-                        "매입실중량(kg)": float(gross_weight),
-                        "매출청구중량(kg)": float(math.ceil(max(gross_weight, vol_weight_5000))),
-                        "매입청구중량(kg)": float(math.ceil(max(gross_weight, vol_weight_5000))),
-                        "CBM": f"{cbm_calc:.3f} CBM",
-                        "현재 상태": "📦 고객 입고 제출 완료",
-                        "수금상태": "미수",
-                        "매출액(원)": 0,
-                        "매입액(원)": 0,
-                        "예상Profit(원)": 0,
-                        "비고": memo,
-                        "최종작성자": f"고객({c_name})",
-                        "최종수정자": "-",
-                    }
-
-                    if "bl_data_list" not in st.session_state:
-                        st.session_state.bl_data_list = []
-                    st.session_state.bl_data_list.append(new_record)
-                    save_bl_data(st.session_state.bl_data_list)
-                    st.success("🎉 입고 리스트가 성공적으로 등록되어 사내 시스템에 연동되었습니다!")
-                    st.rerun()
-
-        st.markdown("---")
-        st.markdown(f"#### 📋 [{c_name}] 내 입고 등록 및 처리 내역")
-        my_inbound_list = [
-            item for item in st.session_state.get("bl_data_list", [])
-            if str(item.get("화주명(매출)", "")).strip() == c_name
-        ]
-        if my_inbound_list:
-            df_my = pd.DataFrame(my_inbound_list)[
-                ["날짜", "Job 번호", "B/L 번호", "해외수하인", "해외수하인전화번호", "해외수하인주소", "박스수", "부피규격", "실중량(kg)", "현재 상태"]
-            ]
-            st.dataframe(df_my, use_container_width=True, hide_index=True)
-        else:
-            st.info("등록된 입고 내역이 없습니다.")
-if __name == "__main__":
-    pass
