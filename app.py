@@ -1045,8 +1045,8 @@ def _admin_customer_freight_menu():
             elif any(a.get("아이디", "") == new_id for a in accounts):
                 st.error("이미 사용 중인 아이디입니다.")
             else:
-                accounts.append({"아이디":new_id,"비밀번호해시":_customer_hash_password(new_pw),"고객사상호":new_company,"담당자연락처":new_contact.strip(),"상태":"승인","생성일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
-                _write_customer_csv(CUSTOMER_ACCOUNT_FILE, accounts)
+                accounts.append({"아이디":new_id,"비밀번호해시":customer_hash_password(new_pw),"고객사상호":new_company,"담당자연락처":new_contact.strip(),"상태":"승인","생성일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+                write_customer_csv(CUSTOMER_ACCOUNT_FILE, accounts)
                 st.success("고객사 계정이 생성되었습니다. 고객사에 아이디와 초기 비밀번호를 안전하게 전달해 주세요.")
                 st.rerun()
         if accounts:
@@ -1057,7 +1057,7 @@ def _admin_customer_freight_menu():
             if st.button("계정 상태 저장"):
                 for a in accounts:
                     if a.get("아이디","")==chosen_id: a["상태"] = new_status
-                _write_customer_csv(CUSTOMER_ACCOUNT_FILE, accounts)
+                write_customer_csv(CUSTOMER_ACCOUNT_FILE, accounts)
                 st.success("계정 상태를 저장했습니다.")
                 st.rerun()
     with t_requests:
@@ -1067,8 +1067,75 @@ def _admin_customer_freight_menu():
             st.dataframe(pd.DataFrame([{k:r.get(k,"") for k in ["접수번호","접수일시","고객사상호","화주상호","품목","실제중량kg","CBM","상태","연결 B/L 번호"]} for r in requests]), use_container_width=True, hide_index=True)
             req_id = st.selectbox("관리할 접수 건", [r.get("접수번호","") for r in requests], key="admin_customer_request_select")
             target = next(r for r in requests if r.get("접수번호","")==req_id)
-            st.write("접수 상세")
+            st.write("접수 상세 / 승인 전 내용 확인 및 수정")
+            with st.form(f"admin_edit_customer_request{req_id}"):
+                ae_shipper = st.text_input("화주 상호", value=target.get("화주상호", ""))
+                ae_shipper_addr = st.text_input("화주 주소", value=target.get("화주주소", ""))
+                ae_shipper_tel = st.text_input("화주 전화번호", value=target.get("화주전화번호", ""))
+                ae_consignee = st.text_input("해외 수하인", value=target.get("해외수하인", ""))
+                ae_consignee_addr = st.text_input("해외 수하인 주소", value=target.get("해외수하인주소", ""))
+                ae_consignee_tel = st.text_input("해외 수하인 전화번호", value=target.get("해외수하인전화번호", ""))
+                ae_country = st.selectbox("도착 국가", CUSTOMER_DEST_COUNTRIES,
+                    index=CUSTOMER_DEST_COUNTRIES.index(target.get("도착국가", "미국")) if target.get("도착국가", "미국") in CUSTOMER_DEST_COUNTRIES else 0,
+                    key=f"admin_req_country{req_id}")
+                ae_item_options = list(CUSTOMER_ITEM_OPTIONS)
+                if target.get("품목", "") and target.get("품목", "") not in ae_item_options:
+                    ae_item_options.insert(0, target.get("품목", ""))
+                ae_item = st.selectbox("품목", ae_item_options,
+                    index=ae_item_options.index(target.get("품목", ae_item_options[0])) if target.get("품목", ae_item_options[0]) in ae_item_options else 0,
+                    key=f"admin_req_item{req_id}")
+                ae_transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"],
+                    index=0 if target.get("운송형태", "항공(Air)") == "항공(Air)" else 1,
+                    key=f"admin_req_transport_{req_id}")
+                ae_weight = st.number_input("실제 중량 (kg)", min_value=0.01, value=max(0.01, float(target.get("실제중량kg", 1) or 1)), step=0.5, key=f"admin_req_weight_{req_id}")
+                ae_width = st.number_input("가로 (cm)", min_value=0.01, value=max(0.01, float(target.get("가로cm", 1) or 1)), step=1.0, key=f"admin_req_width_{req_id}")
+                ae_length = st.number_input("세로 (cm)", min_value=0.01, value=max(0.01, float(target.get("세로cm", 1) or 1)), step=1.0, key=f"admin_req_length_{req_id}")
+                ae_height = st.number_input("높이 (cm)", min_value=0.01, value=max(0.01, float(target.get("높이cm", 1) or 1)), step=1.0, key=f"admin_req_height_{req_id}")
+                ae_cartons = st.number_input("박스 수량", min_value=1, value=max(1, int(float(target.get("박스수량", 1) or 1))), step=1, key=f"admin_req_cartons_{req_id}")
+                ae_note = st.text_area("추가 요청 사항", value=target.get("추가요청", ""), key=f"admin_req_note_{req_id}")
+                save_admin_edit = st.form_submit_button("💾 승인 전 수정 저장")
+            if save_admin_edit:
+                now_edit = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                updated_request = dict(target)
+                updated_request.update({
+                    "화주상호": ae_shipper.strip(), "화주주소": ae_shipper_addr.strip(), "화주전화번호": ae_shipper_tel.strip(),
+                    "해외수하인": ae_consignee.strip(), "해외수하인주소": ae_consignee_addr.strip(), "해외수하인전화번호": ae_consignee_tel.strip(),
+                    "도착국가": ae_country, "품목": ae_item, "운송형태": ae_transport,
+                    "실제중량kg": f"{ae_weight:.2f}", "가로cm": f"{ae_width:.2f}", "세로cm": f"{ae_length:.2f}", "높이cm": f"{ae_height:.2f}",
+                    "박스수량": str(int(ae_cartons)), "CBM": f"{ae_widthae_lengthae_heightae_cartons/1000000:.4f}",
+                    "부피중량kg": f"{ae_widthae_lengthae_heightae_cartons/(5000 if ae_transport == '항공(Air)' else 6000):.2f}",
+                    "추가요청": ae_note.strip(), "최종수정일시": now_edit,
+                })
+                for ri, rr in enumerate(requests):
+                    if rr.get("접수번호", "") == req_id:
+                        requests[ri] = updated_request
+                        break
+                _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                _customer_history_append({"일시":now_edit,"접수번호":req_id,"고객사아이디":target.get("고객사아이디", ""),"작업자":st.session_state.logged_in_user,"작업":"관리자 승인 전 접수내용 수정","변경내용":json.dumps(updated_request, ensure_ascii=False)})
+                st.success("수정 내용을 저장했습니다. 확인 후 승인해 주세요.")
+                st.rerun()
+
             st.json({k:v for k,v in target.items() if k not in ("변경요청JSON",)})
+            # 승인 시 B/L 번호를 자동 발급하고, 이후 수출입 B/L 등록 메뉴에서 바로 등록할 수 있도록 대기 상태로 둡니다.
+            if not str(target.get("연결 B/L 번호", "")).strip() and target.get("상태", "접수") not in ("승인완료-B/L 등록대기", "B/L 등록"):
+                if st.button("✅ 내용 확인 후 승인 및 B/L 번호 자동 발급", type="primary", use_container_width=True, key=f"approve_issue_bl_{req_id}"):
+                    existing_nums = [str(x.get("B/L 번호", "")).strip() for x in st.session_state.get("bl_data_list", [])]
+                    existing_nums += [str(x.get("연결 B/L 번호", "")).strip() for x in requests]
+                    nums = [int(v[2:]) for v in existing_nums if v.startswith("BW") and v[2:].isdigit()]
+                    new_bl = f"BW{(max(nums) if nums else 260000)+1:06d}"
+                    now_approve = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    for ri, rr in enumerate(requests):
+                        if rr.get("접수번호", "") == req_id:
+                            rr["연결 B/L 번호"] = new_bl
+                            rr["상태"] = "승인완료-B/L 등록대기"
+                            rr["승인일시"] = now_approve
+                            rr["승인자"] = st.session_state.logged_in_user
+                            break
+                    _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                    _customer_history_append({"일시":now_approve,"접수번호":req_id,"고객사아이디":target.get("고객사아이디", ""),"작업자":st.session_state.logged_in_user,"작업":"고객 화물 승인 및 B/L 번호 자동 발급","변경내용":new_bl})
+                    st.session_state["customer_bl_registration_request"] = req_id
+                    st.success(f"승인 완료. B/L 번호 {new_bl}를 발급했습니다. 왼쪽 메뉴에서 ‘수출입 B/L 등록’을 열어 등록을 완료해 주세요.")
+                    st.rerun()
             pending = target.get("변경요청JSON", "")
             if pending:
                 try:
@@ -1699,7 +1766,7 @@ if st.session_state.user_role == "관리자(대표)":
   menu_options.append("🏢 고객사 계정 및 화물 접수 관리")
   menu_options.append("🔑 직원 계정 관리 (대표님 전용)")
 
-selected_menu = st.sidebar.radio("📌 메인 메뉴 이동", menu_options)
+selected_menu = st.sidebar.radio("📌 메인 메뉴 이동", menu_options, key="main_menu_radio")
 
 st.sidebar.markdown("---")
 mobile_view_mode = st.sidebar.toggle(
@@ -1923,6 +1990,70 @@ st.markdown(header_html, unsafe_allow_html=True)
 # [1] 수출입 B/L 등록
 # ==========================================
 if selected_menu == "📊 수출입 B/L 등록":
+    approved_customer_requests = [r for r in _customer_requests() if r.get("상태", "") == "승인완료-B/L 등록대기" and str(r.get("연결 B/L 번호", "")).strip()]
+    if approved_customer_requests:
+        st.markdown("### 📦 승인된 고객사 화물에서 B/L 등록")
+        approved_labels = [f"{r.get('접수번호','')} | {r.get('고객사상호','')} | {r.get('화주상호','')} | B/L {r.get('연결 B/L 번호','')}" for r in approved_customer_requests]
+        default_req_id = st.session_state.get("customer_bl_registration_request", "")
+        default_idx = next((i for i, r in enumerate(approved_customer_requests) if r.get("접수번호", "") == default_req_id), 0)
+        selected_approved_label = st.selectbox("승인 접수 선택", approved_labels, index=default_idx, key="approved_customer_bl_select")
+        selected_approved_req = approved_customer_requests[approved_labels.index(selected_approved_label)]
+        st.caption(f"도착 국가: {selected_approved_req.get('도착국가','')} · 품목: {selected_approved_req.get('품목','')} · 중량: {selected_approved_req.get('실제중량kg','')} kg · 박스: {selected_approved_req.get('박스수량','')}")
+        st.info("승인 전 수정은 고객사 계정 및 화물 접수 관리 화면에서 가능합니다. 아래 버튼을 누르면 승인 자료를 수출입 B/L 내역에 등록합니다. 매출·매입 금액은 자동 요율로 계산되며, 등록 후 B/L 수정 화면에서 조정할 수 있습니다.")
+        if st.button("➡️ 선택한 승인 접수를 수출입 B/L에 등록", type="primary", use_container_width=True, key="register_approved_customer_bl"):
+            req = selected_approved_req
+            blno = str(req.get("연결 B/L 번호", "")).strip()
+            if any(str(x.get("B/L 번호", "")).strip() == blno for x in st.session_state.bl_data_list):
+                st.error(f"B/L 번호 {blno}는 이미 등록되어 있습니다. 중복 등록하지 않았습니다.")
+            else:
+                job_nums = []
+                for x in st.session_state.bl_data_list:
+                    j = str(x.get("Job 번호", ""))
+                    try:
+                        job_nums.append(int(j.split("-")[-1]))
+                    except Exception:
+                        pass
+                job_no_auto = f"BW-{date.today().year}-{(max(job_nums) if job_nums else 0)+1:03d}"
+                shipper_auto = str(req.get("화주상호", "")).strip()
+                country_auto = str(req.get("도착국가", "미국")).strip()
+                item_auto = str(req.get("품목", "기타")).strip()
+                transport_auto = str(req.get("운송형태", "항공(Air)")).strip()
+                weight_auto = float(req.get("실제중량kg", 0) or 0)
+                width_auto = float(req.get("가로cm", 0) or 0)
+                length_auto = float(req.get("세로cm", 0) or 0)
+                height_auto = float(req.get("높이cm", 0) or 0)
+                cartons_auto = int(float(req.get("박스수량", 1) or 1))
+                cbm_auto = width_auto * length_auto * height_auto * cartons_auto / 1000000.0
+                divisor_auto = 5000 if transport_auto == "항공(Air)" else 6000
+                charge_auto = float(math.ceil(max(weight_auto, width_autolength_autoheight_auto*cartons_auto/divisor_auto)))
+                supplier_auto = ""
+                sales_auto = int(calculate_auto_price(shipper_auto, charge_auto, transport_auto, item_auto, country_auto))
+                purchase_auto = int(calculate_purchase_auto_price(supplier_auto, charge_auto, transport_auto, item_auto, country_auto))
+                st.session_state.bl_data_list.append({
+                    "구분":"수출 (Export)", "날짜":str(date.today()), "Job 번호":job_no_auto, "B/L 번호":blno,
+                    "국가":country_auto, "출발지":"대한민국 (KOREA)", "화주명(매출)":shipper_auto,
+                    "해외수하인":req.get("해외수하인", ""), "해외수하인주소":req.get("해외수하인주소", ""), "해외수하인전화번호":req.get("해외수하인전화번호", ""),
+                    "매입처":supplier_auto, "운송형태":transport_auto, "서비스옵션":"Door To Door", "품목":item_auto,
+                    "박스수":f"{cartons_auto} 박스 (CTN)", "부피규격":f"{width_auto:g}×{length_auto:g}×{height_auto:g}cm({cartons_auto}CTN)",
+                    "실중량(kg)":weight_auto, "매출실중량(kg)":weight_auto, "매입실중량(kg)":weight_auto,
+                    "매출청구중량(kg)":charge_auto, "매입청구중량(kg)":charge_auto, "CBM":f"{cbm_auto:.3f} CBM",
+                    "현재 상태":"📦 물류센터 입고 및 접수 완료", "수금상태":"미수", "매출액(원)":sales_auto, "매입액(원)":purchase_auto,
+                    "예상Profit(원)":sales_auto-purchase_auto, "비고":f"고객사 접수번호: {req.get('접수번호','')} / {req.get('추가요청','')}",
+                    "최종작성자":st.session_state.get("logged_in_user", "관리자"), "최종수정자":"-"
+                })
+                save_bl_data(st.session_state.bl_data_list)
+                all_reqs = _customer_requests()
+                for rr in all_reqs:
+                    if rr.get("접수번호", "") == req.get("접수번호", ""):
+                        rr["상태"] = "B/L 등록"
+                        rr["B/L등록일시"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        break
+                _write_customer_csv(CUSTOMER_REQUEST_FILE, all_reqs)
+                _customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req.get("접수번호", ""),"고객사아이디":req.get("고객사아이디", ""),"작업자":st.session_state.get("logged_in_user", "관리자"),"작업":"승인 고객 접수에서 B/L 등록","변경내용":blno})
+                st.session_state.pop("customer_bl_registration_request", None)
+                st.success(f"B/L 등록 완료: {blno} / Job 번호: {job_no_auto}")
+                st.rerun()
+        st.markdown("---")
     st.markdown(
         "<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 15px;'>📋 수출입 B/L 및 Profit 등록 관리</h3>",
         unsafe_allow_html=True,
