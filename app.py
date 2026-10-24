@@ -823,6 +823,9 @@ def _customer_is_active(account):
 def _customer_request_is_billed(item):
     return bool(str(item.get("연결 B/L 번호", "")).strip()) or str(item.get("상태", "접수")).startswith("B/L 등록")
 
+# 이전 배포 코드에서 사용한 함수명과의 호환 별칭 (NameError 방지)
+customer_request_is_billed = _customer_request_is_billed
+
 
 # 고객 화물 접수 화면에서 사용할 도착 국가 목록 (요청된 8개 국가만 표시)
 CUSTOMER_DEST_COUNTRIES = [
