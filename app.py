@@ -997,16 +997,33 @@ def _admin_customer_freight_menu():
     requests = _customer_requests()
     t_accounts, t_requests, t_history = st.tabs(["고객사 계정 발급", "화물 접수 / 수정 승인", "수정 이력"])
     with t_accounts:
+        # 기존 거래처 등록 자료(client_data.csv)에서 고객사 상호 목록을 가져옵니다.
+        registered_companies = []
+        for company in st.session_state.get("client_list", []):
+            company_name = str(company).strip()
+            if company_name and company_name not in ("없음", "선택하세요") and company_name not in registered_companies:
+                registered_companies.append(company_name)
+        # 기존 고객사 계정의 상호도 유지하여, 거래처 목록 정리 전까지 계정 정보가 사라지지 않게 합니다.
+        for account in accounts:
+            company_name = str(account.get("고객사상호", "")).strip()
+            if company_name and company_name not in registered_companies:
+                registered_companies.append(company_name)
+
+        if not registered_companies:
+            st.warning("선택할 고객사 상호가 없습니다. 먼저 '매출 거래처(화주) 관리'에서 거래처를 등록해 주세요.")
+
         with st.form("create_customer_account_form"):
             new_id = st.text_input("고객사 아이디")
             new_pw = st.text_input("초기 비밀번호", type="password")
-            new_company = st.text_input("고객사 상호")
+            company_options = ["상호를 선택하세요"] + registered_companies
+            new_company = st.selectbox("고객사 상호 선택", company_options, index=0, help="등록된 거래처 목록에서 고객사 상호를 선택하세요.")
             new_contact = st.text_input("담당자 / 연락처 (선택)")
             make_account = st.form_submit_button("➕ 고객사 계정 생성", type="primary")
         if make_account:
-            new_id, new_company = new_id.strip(), new_company.strip()
+            new_id = new_id.strip()
+            new_company = "" if new_company == "상호를 선택하세요" else new_company.strip()
             if not new_id or not new_pw or not new_company:
-                st.error("아이디, 비밀번호, 고객사 상호는 필수입니다.")
+                st.error("아이디, 비밀번호를 입력하고 고객사 상호를 드롭다운에서 선택해 주세요.")
             elif any(a.get("아이디", "") == new_id for a in accounts):
                 st.error("이미 사용 중인 아이디입니다.")
             else:
