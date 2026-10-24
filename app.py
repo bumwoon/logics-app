@@ -824,6 +824,13 @@ def _customer_request_is_billed(item):
     return bool(str(item.get("연결 B/L 번호", "")).strip()) or str(item.get("상태", "접수")).startswith("B/L 등록")
 
 
+# 고객 화물 접수 화면에서 사용할 도착 국가 목록 (요청된 8개 국가만 표시)
+CUSTOMER_DEST_COUNTRIES = [
+    "미국", "중국", "인도", "호주", "인도네시아", "태국", "베트남"
+]
+CUSTOMER_ITEM_OPTIONS = ["보톡스", "필러", "화장품", "특가품목", "일반화물", "의류", "전자제품", "식품", "기타"]
+
+
 def _customer_portal():
     st.markdown("<div style='text-align:center;padding:14px 4px;'>", unsafe_allow_html=True)
     st.markdown("## 📦 고객사 화물 접수 / 내역 수정")
@@ -884,8 +891,8 @@ def _customer_portal():
             consignee = st.text_input("해외 수하인 상호 *")
             consignee_address = st.text_input("해외 수하인 주소 *")
             consignee_phone = st.text_input("해외 수하인 전화번호")
-            dest_country = st.text_input("도착 국가 *")
-            item_name = st.text_input("품목 / 화물 내용 *")
+            dest_country = st.selectbox("도착 국가 선택 *", options=CUSTOMER_DEST_COUNTRIES, index=0, key="customer_new_dest_country", help="미국·중국·인도·호주·인도네시아·태국·베트남 중 선택하세요.")
+            item_name = st.selectbox("품목 / 화물 내용 *", CUSTOMER_ITEM_OPTIONS, index=4, key="customer_new_item_name")
             transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"])
             weight = st.number_input("실제 중량 (kg) *", min_value=0.0, value=1.0, step=0.5, format="%.2f")
             d1, d2, d3 = st.columns(3)
@@ -931,7 +938,7 @@ def _customer_portal():
             choice = st.selectbox("수정할 접수 건 선택", options=[r.get("접수번호", "") for r in mine], key="customer_request_select")
             target = next((r for r in mine if r.get("접수번호", "") == choice), None)
             if target:
-                billed = _customer_request_is_billed(target)
+                billed = customer_request_is_billed(target)
                 if billed:
                     st.warning("이 건은 B/L 등록 후입니다. 아래에서 수정 요청을 제출하면 사내 관리자가 승인한 뒤 반영합니다.")
                 else:
@@ -949,8 +956,16 @@ def _customer_portal():
                     e_consignee = st.text_input("해외 수하인 상호 *", value=target.get("해외수하인", ""))
                     e_caddr = st.text_input("해외 수하인 주소 *", value=target.get("해외수하인주소", ""))
                     e_ctel = st.text_input("해외 수하인 전화번호", value=target.get("해외수하인전화번호", ""))
-                    e_country = st.text_input("도착 국가 *", value=target.get("도착국가", ""))
-                    e_item = st.text_input("품목 *", value=target.get("품목", ""))
+                    current_country = str(target.get("도착국가", "")).strip()
+                    country_options = list(CUSTOMER_DEST_COUNTRIES)
+                    if current_country and current_country not in country_options:
+                        country_options.insert(0, current_country)
+                    e_country = st.selectbox("도착 국가 선택 *", options=country_options, index=country_options.index(current_country) if current_country in country_options else 0, key=f"customer_edit_country{choice}", help="도착 국가를 목록에서 선택하세요.")
+                    current_item = str(target.get("품목", "")).strip()
+                    item_options = list(CUSTOMER_ITEM_OPTIONS)
+                    if current_item and current_item not in item_options:
+                        item_options.insert(0, current_item)
+                    e_item = st.selectbox("품목 *", options=item_options, index=item_options.index(current_item) if current_item in item_options else 0, key=f"customer_edit_item_{choice}")
                     e_transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"], index=0 if target.get("운송형태", "항공(Air)") == "항공(Air)" else 1)
                     e_weight = st.number_input("실제 중량 (kg) *", min_value=0.0, value=max(0.0, edit_weight), step=0.5, format="%.2f")
                     ec1, ec2, ec3 = st.columns(3)
