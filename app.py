@@ -991,16 +991,16 @@ def _customer_portal():
                     e_weight = st.number_input("실제 중량 (kg) *", min_value=0.0, value=max(0.0, edit_weight), step=0.5, format="%.2f")
                     ec1, ec2, ec3 = st.columns(3)
                     with ec1: e_width = st.number_input("가로 (cm) *", min_value=0.0, value=max(0.0, edit_dims[0]), step=1.0)
-                    with ec2: e_length = st.number_input("세로 (cm) ", min_value=0.0, value=max(0.0, edit_dims[1]), step=1.0)
-                    with ec3: e_height = st.number_input("높이 (cm) ", min_value=0.0, value=max(0.0, edit_dims[2]), step=1.0)
-                    e_cartons = st.number_input("박스 수량 (CTN) ", min_value=1, value=max(1, edit_cartons), step=1)
+                    with ec2: e_length = st.number_input("세로 (cm) *", min_value=0.0, value=max(0.0, edit_dims[1]), step=1.0)
+                    with ec3: e_height = st.number_input("높이 (cm) *", min_value=0.0, value=max(0.0, edit_dims[2]), step=1.0)
+                    e_cartons = st.number_input("박스 수량 (CTN) *", min_value=1, value=max(1, edit_cartons), step=1)
                     e_export_license = st.text_input("수출면장 번호 (해당 시 입력)", value=target.get("수출면장번호", ""), key=f"customer_edit_license_{choice}")
                     e_note = st.text_input("추가 요청 사항 (선택)", value=target.get("추가요청", ""))
                     preview_vol = e_width * e_length * e_height * e_cartons / (5000 if e_transport == "항공(Air)" else 6000)
                     pv1, pv2, pv3 = st.columns(3)
-                    # 호환 안전장치: 이전 배포본에서 pwl.metric 오타가 발생한 경우를 방지
-                    pwl = pv1
-                    pv1.metric("CBM", f"{e_widthe_lengthe_heighte_cartons/1000000:.4f}")
+                    # CBM 미리보기 값을 별도 계산해 변수명 오타로 인한 NameError 방지
+                    preview_cbm = (float(e_width) * float(e_length) * float(e_height) * int(e_cartons)) / 1000000.0
+                    pv1.metric("CBM", f"{preview_cbm:.4f}")
                     pv2.metric("부피중량", f"{preview_vol:.2f} kg")
                     pv3.metric("적용중량", f"{max(e_weight, preview_vol):.2f} kg")
                     save_edit = st.form_submit_button("💾 수정 저장 / 수정 요청", use_container_width=True, type="primary")
