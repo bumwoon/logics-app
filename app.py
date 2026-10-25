@@ -998,6 +998,8 @@ def _customer_portal():
                     e_note = st.text_input("추가 요청 사항 (선택)", value=target.get("추가요청", ""))
                     preview_vol = e_width * e_length * e_height * e_cartons / (5000 if e_transport == "항공(Air)" else 6000)
                     pv1, pv2, pv3 = st.columns(3)
+                    # 호환 안전장치: 이전 배포본에서 pwl.metric 오타가 발생한 경우를 방지
+                    pwl = pv1
                     pv1.metric("CBM", f"{e_widthe_lengthe_heighte_cartons/1000000:.4f}")
                     pv2.metric("부피중량", f"{preview_vol:.2f} kg")
                     pv3.metric("적용중량", f"{max(e_weight, preview_vol):.2f} kg")
