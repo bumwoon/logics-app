@@ -815,6 +815,11 @@ def _customer_hash_password(password):
     import hashlib
     return hashlib.sha256(str(password).encode("utf-8")).hexdigest()
 
+# 기존 화면 코드에서 사용하던 함수명과의 호환 별칭
+customer_hash_password = _customer_hash_password
+write_customer_csv = _write_customer_csv
+customer_history_append = _customer_history_append
+
 
 def _customer_is_active(account):
     return str(account.get("상태", "승인")).strip() == "승인"
@@ -1068,32 +1073,51 @@ def _admin_customer_freight_menu():
             req_id = st.selectbox("관리할 접수 건", [r.get("접수번호","") for r in requests], key="admin_customer_request_select")
             target = next(r for r in requests if r.get("접수번호","")==req_id)
             st.write("접수 상세 / 승인 전 내용 확인 및 수정")
+            # 입력창을 3열로 배치해 세로 길이를 줄이고 한 화면에서 확인하기 쉽게 구성
             with st.form(f"admin_edit_customer_request{req_id}"):
-                ae_shipper = st.text_input("화주 상호", value=target.get("화주상호", ""))
-                ae_shipper_addr = st.text_input("화주 주소", value=target.get("화주주소", ""))
-                ae_shipper_tel = st.text_input("화주 전화번호", value=target.get("화주전화번호", ""))
-                ae_consignee = st.text_input("해외 수하인", value=target.get("해외수하인", ""))
-                ae_consignee_addr = st.text_input("해외 수하인 주소", value=target.get("해외수하인주소", ""))
-                ae_consignee_tel = st.text_input("해외 수하인 전화번호", value=target.get("해외수하인전화번호", ""))
-                ae_country = st.selectbox("도착 국가", CUSTOMER_DEST_COUNTRIES,
-                    index=CUSTOMER_DEST_COUNTRIES.index(target.get("도착국가", "미국")) if target.get("도착국가", "미국") in CUSTOMER_DEST_COUNTRIES else 0,
-                    key=f"admin_req_country{req_id}")
-                ae_item_options = list(CUSTOMER_ITEM_OPTIONS)
-                if target.get("품목", "") and target.get("품목", "") not in ae_item_options:
-                    ae_item_options.insert(0, target.get("품목", ""))
-                ae_item = st.selectbox("품목", ae_item_options,
-                    index=ae_item_options.index(target.get("품목", ae_item_options[0])) if target.get("품목", ae_item_options[0]) in ae_item_options else 0,
-                    key=f"admin_req_item{req_id}")
-                ae_transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"],
-                    index=0 if target.get("운송형태", "항공(Air)") == "항공(Air)" else 1,
-                    key=f"admin_req_transport_{req_id}")
-                ae_weight = st.number_input("실제 중량 (kg)", min_value=0.01, value=max(0.01, float(target.get("실제중량kg", 1) or 1)), step=0.5, key=f"admin_req_weight_{req_id}")
-                ae_width = st.number_input("가로 (cm)", min_value=0.01, value=max(0.01, float(target.get("가로cm", 1) or 1)), step=1.0, key=f"admin_req_width_{req_id}")
-                ae_length = st.number_input("세로 (cm)", min_value=0.01, value=max(0.01, float(target.get("세로cm", 1) or 1)), step=1.0, key=f"admin_req_length_{req_id}")
-                ae_height = st.number_input("높이 (cm)", min_value=0.01, value=max(0.01, float(target.get("높이cm", 1) or 1)), step=1.0, key=f"admin_req_height_{req_id}")
-                ae_cartons = st.number_input("박스 수량", min_value=1, value=max(1, int(float(target.get("박스수량", 1) or 1))), step=1, key=f"admin_req_cartons_{req_id}")
-                ae_note = st.text_area("추가 요청 사항", value=target.get("추가요청", ""), key=f"admin_req_note_{req_id}")
-                save_admin_edit = st.form_submit_button("💾 승인 전 수정 저장")
+                row1 = st.columns(3)
+                with row1[0]:
+                    ae_shipper = st.text_input("화주 상호", value=target.get("화주상호", ""))
+                with row1[1]:
+                    ae_shipper_addr = st.text_input("화주 주소", value=target.get("화주주소", ""))
+                with row1[2]:
+                    ae_shipper_tel = st.text_input("화주 전화번호", value=target.get("화주전화번호", ""))
+                row2 = st.columns(3)
+                with row2[0]:
+                    ae_consignee = st.text_input("해외 수하인", value=target.get("해외수하인", ""))
+                with row2[1]:
+                    ae_consignee_addr = st.text_input("해외 수하인 주소", value=target.get("해외수하인주소", ""))
+                with row2[2]:
+                    ae_consignee_tel = st.text_input("해외 수하인 전화번호", value=target.get("해외수하인전화번호", ""))
+                row3 = st.columns(3)
+                with row3[0]:
+                    ae_country = st.selectbox("도착 국가", CUSTOMER_DEST_COUNTRIES,
+                        index=CUSTOMER_DEST_COUNTRIES.index(target.get("도착국가", "미국")) if target.get("도착국가", "미국") in CUSTOMER_DEST_COUNTRIES else 0,
+                        key=f"admin_req_country{req_id}")
+                with row3[1]:
+                    ae_item_options = list(CUSTOMER_ITEM_OPTIONS)
+                    if target.get("품목", "") and target.get("품목", "") not in ae_item_options:
+                        ae_item_options.insert(0, target.get("품목", ""))
+                    ae_item = st.selectbox("품목", ae_item_options,
+                        index=ae_item_options.index(target.get("품목", ae_item_options[0])) if target.get("품목", ae_item_options[0]) in ae_item_options else 0,
+                        key=f"admin_req_item{req_id}")
+                with row3[2]:
+                    ae_transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"],
+                        index=0 if target.get("운송형태", "항공(Air)") == "항공(Air)" else 1,
+                        key=f"admin_req_transport_{req_id}")
+                row4 = st.columns(5)
+                with row4[0]:
+                    ae_weight = st.number_input("실제 중량 (kg)", min_value=0.01, value=max(0.01, float(target.get("실제중량kg", 1) or 1)), step=0.5, key=f"admin_req_weight_{req_id}")
+                with row4[1]:
+                    ae_width = st.number_input("가로 (cm)", min_value=0.01, value=max(0.01, float(target.get("가로cm", 1) or 1)), step=1.0, key=f"admin_req_width_{req_id}")
+                with row4[2]:
+                    ae_length = st.number_input("세로 (cm)", min_value=0.01, value=max(0.01, float(target.get("세로cm", 1) or 1)), step=1.0, key=f"admin_req_length_{req_id}")
+                with row4[3]:
+                    ae_height = st.number_input("높이 (cm)", min_value=0.01, value=max(0.01, float(target.get("높이cm", 1) or 1)), step=1.0, key=f"admin_req_height_{req_id}")
+                with row4[4]:
+                    ae_cartons = st.number_input("박스 수량", min_value=1, value=max(1, int(float(target.get("박스수량", 1) or 1))), step=1, key=f"admin_req_cartons_{req_id}")
+                ae_note = st.text_input("추가 요청 사항", value=target.get("추가요청", ""), key=f"admin_req_note_{req_id}")
+                save_admin_edit = st.form_submit_button("💾 승인 전 수정 저장", use_container_width=True)
             if save_admin_edit:
                 now_edit = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 updated_request = dict(target)
@@ -1102,8 +1126,8 @@ def _admin_customer_freight_menu():
                     "해외수하인": ae_consignee.strip(), "해외수하인주소": ae_consignee_addr.strip(), "해외수하인전화번호": ae_consignee_tel.strip(),
                     "도착국가": ae_country, "품목": ae_item, "운송형태": ae_transport,
                     "실제중량kg": f"{ae_weight:.2f}", "가로cm": f"{ae_width:.2f}", "세로cm": f"{ae_length:.2f}", "높이cm": f"{ae_height:.2f}",
-                    "박스수량": str(int(ae_cartons)), "CBM": f"{ae_widthae_lengthae_heightae_cartons/1000000:.4f}",
-                    "부피중량kg": f"{ae_widthae_lengthae_heightae_cartons/(5000 if ae_transport == '항공(Air)' else 6000):.2f}",
+                    "박스수량": str(int(ae_cartons)), "CBM": f"{(ae_width * ae_length * ae_height * ae_cartons)/1000000:.4f}",
+                    "부피중량kg": f"{(ae_width * ae_length * ae_height * ae_cartons)/(5000 if ae_transport == '항공(Air)' else 6000):.2f}",
                     "추가요청": ae_note.strip(), "최종수정일시": now_edit,
                 })
                 for ri, rr in enumerate(requests):
@@ -1115,7 +1139,6 @@ def _admin_customer_freight_menu():
                 st.success("수정 내용을 저장했습니다. 확인 후 승인해 주세요.")
                 st.rerun()
 
-            st.json({k:v for k,v in target.items() if k not in ("변경요청JSON",)})
             # 승인 버튼 한 번으로 B/L 번호를 발급하고 수출입 B/L 데이터에 즉시 저장합니다.
             if target.get("상태", "접수") != "B/L 등록":
                 if st.button("✅ 내용 확인 후 승인 및 수출입 B/L에 자동 등록", type="primary", use_container_width=True, key=f"approve_issue_bl_{req_id}"):
