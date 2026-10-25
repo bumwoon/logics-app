@@ -893,12 +893,14 @@ def _customer_portal():
     with tab_new:
         st.markdown("#### 화물 접수 정보")
         with st.form("customer_new_freight_form"):
-            shipper = st.text_input("화주 상호 *", value=company)
-            shipper_address = st.text_input("화주 주소 *")
-            shipper_phone = st.text_input("화주 전화번호 *")
-            consignee = st.text_input("해외 수하인 상호 *")
-            consignee_address = st.text_input("해외 수하인 주소 *")
-            consignee_phone = st.text_input("해외 수하인 전화번호")
+            c_ship = st.columns(3)
+            with c_ship[0]: shipper = st.text_input("화주 상호 *", value=company)
+            with c_ship[1]: shipper_address = st.text_input("화주 주소 *")
+            with c_ship[2]: shipper_phone = st.text_input("화주 전화번호 *")
+            c_cons = st.columns(3)
+            with c_cons[0]: consignee = st.text_input("해외 수하인 상호 *")
+            with c_cons[1]: consignee_address = st.text_input("해외 수하인 주소 *")
+            with c_cons[2]: consignee_phone = st.text_input("해외 수하인 전화번호")
             dest_country = st.selectbox("도착 국가 선택 *", options=CUSTOMER_DEST_COUNTRIES, index=0, key="customer_new_dest_country", help="미국·중국·인도·호주·인도네시아·태국·베트남 중 선택하세요.")
             item_name = st.selectbox("품목 / 화물 내용 *", CUSTOMER_ITEM_OPTIONS, index=4, key="customer_new_item_name")
             transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"])
@@ -907,8 +909,17 @@ def _customer_portal():
             with d1: width = st.number_input("가로 (cm) *", min_value=0.0, value=1.0, step=1.0)
             with d2: length = st.number_input("세로 (cm) *", min_value=0.0, value=1.0, step=1.0)
             with d3: height = st.number_input("높이 (cm) *", min_value=0.0, value=1.0, step=1.0)
-            cartons = st.number_input("박스 수량 (CTN) ", min_value=1, value=1, step=1)
-            note = st.text_area("추가 요청 사항")
+            cartons = st.number_input("박스 수량 (CTN)", min_value=1, value=1, step=1)
+            dims_total = width * length * height * cartons
+            divisor_preview = 5000 if transport == "항공(Air)" else 6000
+            volume_preview = dims_total / divisor_preview
+            charge_preview = max(weight, volume_preview)
+            p1, p2, p3 = st.columns(3)
+            p1.metric("CBM", f"{dims_total / 1000000:.4f}")
+            p2.metric(f"부피중량 (÷{divisor_preview})", f"{volume_preview:.2f} kg")
+            p3.metric("적용중량", f"{charge_preview:.2f} kg")
+            export_license_no = st.text_input("수출면장 번호 (해당 시 입력)", key="customer_new_export_license")
+            note = st.text_input("추가 요청 사항 (선택)")
             submitted = st.form_submit_button("📨 화물 접수 제출", use_container_width=True, type="primary")
         if submitted:
             required = [shipper, shipper_address, shipper_phone, consignee, consignee_address, dest_country, item_name]
@@ -929,7 +940,7 @@ def _customer_portal():
                     "도착국가": dest_country.strip(), "품목": item_name.strip(), "운송형태": transport,
                     "실제중량kg": f"{weight:.2f}", "가로cm": f"{width:.2f}", "세로cm": f"{length:.2f}", "높이cm": f"{height:.2f}",
                     "박스수량": str(int(cartons)), "CBM": f"{cbm:.4f}", "부피중량kg": f"{vol_weight:.2f}",
-                    "추가요청": note.strip(), "상태": "접수", "연결 B/L 번호": "", "변경요청JSON": "", "관리자메모": ""
+                    "수출면장번호": export_license_no.strip(), "추가요청": note.strip(), "상태": "접수", "연결 B/L 번호": "", "변경요청JSON": "", "관리자메모": ""
                 }
                 all_requests.append(new_req)
                 _write_customer_csv(CUSTOMER_REQUEST_FILE, all_requests)
@@ -958,12 +969,14 @@ def _customer_portal():
                 except Exception:
                     edit_dims, edit_weight, edit_cartons = [1.0, 1.0, 1.0], 1.0, 1
                 with st.form("customer_edit_freight_form"):
-                    e_shipper = st.text_input("화주 상호 *", value=target.get("화주상호", ""))
-                    e_address = st.text_input("화주 주소 *", value=target.get("화주주소", ""))
-                    e_phone = st.text_input("화주 전화번호 *", value=target.get("화주전화번호", ""))
-                    e_consignee = st.text_input("해외 수하인 상호 *", value=target.get("해외수하인", ""))
-                    e_caddr = st.text_input("해외 수하인 주소 *", value=target.get("해외수하인주소", ""))
-                    e_ctel = st.text_input("해외 수하인 전화번호", value=target.get("해외수하인전화번호", ""))
+                    ce1 = st.columns(3)
+                    with ce1[0]: e_shipper = st.text_input("화주 상호 *", value=target.get("화주상호", ""))
+                    with ce1[1]: e_address = st.text_input("화주 주소 *", value=target.get("화주주소", ""))
+                    with ce1[2]: e_phone = st.text_input("화주 전화번호 *", value=target.get("화주전화번호", ""))
+                    ce2 = st.columns(3)
+                    with ce2[0]: e_consignee = st.text_input("해외 수하인 상호 *", value=target.get("해외수하인", ""))
+                    with ce2[1]: e_caddr = st.text_input("해외 수하인 주소 *", value=target.get("해외수하인주소", ""))
+                    with ce2[2]: e_ctel = st.text_input("해외 수하인 전화번호", value=target.get("해외수하인전화번호", ""))
                     current_country = str(target.get("도착국가", "")).strip()
                     country_options = list(CUSTOMER_DEST_COUNTRIES)
                     if current_country and current_country not in country_options:
@@ -978,10 +991,16 @@ def _customer_portal():
                     e_weight = st.number_input("실제 중량 (kg) *", min_value=0.0, value=max(0.0, edit_weight), step=0.5, format="%.2f")
                     ec1, ec2, ec3 = st.columns(3)
                     with ec1: e_width = st.number_input("가로 (cm) *", min_value=0.0, value=max(0.0, edit_dims[0]), step=1.0)
-                    with ec2: e_length = st.number_input("세로 (cm) *", min_value=0.0, value=max(0.0, edit_dims[1]), step=1.0)
-                    with ec3: e_height = st.number_input("높이 (cm) *", min_value=0.0, value=max(0.0, edit_dims[2]), step=1.0)
-                    e_cartons = st.number_input("박스 수량 (CTN) *", min_value=1, value=max(1, edit_cartons), step=1)
-                    e_note = st.text_area("추가 요청 사항", value=target.get("추가요청", ""))
+                    with ec2: e_length = st.number_input("세로 (cm) ", min_value=0.0, value=max(0.0, edit_dims[1]), step=1.0)
+                    with ec3: e_height = st.number_input("높이 (cm) ", min_value=0.0, value=max(0.0, edit_dims[2]), step=1.0)
+                    e_cartons = st.number_input("박스 수량 (CTN) ", min_value=1, value=max(1, edit_cartons), step=1)
+                    e_export_license = st.text_input("수출면장 번호 (해당 시 입력)", value=target.get("수출면장번호", ""), key=f"customer_edit_license_{choice}")
+                    e_note = st.text_input("추가 요청 사항 (선택)", value=target.get("추가요청", ""))
+                    preview_vol = e_width * e_length * e_height * e_cartons / (5000 if e_transport == "항공(Air)" else 6000)
+                    pv1, pv2, pv3 = st.columns(3)
+                    pv1.metric("CBM", f"{e_widthe_lengthe_heighte_cartons/1000000:.4f}")
+                    pv2.metric("부피중량", f"{preview_vol:.2f} kg")
+                    pv3.metric("적용중량", f"{max(e_weight, preview_vol):.2f} kg")
                     save_edit = st.form_submit_button("💾 수정 저장 / 수정 요청", use_container_width=True, type="primary")
                 if save_edit:
                     required = [e_shipper, e_address, e_phone, e_consignee, e_caddr, e_country, e_item]
@@ -991,7 +1010,7 @@ def _customer_portal():
                         cbm = e_width * e_length * e_height * e_cartons / 1000000.0
                         vol = e_width * e_length * e_height * e_cartons / (5000 if e_transport == "항공(Air)" else 6000)
                         updated = dict(target)
-                        updated.update({"화주상호":e_shipper.strip(), "화주주소":e_address.strip(), "화주전화번호":e_phone.strip(), "해외수하인":e_consignee.strip(), "해외수하인주소":e_caddr.strip(), "해외수하인전화번호":e_ctel.strip(), "도착국가":e_country.strip(), "품목":e_item.strip(), "운송형태":e_transport, "실제중량kg":f"{e_weight:.2f}", "가로cm":f"{e_width:.2f}", "세로cm":f"{e_length:.2f}", "높이cm":f"{e_height:.2f}", "박스수량":str(int(e_cartons)), "CBM":f"{cbm:.4f}", "부피중량kg":f"{vol:.2f}", "추가요청":e_note.strip()})
+                        updated.update({"화주상호":e_shipper.strip(), "화주주소":e_address.strip(), "화주전화번호":e_phone.strip(), "해외수하인":e_consignee.strip(), "해외수하인주소":e_caddr.strip(), "해외수하인전화번호":e_ctel.strip(), "도착국가":e_country.strip(), "품목":e_item.strip(), "운송형태":e_transport, "실제중량kg":f"{e_weight:.2f}", "가로cm":f"{e_width:.2f}", "세로cm":f"{e_length:.2f}", "높이cm":f"{e_height:.2f}", "박스수량":str(int(e_cartons)), "CBM":f"{cbm:.4f}", "부피중량kg":f"{vol:.2f}", "수출면장번호":e_export_license.strip(), "추가요청":e_note.strip()})
                         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         if billed:
                             target["변경요청JSON"] = json.dumps({"요청일시":now,"요청자":company,"변경후":updated}, ensure_ascii=False)
@@ -1072,6 +1091,21 @@ def _admin_customer_freight_menu():
             st.dataframe(pd.DataFrame([{k:r.get(k,"") for k in ["접수번호","접수일시","고객사상호","화주상호","품목","실제중량kg","CBM","상태","연결 B/L 번호"]} for r in requests]), use_container_width=True, hide_index=True)
             req_id = st.selectbox("관리할 접수 건", [r.get("접수번호","") for r in requests], key="admin_customer_request_select")
             target = next(r for r in requests if r.get("접수번호","")==req_id)
+            linked_bl = str(target.get("연결 B/L 번호", "")).strip()
+            bl_exists = bool(linked_bl) or str(target.get("상태", "")).strip() == "B/L 등록"
+            with st.expander("🗑 접수 건 삭제", expanded=False):
+                if bl_exists:
+                    st.warning("B/L이 연결/등록된 접수 건은 여기서 삭제할 수 없습니다. B/L 등록 내역을 먼저 관리자 절차로 정리해야 합니다.")
+                else:
+                    st.warning("삭제하면 해당 고객의 접수 목록에서도 사라집니다. 필요한 경우 먼저 백업해 주세요.")
+                    confirm_delete = st.checkbox(f"접수번호 {req_id} 삭제에 동의합니다", key=f"confirm_delete_req_{req_id}")
+                    if st.button("🗑 B/L 미등록 접수 삭제", key=f"delete_customer_request_{req_id}", disabled=not confirm_delete):
+                        now_delete = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        requests = [r for r in requests if r.get("접수번호", "") != req_id]
+                        write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                        customer_history_append({"일시": now_delete, "접수번호": req_id, "고객사아이디": target.get("고객사아이디", ""), "작업자": st.session_state.get("logged_in_user", "관리자"), "작업": "B/L 미등록 접수 삭제", "변경내용": json.dumps(target, ensure_ascii=False)})
+                        st.success(f"{req_id} 접수 건을 삭제했습니다.")
+                        st.rerun()
             st.write("접수 상세 / 승인 전 내용 확인 및 수정")
             # 입력창을 3열로 배치해 세로 길이를 줄이고 한 화면에서 확인하기 쉽게 구성
             with st.form(f"admin_edit_customer_request{req_id}"):
@@ -1104,10 +1138,10 @@ def _admin_customer_freight_menu():
                 with row3[2]:
                     ae_transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"],
                         index=0 if target.get("운송형태", "항공(Air)") == "항공(Air)" else 1,
-                        key=f"admin_req_transport_{req_id}")
+                        key=f"admin_req_transport{req_id}")
                 row4 = st.columns(5)
                 with row4[0]:
-                    ae_weight = st.number_input("실제 중량 (kg)", min_value=0.01, value=max(0.01, float(target.get("실제중량kg", 1) or 1)), step=0.5, key=f"admin_req_weight_{req_id}")
+                    ae_weight = st.number_input("실제 중량 (kg)", min_value=0.01, value=max(0.01, float(target.get("실제중량kg", 1) or 1)), step=0.5, key=f"admin_req_weight{req_id}")
                 with row4[1]:
                     ae_width = st.number_input("가로 (cm)", min_value=0.01, value=max(0.01, float(target.get("가로cm", 1) or 1)), step=1.0, key=f"admin_req_width_{req_id}")
                 with row4[2]:
@@ -1116,6 +1150,7 @@ def _admin_customer_freight_menu():
                     ae_height = st.number_input("높이 (cm)", min_value=0.01, value=max(0.01, float(target.get("높이cm", 1) or 1)), step=1.0, key=f"admin_req_height_{req_id}")
                 with row4[4]:
                     ae_cartons = st.number_input("박스 수량", min_value=1, value=max(1, int(float(target.get("박스수량", 1) or 1))), step=1, key=f"admin_req_cartons_{req_id}")
+                ae_license = st.text_input("수출면장 번호 (해당 시 입력)", value=target.get("수출면장번호", ""), key=f"admin_req_license_{req_id}")
                 ae_note = st.text_input("추가 요청 사항", value=target.get("추가요청", ""), key=f"admin_req_note_{req_id}")
                 save_admin_edit = st.form_submit_button("💾 승인 전 수정 저장", use_container_width=True)
             if save_admin_edit:
@@ -1128,7 +1163,7 @@ def _admin_customer_freight_menu():
                     "실제중량kg": f"{ae_weight:.2f}", "가로cm": f"{ae_width:.2f}", "세로cm": f"{ae_length:.2f}", "높이cm": f"{ae_height:.2f}",
                     "박스수량": str(int(ae_cartons)), "CBM": f"{(ae_width * ae_length * ae_height * ae_cartons)/1000000:.4f}",
                     "부피중량kg": f"{(ae_width * ae_length * ae_height * ae_cartons)/(5000 if ae_transport == '항공(Air)' else 6000):.2f}",
-                    "추가요청": ae_note.strip(), "최종수정일시": now_edit,
+                    "수출면장번호": ae_license.strip(), "추가요청": ae_note.strip(), "최종수정일시": now_edit,
                 })
                 for ri, rr in enumerate(requests):
                     if rr.get("접수번호", "") == req_id:
@@ -1176,7 +1211,7 @@ def _admin_customer_freight_menu():
                             bl_record = {
                                 "구분": "수출 (Export)", "날짜": str(date.today()), "Job 번호": job_no_auto, "B/L 번호": new_bl,
                                 "국가": country_auto, "출발지": "대한민국 (KOREA)", "화주명(매출)": shipper_auto,
-                                "해외수하인": target.get("해외수하인", ""), "해외수하인주소": target.get("해외수하인주소", ""), "해외수하인전화번호": target.get("해외수하인전화번호", ""),
+                                "해외수하인": target.get("해외수하인", ""), "해외수하인주소": target.get("해외수하인주소", ""), "해외수하인전화번호": target.get("해외수하인전화번호", ""), "수출면장번호": target.get("수출면장번호", ""),
                                 "매입처": supplier_auto, "운송형태": transport_auto, "서비스옵션": "Door To Door", "품목": item_auto,
                                 "박스수": f"{cartons_auto} 박스 (CTN)", "부피규격": f"{width_auto:g}×{length_auto:g}×{height_auto:g}cm({cartons_auto}CTN)",
                                 "실중량(kg)": weight_auto, "매출실중량(kg)": weight_auto, "매입실중량(kg)": weight_auto,
@@ -1271,7 +1306,7 @@ def _admin_customer_freight_menu():
                             bl_record = {
                                 "구분": "수출 (Export)", "날짜": str(date.today()), "Job 번호": job_no_auto, "B/L 번호": clean_bl,
                                 "국가": country_auto, "출발지": "대한민국 (KOREA)", "화주명(매출)": shipper_auto,
-                                "해외수하인": target.get("해외수하인", ""), "해외수하인주소": target.get("해외수하인주소", ""), "해외수하인전화번호": target.get("해외수하인전화번호", ""),
+                                "해외수하인": target.get("해외수하인", ""), "해외수하인주소": target.get("해외수하인주소", ""), "해외수하인전화번호": target.get("해외수하인전화번호", ""), "수출면장번호": target.get("수출면장번호", ""),
                                 "매입처": "", "운송형태": transport_auto, "서비스옵션": "Door To Door", "품목": item_auto,
                                 "박스수": f"{cartons_auto} 박스 (CTN)", "부피규격": f"{width_auto:g}×{length_auto:g}×{height_auto:g}cm({cartons_auto}CTN)",
                                 "실중량(kg)": weight_auto, "매출실중량(kg)": weight_auto, "매입실중량(kg)": weight_auto,
