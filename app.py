@@ -1137,10 +1137,30 @@ def _admin_customer_freight_menu():
             st.info("고객사 화물 접수 내역이 없습니다.")
         else:
             st.markdown("#### 📲 창고 바코드 스캔 입고")
-            st.caption("USB/블루투스 바코드 스캐너가 키보드 입력처럼 작동하면 아래 칸에 스캔 후 입고 처리할 수 있습니다. 휴대폰 카메라 자동 스캔은 별도 브라우저 연동 테스트가 필요합니다.")
+            st.caption("휴대폰에서는 아래 카메라 버튼을 눌러 박스 라벨을 촬영하세요. Code 128 등 바코드를 읽어 입력란에 넣습니다. 촬영이 어려우면 기존 스캐너/수동 입력도 사용할 수 있습니다.")
+            camera_photo = st.camera_input("📷 휴대폰 카메라로 바코드 촬영", key="warehouse_barcode_camera")
+            if camera_photo is not None:
+                try:
+                    from PIL import Image
+                    from pyzbar.pyzbar import decode as decode_barcode
+                    camera_image = Image.open(camera_photo).convert("RGB")
+                    decoded_items = decode_barcode(camera_image)
+                    if decoded_items:
+                        decoded_value = decoded_items[0].data.decode("utf-8", errors="ignore").strip()
+                        if decoded_value:
+                            st.session_state["warehouse_scanned_barcode"] = decoded_value
+                            st.success(f"바코드 인식 완료: {decoded_value} — 아래 ‘입고 처리’를 눌러 확정하세요.")
+                        else:
+                            st.warning("바코드는 감지했지만 번호를 읽지 못했습니다. 라벨을 가까이서 다시 촬영해 주세요.")
+                    else:
+                        st.warning("바코드를 읽지 못했습니다. 바코드가 선명하게 보이도록 화면에 맞춰 다시 촬영해 주세요.")
+                except ImportError:
+                    st.error("카메라 바코드 판독 모듈이 설치되지 않았습니다. 배포 저장소에 pyzbar와 packages.txt(libzbar0)를 추가한 뒤 재배포해야 합니다.")
+                except Exception as camera_error:
+                    st.error(f"카메라 바코드 판독 중 오류가 발생했습니다: {camera_error}")
             scan_col, scan_btn_col = st.columns([4, 1])
             with scan_col:
-                scanned_barcode = st.text_input("박스 바코드 스캔", key="warehouse_scanned_barcode", placeholder="바코드를 스캔하세요")
+                scanned_barcode = st.text_input("박스 바코드 번호 확인", key="warehouse_scanned_barcode", placeholder="카메라 인식 번호 또는 스캐너 입력")
             with scan_btn_col:
                 st.write("")
                 scan_submit = st.button("📦 입고 처리", key="warehouse_scan_submit", type="primary")
