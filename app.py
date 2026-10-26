@@ -2316,7 +2316,25 @@ if selected_menu == "📊 수출입 B/L 등록":
         num_rows="dynamic",
         use_container_width=True,
         key="box_editor_multi_infinite",
+        column_config={
+            "가로(cm)": st.column_config.NumberColumn("가로(cm)", min_value=0.0, step=0.5, format="%.1f"),
+            "세로(cm)": st.column_config.NumberColumn("세로(cm)", min_value=0.0, step=0.5, format="%.1f"),
+            "높이(cm)": st.column_config.NumberColumn("높이(cm)", min_value=0.0, step=0.5, format="%.1f"),
+            "카톤수(개)": st.column_config.NumberColumn("카톤수(개)", min_value=0, step=1, format="%d"),
+        },
     )
+    # Keep edited rows as the source of truth across Streamlit reruns.
+    # Without this assignment, dynamic rows or typed values may revert to the initial dataframe.
+    st.session_state.box_input_df = edited_box_df.copy()
+
+    def _safe_box_number(value, default=0.0):
+        """Convert editable grid values safely; blank/invalid values become default."""
+        try:
+            if value is None or pd.isna(value) or str(value).strip() == "":
+                return default
+            return float(value)
+        except (TypeError, ValueError, OverflowError):
+            return default
 
     box_col1, box_col2 = st.columns([1.3, 1])
     with box_col1:
@@ -2342,10 +2360,12 @@ if selected_menu == "📊 수출입 B/L 등록":
         gw = 0.0
 
     for _, row in edited_box_df.iterrows():
-        w = float(row.get("가로(cm)", 0) or 0)
-        l = float(row.get("세로(cm)", 0) or 0)
-        h = float(row.get("높이(cm)", 0) or 0)
-        ctn = int(row.get("카톤수(개)", 0) or 0)
+        w = _safe_box_number(row.get("가로(cm)", 0))
+        l = _safe_box_number(row.get("세로(cm)", 0))
+        h = _safe_box_number(row.get("높이(cm)", 0))
+        # Carton count is an integer quantity, while dimensions may be decimal (e.g. 51.5 cm).
+        ctn_value = _safe_box_number(row.get("카톤수(개)", 0))
+        ctn = max(0, int(ctn_value)) if ctn_value >= 0 else 0
 
         if w > 0 and l > 0 and h > 0 and ctn > 0:
             box_cbm = ((w * l * h) / 1000000.0) * ctn
@@ -2358,7 +2378,7 @@ if selected_menu == "📊 수출입 B/L 등록":
             total_vol_wt_sales += box_vol_sales
             total_vol_wt_purchase += box_vol_purchase
 
-            vol_str_list.append(f"{int(w)}×{int(l)}×{int(h)}cm({ctn}CTN)")
+            vol_str_list.append(f"{w:g}×{l:g}×{h:g}cm({ctn}CTN)")
 
     calc_sales_cw = float(math.ceil(max(gw, total_vol_wt_sales)))
     calc_purchase_cw = float(math.ceil(max(gw, total_vol_wt_purchase)))
