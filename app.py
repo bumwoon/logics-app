@@ -888,7 +888,7 @@ def _customer_portal():
         st.rerun()
 
     # 함수명 통일: 정의된 _customer_requests()를 호출해 NameError 방지
-    all_requests = customer_requests()
+    all_requests = _customer_requests()
     mine = [r for r in all_requests if r.get("고객사아이디", "") == cid]
     tab_new, tab_list = st.tabs(["➕ 새 화물 접수", "📋 내 접수 내역 / 수정"])
     with tab_new:
