@@ -887,20 +887,11 @@ def _customer_portal():
         st.session_state.customer_company = ""
         st.rerun()
 
-    all_requests = customer_requests()
+    all_requests = _customer_requests()
     mine = [r for r in all_requests if r.get("고객사아이디", "") == cid]
     tab_new, tab_list = st.tabs(["➕ 새 화물 접수", "📋 내 접수 내역 / 수정"])
     with tab_new:
         st.markdown("#### 화물 접수 정보")
-        # 박스별 규격은 체크했을 때만 표시되도록 폼 바깥에 배치
-        use_box_details = st.checkbox(
-            "➕ 박스별 부피 입력 추가 (박스 크기가 서로 다를 때 선택)",
-            value=False,
-            key="customer_new_use_box_details",
-            help="선택하지 않으면 한 가지 규격을 전체 박스에 적용합니다."
-        )
-        cartons = st.number_input("박스 수량 (CTN)", min_value=1, max_value=100, value=1, step=1, key="customer_new_cartons")
-        box_dims = []
         with st.form("customer_new_freight_form"):
             c_ship = st.columns(3)
             with c_ship[0]: shipper = st.text_input("화주 상호 *", value=company)
@@ -913,70 +904,48 @@ def _customer_portal():
             dest_country = st.selectbox("도착 국가 선택 *", options=CUSTOMER_DEST_COUNTRIES, index=0, key="customer_new_dest_country", help="미국·중국·인도·호주·인도네시아·태국·베트남 중 선택하세요.")
             item_name = st.selectbox("품목 / 화물 내용 *", CUSTOMER_ITEM_OPTIONS, index=4, key="customer_new_item_name")
             transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"])
-            weight = st.number_input("실제 총중량 (kg) *", min_value=0.0, value=1.0, step=0.5, format="%.2f")
-            if use_box_details:
-                st.caption("각 박스의 크기를 입력하세요. 51.5cm 같은 소수점 치수도 유지됩니다.")
-                for bi in range(int(cartons)):
-                    st.markdown(f"박스 {bi+1} / {int(cartons)}")
-                    d1, d2, d3 = st.columns(3)
-                    with d1: bw = st.number_input(f"가로 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_w{bi}")
-                    with d2: bl = st.number_input(f"세로 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_l{bi}")
-                    with d3: bh = st.number_input(f"높이 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_h_{bi}")
-                    box_dims.append({"박스순번": bi+1, "가로cm": float(bw), "세로cm": float(bl), "높이cm": float(bh), "실제중량kg": "", "바코드": "", "입고상태": "미입고"})
-                dims_valid = all(d["가로cm"] > 0 and d["세로cm"] > 0 and d["높이cm"] > 0 for d in box_dims)
-                total_cbm_preview = sum(d["가로cm"] * d["세로cm"] * d["높이cm"] / 1_000_000 for d in box_dims)
-                divisor_preview = 5000 if transport == "항공(Air)" else 6000
-                volume_preview = sum(d["가로cm"] * d["세로cm"] * d["높이cm"] / divisor_preview for d in box_dims)
-            else:
-                d1, d2, d3 = st.columns(3)
-                with d1: width = st.number_input("가로 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
-                with d2: length = st.number_input("세로 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
-                with d3: height = st.number_input("높이 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
-                box_dims = [{"박스순번": bi+1, "가로cm": float(width), "세로cm": float(length), "높이cm": float(height), "실제중량kg": "", "바코드": "", "입고상태": "미입고"} for bi in range(int(cartons))]
-                dims_valid = width > 0 and length > 0 and height > 0
-                total_cbm_preview = float(width) * float(length) * float(height) * int(cartons) / 1_000_000
-                divisor_preview = 5000 if transport == "항공(Air)" else 6000
-                volume_preview = float(width) * float(length) * float(height) * int(cartons) / divisor_preview
-            charge_preview = max(float(weight), float(volume_preview))
+            weight = st.number_input("실제 중량 (kg) *", min_value=0.0, value=1.0, step=0.5, format="%.2f")
+            d1, d2, d3 = st.columns(3)
+            with d1: width = st.number_input("가로 (cm) *", min_value=0.0, value=1.0, step=1.0)
+            with d2: length = st.number_input("세로 (cm) *", min_value=0.0, value=1.0, step=1.0)
+            with d3: height = st.number_input("높이 (cm) *", min_value=0.0, value=1.0, step=1.0)
+            cartons = st.number_input("박스 수량 (CTN)", min_value=1, value=1, step=1)
+            dims_total = width * length * height * cartons
+            divisor_preview = 5000 if transport == "항공(Air)" else 6000
+            volume_preview = dims_total / divisor_preview
+            charge_preview = max(weight, volume_preview)
             p1, p2, p3 = st.columns(3)
-            p1.metric("총 CBM", f"{total_cbm_preview:.4f}")
+            p1.metric("CBM", f"{dims_total / 1000000:.4f}")
             p2.metric(f"부피중량 (÷{divisor_preview})", f"{volume_preview:.2f} kg")
             p3.metric("적용중량", f"{charge_preview:.2f} kg")
             export_license_no = st.text_input("수출면장 번호 (해당 시 입력)", key="customer_new_export_license")
             note = st.text_input("추가 요청 사항 (선택)")
-            submitted = st.form_submit_button("📨 화물 접수 제출 및 바코드 발급", use_container_width=True, type="primary")
+            submitted = st.form_submit_button("📨 화물 접수 제출", use_container_width=True, type="primary")
         if submitted:
             required = [shipper, shipper_address, shipper_phone, consignee, consignee_address, dest_country, item_name]
             if not all(str(v).strip() for v in required):
-                st.error("표시된 필수 항목을 모두 입력해 주세요.")
-            elif weight <= 0 or int(cartons) <= 0 or not dims_valid:
-                st.error("실제 중량과 각 박스의 가로·세로·높이는 0보다 커야 합니다.")
+                st.error(" 표시된 필수 항목을 모두 입력해 주세요.")
+            elif weight <= 0 or min(width, length, height) <= 0 or cartons <= 0:
+                st.error("실제 중량, 가로·세로·높이, 박스 수량은 0보다 커야 합니다.")
             else:
                 import uuid
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                cbm = (width * length * height * cartons) / 1000000.0
+                vol_weight = (width * length * height * cartons) / (5000 if transport == "항공(Air)" else 6000)
                 req_id = "REQ-" + uuid.uuid4().hex[:10].upper()
-                # 바코드는 박스마다 고유하고 접수번호와 연결
-                for bd in box_dims:
-                    bd["바코드"] = f"BW{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
-                cbm = sum(d["가로cm"]*d["세로cm"]*d["높이cm"]/1_000_000 for d in box_dims)
-                vol_weight = sum(d["가로cm"]*d["세로cm"]*d["높이cm"]/(5000 if transport == "항공(Air)" else 6000) for d in box_dims)
-                # 기존 B/L 연결 코드와의 호환을 위해 대표 치수는 첫 박스 기준으로 유지
-                first_box = box_dims[0]
                 new_req = {
                     "접수번호": req_id, "접수일시": now, "고객사아이디": cid, "고객사상호": company,
                     "화주상호": shipper.strip(), "화주주소": shipper_address.strip(), "화주전화번호": shipper_phone.strip(),
                     "해외수하인": consignee.strip(), "해외수하인주소": consignee_address.strip(), "해외수하인전화번호": consignee_phone.strip(),
                     "도착국가": dest_country.strip(), "품목": item_name.strip(), "운송형태": transport,
-                    "실제중량kg": f"{weight:.2f}", "가로cm": f"{first_box['가로cm']:.2f}", "세로cm": f"{first_box['세로cm']:.2f}", "높이cm": f"{first_box['높이cm']:.2f}",
+                    "실제중량kg": f"{weight:.2f}", "가로cm": f"{width:.2f}", "세로cm": f"{length:.2f}", "높이cm": f"{height:.2f}",
                     "박스수량": str(int(cartons)), "CBM": f"{cbm:.4f}", "부피중량kg": f"{vol_weight:.2f}",
-                    "박스별정보JSON": json.dumps(box_dims, ensure_ascii=False),
-                    "바코드목록JSON": json.dumps([d["바코드"] for d in box_dims], ensure_ascii=False),
                     "수출면장번호": export_license_no.strip(), "추가요청": note.strip(), "상태": "접수", "연결 B/L 번호": "", "변경요청JSON": "", "관리자메모": ""
                 }
                 all_requests.append(new_req)
                 _write_customer_csv(CUSTOMER_REQUEST_FILE, all_requests)
-                _customer_history_append({"일시": now, "접수번호": req_id, "고객사아이디": cid, "작업자": company, "작업": "신규 접수 및 박스별 바코드 발급", "변경내용": json.dumps(new_req, ensure_ascii=False)})
-                st.success(f"접수가 완료되었습니다. 접수번호: {req_id} / 바코드 {len(box_dims)}개 발급 완료")
+                _customer_history_append({"일시": now, "접수번호": req_id, "고객사아이디": cid, "작업자": company, "작업": "신규 접수", "변경내용": json.dumps(new_req, ensure_ascii=False)})
+                st.success(f"접수가 완료되었습니다. 접수번호: {req_id}")
                 st.rerun()
 
     with tab_list:
@@ -988,20 +957,6 @@ def _customer_portal():
             choice = st.selectbox("수정할 접수 건 선택", options=[r.get("접수번호", "") for r in mine], key="customer_request_select")
             target = next((r for r in mine if r.get("접수번호", "") == choice), None)
             if target:
-                # 고객사 본인 접수 건에 대해서만 박스별 라벨 인쇄 허용
-                try:
-                    label_boxes = json.loads(target.get("박스별정보JSON", "[]") or "[]")
-                except Exception:
-                    label_boxes = []
-                if label_boxes:
-                    st.markdown("#### 🏷 창고용 바코드 라벨 출력")
-                    st.caption("라벨 프린터에서 100×150mm(4×6인치) 라벨을 선택한 뒤 인쇄하세요. 실제 스캐너 인식은 장비로 시험해야 합니다.")
-                    label_records = [{"접수번호": target.get("접수번호", ""), "고객사": target.get("고객사상호", company), "화주": target.get("화주상호", ""), "도착국가": target.get("도착국가", ""), "품목": target.get("품목", ""), "박스": f"{i+1}/{len(label_boxes)}", "바코드": str(b.get("바코드", ""))} for i,b in enumerate(label_boxes)]
-                    label_json = json.dumps(label_records, ensure_ascii=False).replace("</", "<\\/")
-                    label_html = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><script src='https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js'></script><style>@page{size:100mm 150mm;margin:0}body{font-family:Arial,sans-serif;margin:0}.toolbar{padding:8px}.label{width:100mm;height:150mm;box-sizing:border-box;padding:7mm;border:1px dashed #bbb;page-break-after:always;display:flex;flex-direction:column;justify-content:space-between}.brand{font-size:17pt;font-weight:bold}.small{font-size:11pt;overflow-wrap:anywhere}.barcode{width:100%;height:48mm}.code{font-size:12pt;font-weight:bold;text-align:center;overflow-wrap:anywhere}@media print{.toolbar{display:none}.label{border:0}}@media screen{.label{margin:10px auto;background:white;color:black;box-shadow:0 0 5px #aaa}}</style></head><body><div class='toolbar'><button onclick='window.print()'>라벨 인쇄</button> 인쇄 설정에서 라벨 크기 100×150mm, 배율 100%를 선택하세요.</div><div id='labels'></div><script>const rows=__ROWS__;const root=document.getElementById('labels');rows.forEach(r=>{const d=document.createElement('div');d.className='label';d.innerHTML=`<div><div class='brand'>범운해운항공</div><div class='small'>접수번호: ${r.접수번호}</div><div class='small'>고객사: ${r.고객사}</div><div class='small'>화주: ${r.화주}</div><div class='small'>도착국가: ${r.도착국가}　품목: ${r.품목}</div><div class='small'>박스: ${r.박스}</div></div><div><svg class='barcode'></svg><div class='code'>${r.바코드}</div></div>`;root.appendChild(d);if(window.JsBarcode){JsBarcode(d.querySelector('svg'),r.바코드,{format:'CODE128',displayValue:false,margin:8,height:100,width:2,lineColor:'#000',background:'#fff'});}else{d.querySelector('svg').outerHTML='<p>바코드 라이브러리 로드 실패: 인터넷 연결을 확인하세요.</p>';}});</script></body></html>""".replace("__ROWS__", label_json)
-                    components.html(label_html, height=700, scrolling=True)
-                else:
-                    st.info("이 접수 건에는 박스별 바코드가 없습니다. 새로 접수한 건부터 라벨 출력이 제공됩니다.")
                 billed = customer_request_is_billed(target)
                 if billed:
                     st.warning("이 건은 B/L 등록 후입니다. 아래에서 수정 요청을 제출하면 사내 관리자가 승인한 뒤 반영합니다.")
@@ -1135,51 +1090,6 @@ def _admin_customer_freight_menu():
         if not requests:
             st.info("고객사 화물 접수 내역이 없습니다.")
         else:
-            st.markdown("#### 📲 창고 바코드 스캔 입고")
-            st.caption("USB/블루투스 바코드 스캐너가 키보드 입력처럼 작동하면 아래 칸에 스캔 후 입고 처리할 수 있습니다. 휴대폰 카메라 자동 스캔은 별도 브라우저 연동 테스트가 필요합니다.")
-            scan_col, scan_btn_col = st.columns([4, 1])
-            with scan_col:
-                scanned_barcode = st.text_input("박스 바코드 스캔", key="warehouse_scanned_barcode", placeholder="바코드를 스캔하세요")
-            with scan_btn_col:
-                st.write("")
-                scan_submit = st.button("📦 입고 처리", key="warehouse_scan_submit", type="primary")
-            if scan_submit:
-                scan_value = str(scanned_barcode or "").strip()
-                match_found = False
-                if not scan_value:
-                    st.warning("먼저 바코드를 스캔해 주세요.")
-                else:
-                    for req in requests:
-                        try:
-                            scan_boxes = json.loads(req.get("박스별정보JSON", "[]") or "[]")
-                        except Exception:
-                            scan_boxes = []
-                        for bx in scan_boxes:
-                            if str(bx.get("바코드", "")).strip() == scan_value:
-                                match_found = True
-                                if bx.get("입고상태") == "입고":
-                                    st.warning(f"이미 입고 처리된 박스입니다: {req.get('접수번호','')} / 박스 {bx.get('박스순번','')}")
-                                else:
-                                    bx["입고상태"] = "입고"
-                                    bx["입고일시"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    req["박스별정보JSON"] = json.dumps(scan_boxes, ensure_ascii=False)
-                                    total_boxes = len(scan_boxes)
-                                    arrived_boxes = sum(1 for item in scan_boxes if item.get("입고상태") == "입고")
-                                    req["입고박스수"] = str(arrived_boxes)
-                                    if arrived_boxes >= total_boxes:
-                                        req["상태"] = "전체 박스 입고 완료"
-                                    else:
-                                        req["상태"] = f"부분 입고 ({arrived_boxes}/{total_boxes})"
-                                    write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
-                                    customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req.get("접수번호",""),"고객사아이디":req.get("고객사아이디",""),"작업자":st.session_state.get("logged_in_user","관리자"),"작업":"바코드 스캔 입고","변경내용":scan_value})
-                                    st.success(f"입고 처리 완료: {req.get('접수번호','')} / 박스 {bx.get('박스순번','')} ({arrived_boxes}/{total_boxes})")
-                                break
-                        if match_found:
-                            break
-                    if not match_found:
-                        st.error("등록되지 않은 바코드입니다. 접수 라벨과 바코드 번호를 확인해 주세요.")
-                    else:
-                        st.rerun()
             st.dataframe(pd.DataFrame([{k:r.get(k,"") for k in ["접수번호","접수일시","고객사상호","화주상호","품목","실제중량kg","CBM","상태","연결 B/L 번호"]} for r in requests]), use_container_width=True, hide_index=True)
             req_id = st.selectbox("관리할 접수 건", [r.get("접수번호","") for r in requests], key="admin_customer_request_select")
             target = next(r for r in requests if r.get("접수번호","")==req_id)
@@ -1190,8 +1100,8 @@ def _admin_customer_freight_menu():
                     st.warning("B/L이 연결/등록된 접수 건은 여기서 삭제할 수 없습니다. B/L 등록 내역을 먼저 관리자 절차로 정리해야 합니다.")
                 else:
                     st.warning("삭제하면 해당 고객의 접수 목록에서도 사라집니다. 필요한 경우 먼저 백업해 주세요.")
-                    confirm_delete = st.checkbox(f"접수번호 {req_id} 삭제에 동의합니다", key=f"confirm_delete_req{req_id}")
-                    if st.button("🗑 B/L 미등록 접수 삭제", key=f"delete_customer_request{req_id}", disabled=not confirm_delete):
+                    confirm_delete = st.checkbox(f"접수번호 {req_id} 삭제에 동의합니다", key=f"confirm_delete_req_{req_id}")
+                    if st.button("🗑 B/L 미등록 접수 삭제", key=f"delete_customer_request_{req_id}", disabled=not confirm_delete):
                         now_delete = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         requests = [r for r in requests if r.get("접수번호", "") != req_id]
                         write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
