@@ -924,9 +924,9 @@ def _customer_portal():
                     with d3: bh = st.number_input(f"높이 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_h_{bi}")
                     box_dims.append({"박스순번": bi+1, "가로cm": float(bw), "세로cm": float(bl), "높이cm": float(bh), "실제중량kg": "", "바코드": "", "입고상태": "미입고"})
                 dims_valid = all(d["가로cm"] > 0 and d["세로cm"] > 0 and d["높이cm"] > 0 for d in box_dims)
-                total_cbm_preview = sum(d["가로cm"]*d["세로cm"]d["높이cm"]/1_000_000 for d in box_dims)
+                total_cbm_preview = sum(d["가로cm"] * d["세로cm"] * d["높이cm"] / 1_000_000 for d in box_dims)
                 divisor_preview = 5000 if transport == "항공(Air)" else 6000
-                volume_preview = sum(d["가로cm"]d["세로cm"]d["높이cm"]/divisor_preview for d in box_dims)
+                volume_preview = sum(d["가로cm"] * d["세로cm"] * d["높이cm"] / divisor_preview for d in box_dims)
             else:
                 d1, d2, d3 = st.columns(3)
                 with d1: width = st.number_input("가로 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
@@ -934,9 +934,9 @@ def _customer_portal():
                 with d3: height = st.number_input("높이 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
                 box_dims = [{"박스순번": bi+1, "가로cm": float(width), "세로cm": float(length), "높이cm": float(height), "실제중량kg": "", "바코드": "", "입고상태": "미입고"} for bi in range(int(cartons))]
                 dims_valid = width > 0 and length > 0 and height > 0
-                total_cbm_preview = widthlengthheightint(cartons)/1_000_000
+                total_cbm_preview = float(width) * float(length) * float(height) * int(cartons) / 1_000_000
                 divisor_preview = 5000 if transport == "항공(Air)" else 6000
-                volume_preview = widthlengthheightint(cartons)/divisor_preview
+                volume_preview = float(width) * float(length) * float(height) * int(cartons) / divisor_preview
             charge_preview = max(float(weight), float(volume_preview))
             p1, p2, p3 = st.columns(3)
             p1.metric("총 CBM", f"{total_cbm_preview:.4f}")
