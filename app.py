@@ -2244,30 +2244,59 @@ if selected_menu == "📊 수출입 B/L 등록":
     total_vol_wt_sales = 0.0
     total_vol_wt_purchase = 0.0
     vol_str_list = []
+    input_errors = []
 
-    try:
-        gw = float(common_gw_str) if common_gw_str else 0.0
-    except ValueError:
-        gw = 0.0
+    def safe_number(value, default=0.0):
+        """빈칸/NaN/잘못된 입력을 안전하게 숫자로 변환합니다."""
+        try:
+            if value is None or pd.isna(value):
+                return default
+            if isinstance(value, str):
+                value = value.strip()
+                if not value:
+                    return default
+            number = float(value)
+            if not math.isfinite(number):
+                return default
+            return number
+        except (TypeError, ValueError, OverflowError):
+            return default
 
-    for _, row in edited_box_df.iterrows():
-        w = float(row.get("가로(cm)", 0) or 0)
-        l = float(row.get("세로(cm)", 0) or 0)
-        h = float(row.get("높이(cm)", 0) or 0)
-        ctn = int(row.get("카톤수(개)", 0) or 0)
+    gw = safe_number(common_gw_str)
 
-        if w > 0 and l > 0 and h > 0 and ctn > 0:
-            box_cbm = ((w * l * h) / 1000000.0) * ctn
-            total_cbm += box_cbm
-            total_ctn += ctn
+    for row_index, row in edited_box_df.iterrows():
+        # 치수는 float로 처리해 51.5cm 같은 소수점을 유지합니다.
+        w = safe_number(row.get("가로(cm)", 0))
+        l = safe_number(row.get("세로(cm)", 0))
+        h = safe_number(row.get("높이(cm)", 0))
+        ctn_value = safe_number(row.get("카톤수(개)", 0))
 
-            box_vol_sales = ((w * l * h) / s_div) * ctn
-            box_vol_purchase = ((w * l * h) / p_div) * ctn
+        # 카톤 수량은 양의 정수만 허용합니다.
+        ctn = int(ctn_value) if ctn_value > 0 and ctn_value.is_integer() else 0
 
-            total_vol_wt_sales += box_vol_sales
-            total_vol_wt_purchase += box_vol_purchase
+        # 완전히 비어 있는 동적 입력 행은 건너뜁니다.
+        if w == 0 and l == 0 and h == 0 and ctn == 0:
+            continue
 
-            vol_str_list.append(f"{int(w)}×{int(l)}×{int(h)}cm({ctn}CTN)")
+        # 일부 값이 빠졌거나 잘못된 행은 오류 안내 후 계산에서 제외합니다.
+        if w <= 0 or l <= 0 or h <= 0 or ctn <= 0:
+            input_errors.append(
+                f"{row_index + 1}번째 행: 가로·세로·높이와 카톤수를 올바르게 입력해 주세요."
+            )
+            continue
+
+        box_cbm = (w * l * h / 1_000_000.0) * ctn
+        total_cbm += box_cbm
+        total_ctn += ctn
+
+        # 기존 매출/매입 부피중량 기준을 그대로 유지합니다.
+        box_vol_sales = (w * l * h / float(s_div)) * ctn
+        box_vol_purchase = (w * l * h / float(p_div)) * ctn
+        total_vol_wt_sales += box_vol_sales
+        total_vol_wt_purchase += box_vol_purchase
+
+        # int(w)로 소수점을 잘라내지 않고 원래 치수를 표시합니다.
+        vol_str_list.append(f"{w:g}×{l:g}×{h:g}cm({ctn}CTN)")
 
     calc_sales_cw = float(math.ceil(max(gw, total_vol_wt_sales)))
     calc_purchase_cw = float(math.ceil(max(gw, total_vol_wt_purchase)))
@@ -2275,6 +2304,10 @@ if selected_menu == "📊 수출입 B/L 등록":
     piece_count_val = (
         f"{total_ctn} 박스 (CTN)" if total_ctn > 0 else "1 박스 (CTN)"
     )
+
+    if input_errors:
+        for error in input_errors:
+            st.warning(error)
 
     st.markdown("---")
     st.markdown("#### 📝 B/L 및 청구 금액 실시간 미리보기")
