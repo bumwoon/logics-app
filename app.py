@@ -920,7 +920,7 @@ def _customer_portal():
                     st.markdown(f"박스 {bi+1} / {int(cartons)}")
                     d1, d2, d3 = st.columns(3)
                     with d1: bw = st.number_input(f"가로 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_w{bi}")
-                    with d2: bl = st.number_input(f"세로 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_l_{bi}")
+                    with d2: bl = st.number_input(f"세로 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_l{bi}")
                     with d3: bh = st.number_input(f"높이 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_h_{bi}")
                     box_dims.append({"박스순번": bi+1, "가로cm": float(bw), "세로cm": float(bl), "높이cm": float(bh), "실제중량kg": "", "바코드": "", "입고상태": "미입고"})
                 dims_valid = all(d["가로cm"] > 0 and d["세로cm"] > 0 and d["높이cm"] > 0 for d in box_dims)
