@@ -3377,13 +3377,18 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                 <head>
                     <meta charset="utf-8">
                     <style>
-                        @media print {{ body {{ -webkit-print-color-adjust: exact; }} .no-print {{ display: none !important; }} @page {{ size: A4 portrait; margin: 8mm; }} }}
-                        body {{ font-family: 'Pretendard', sans-serif; color: #1e293b; font-size: 8.5pt; margin: 0; padding: 10px; background: #fff; }}
-                        .inv-box {{ max-width: 820px; margin: 0 auto; border: 2px solid #0f172a; padding: 20px; border-radius: 8px; }}
-                        .t-tbl {{ width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: fixed; }}
-                        .t-tbl th, .t-tbl td {{ border: 1px solid #64748b; padding: 5px 4px; text-align: center; vertical-align: middle; font-size: 8pt; }}
-                        .t-tbl th {{ background-color: #0f172a; color: white; font-size: 8.5pt; }}
-                        .p-btn {{ display: block; width: 100%; background-color: #dc2626; color: white; text-align: center; padding: 12px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }}
+                        @page {{ size: A4 portrait; margin: 7mm; }}
+                        * {{ box-sizing: border-box; }}
+                        body {{ font-family: 'Pretendard', 'Malgun Gothic', sans-serif; color: #1e293b; font-size: 8pt; margin: 0; padding: 4px; background: #fff; }}
+                        .inv-box {{ width: 100%; max-width: 100%; margin: 0 auto; border: 1.5px solid #0f172a; padding: 10px; border-radius: 4px; }}
+                        .t-tbl {{ width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }}
+                        .t-tbl th, .t-tbl td {{ border: 1px solid #64748b; padding: 4px 2px; text-align: center; vertical-align: middle; font-size: 7pt; line-height: 1.25; overflow-wrap: anywhere; word-break: normal; }}
+                        .t-tbl th {{ background-color: #0f172a; color: white; font-size: 7.2pt; }}
+                        .t-tbl .dim-cell {{ white-space: normal; text-align: center; line-height: 1.35; }}
+                        .t-tbl .weight-cell {{ white-space: nowrap; }}
+                        .t-tbl .amount-cell {{ white-space: nowrap; text-align: right; font-weight: bold; }}
+                        .p-btn {{ display: block; width: 100%; background-color: #dc2626; color: white; text-align: center; padding: 10px; font-size: 11pt; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 15px; }}
+                        @media print {{ body {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }} .no-print {{ display: none !important; }} .inv-box {{ border-radius: 0; border-width: 1px; padding: 6px; }} .t-tbl {{ page-break-inside: auto; }} .t-tbl tr {{ page-break-inside: avoid; page-break-after: auto; }} }}
                     </style>
                 </head>
                 <body>
@@ -3399,11 +3404,22 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                             </tr>
                         </table>
                         <table class="t-tbl">
+                            <colgroup>
+                                <col style="width: 9%;"><col style="width: 10%;"><col style="width: 6%;"><col style="width: 17%;">
+                                <col style="width: 13%;"><col style="width: 18%;"><col style="width: 10%;"><col style="width: 17%;">
+                            </colgroup>
                             <tr>
-                                <th>작성일자</th><th>B/L 번호</th><th>국가</th><th>수하인</th><th>품목 / 박스</th><th>부피규격</th><th>청구중량</th><th>금액 (원)</th>
+                                <th>작성일자</th><th>B/L 번호</th><th>국가</th><th>수하인</th><th>품목 / 박스</th><th>부피규격 (cm)</th><th>청구중량</th><th>금액 (원)</th>
                             </tr>
             """
         for r in client_bl_list:
+          # 여러 규격은 모두 유지하되, 각 규격 뒤의 CTN 표기만 제거합니다.
+          # 카톤 수량은 바로 옆 '품목 / 박스' 열에 이미 표시되므로 중복하지 않습니다.
+          raw_volume_spec = str(r.get("부피규격", "-") or "-").strip()
+          volume_parts = re.split(r"\s*/\s*", raw_volume_spec)
+          volume_parts = [re.sub(r"\s*\(\s*\d+\s*CTN\s*\)", "", part, flags=re.IGNORECASE).strip() for part in volume_parts]
+          volume_parts = [part for part in volume_parts if part and part != "-"]
+          volume_spec_html = "<br>".join(volume_parts) if volume_parts else "-"
           invoice_html += f"""
                     <tr>
                         <td>{r.get("날짜", "-")}</td>
@@ -3411,9 +3427,9 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                         <td>{r.get("국가", "-")}</td>
                         <td>{r.get("해외수하인", "-")}</td>
                         <td>{r.get("품목", "-")} ({r.get("박스수", "1 박스")})</td>
-                        <td>{r.get("부피규격", "-")}</td>
-                        <td>{r.get("매출청구중량(kg)", 1.0)} kg</td>
-                        <td style="text-align: right; font-weight: bold;">{int(r.get("매출액(원)", 0)):,} 원</td>
+                        <td class="dim-cell">{volume_spec_html}</td>
+                        <td class="weight-cell">{r.get("매출청구중량(kg)", 1.0)} kg</td>
+                        <td class="amount-cell">{int(float(r.get("매출액(원)", 0) or 0)):,} 원</td>
                     </tr>
                 """
         invoice_html += f"""
