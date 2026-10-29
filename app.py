@@ -2326,25 +2326,76 @@ if selected_menu == "📊 수출입 B/L 등록":
         "##### 📦 박스 규격 및 카톤수 입력 (아래 입력창에 가로, 세로, 높이, 카톤수를 적어주시면 즉시 부피중량과 CBM이 계산됩니다)"
     )
 
+    def _box_input_number(value, default=0.0):
+        try:
+            if value is None or pd.isna(value) or str(value).strip() == "":
+                return default
+            return float(value)
+        except (TypeError, ValueError, OverflowError):
+            return default
+
     if "box_input_df" not in st.session_state:
         st.session_state.box_input_df = pd.DataFrame([
             {"가로(cm)": 100.0, "세로(cm)": 100.0, "높이(cm)": 100.0, "카톤수(개)": 1}
         ])
 
-    edited_box_df = st.data_editor(
-        st.session_state.box_input_df,
-        num_rows="dynamic",
-        use_container_width=True,
-        key="box_editor_multi_infinite",
-        column_config={
-            "가로(cm)": st.column_config.NumberColumn("가로(cm)", min_value=0.0, step=0.5, format="%.1f"),
-            "세로(cm)": st.column_config.NumberColumn("세로(cm)", min_value=0.0, step=0.5, format="%.1f"),
-            "높이(cm)": st.column_config.NumberColumn("높이(cm)", min_value=0.0, step=0.5, format="%.1f"),
-            "카톤수(개)": st.column_config.NumberColumn("카톤수(개)", min_value=0, step=1, format="%d"),
-        },
-    )
-    # Keep edited rows as the source of truth across Streamlit reruns.
-    # Without this assignment, dynamic rows or typed values may revert to the initial dataframe.
+    # st.data_editor는 셀을 먼저 선택한 뒤 편집해야 하는 경우가 있어
+    # 가로/세로/높이를 두 번 눌러야 입력되는 것처럼 느껴질 수 있습니다.
+    # 일반 number_input으로 바꿔 한 번 클릭해 바로 입력하고, 입력 즉시 재계산되게 합니다.
+    box_df = st.session_state.box_input_df.copy().reset_index(drop=True)
+    action_add, action_remove, action_help = st.columns([1, 1, 3])
+    with action_add:
+        if st.button("➕ 규격 행 추가", key="add_box_dimension_row"):
+            box_df.loc[len(box_df)] = {"가로(cm)": 100.0, "세로(cm)": 100.0, "높이(cm)": 100.0, "카톤수(개)": 1}
+            st.session_state.box_input_df = box_df
+            st.rerun()
+    with action_remove:
+        if st.button("➖ 마지막 행 삭제", key="remove_box_dimension_row", disabled=len(box_df) <= 1):
+            removed_index = len(box_df) - 1
+            for suffix in ("width", "length", "height", "cartons"):
+                st.session_state.pop(f"box_dimension_{suffix}_{removed_index}", None)
+            box_df = box_df.iloc[:-1].reset_index(drop=True)
+            st.session_state.box_input_df = box_df
+            st.rerun()
+    with action_help:
+        st.caption("각 규격 입력칸을 한 번 클릭해 입력하세요. 값이 바뀌면 CBM·부피중량이 자동 계산됩니다.")
+
+    edited_rows = []
+    for box_i, box_row in box_df.iterrows():
+        dim_cols = st.columns(4)
+        with dim_cols[0]:
+            box_w_value = st.number_input(
+                f"가로(cm) · 행 {box_i + 1}", min_value=0.0,
+                value=float(box_input_number(box_row.get("가로(cm)", 100.0), 100.0)),
+                step=0.5, format="%.1f", key=f"box_dimension_width{box_i}"
+            )
+        with dim_cols[1]:
+            box_l_value = st.number_input(
+                f"세로(cm) · 행 {box_i + 1}", min_value=0.0,
+                value=float(box_input_number(box_row.get("세로(cm)", 100.0), 100.0)),
+                step=0.5, format="%.1f", key=f"box_dimension_length{box_i}"
+            )
+        with dim_cols[2]:
+            box_h_value = st.number_input(
+                f"높이(cm) · 행 {box_i + 1}", min_value=0.0,
+                value=float(box_input_number(box_row.get("높이(cm)", 100.0), 100.0)),
+                step=0.5, format="%.1f", key=f"box_dimension_height{box_i}"
+            )
+        with dim_cols[3]:
+            box_ctn_value = st.number_input(
+                f"카톤수(개) · 행 {box_i + 1}", min_value=0,
+                value=max(0, int(box_input_number(box_row.get("카톤수(개)", 1), 1))),
+                step=1, key=f"box_dimension_cartons{box_i}"
+            )
+        edited_rows.append({
+            "가로(cm)": float(box_w_value),
+            "세로(cm)": float(box_l_value),
+            "높이(cm)": float(box_h_value),
+            "카톤수(개)": int(box_ctn_value),
+        })
+
+    edited_box_df = pd.DataFrame(edited_rows, columns=["가로(cm)", "세로(cm)", "높이(cm)", "카톤수(개)"])
+    # 다음 Streamlit 재실행에도 현재 입력값을 유지합니다.
     st.session_state.box_input_df = edited_box_df.copy()
 
     def _safe_box_number(value, default=0.0):
