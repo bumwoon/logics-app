@@ -3413,13 +3413,24 @@ elif selected_menu == "📑 거래처 인보이스 발행":
                             </tr>
             """
         for r in client_bl_list:
-          # 여러 규격은 모두 유지하되, 각 규격 뒤의 CTN 표기만 제거합니다.
-          # 카톤 수량은 바로 옆 '품목 / 박스' 열에 이미 표시되므로 중복하지 않습니다.
+          # 규격별 카톤 수량을 보존합니다.
+          # 전체 박스 수량(예: 5 CTN)은 품목/박스 열에, 각 규격별 수량(예: 3 CTN)은 부피규격 열에 표시합니다.
           raw_volume_spec = str(r.get("부피규격", "-") or "-").strip()
           volume_parts = re.split(r"\s*/\s*", raw_volume_spec)
-          volume_parts = [re.sub(r"\s*\(\s*\d+\s*CTN\s*\)", "", part, flags=re.IGNORECASE).strip() for part in volume_parts]
-          volume_parts = [part for part in volume_parts if part and part != "-"]
-          volume_spec_html = "<br>".join(volume_parts) if volume_parts else "-"
+          formatted_parts = []
+          for part in volume_parts:
+              part = part.strip()
+              if not part or part == "-":
+                  continue
+              count_match = re.search(r"\(\s*(\d+)\s*CTN\s*\)", part, flags=re.IGNORECASE)
+              if count_match:
+                  dimension_text = re.sub(r"\s*\(\s*\d+\s*CTN\s*\)", "", part, flags=re.IGNORECASE).strip()
+                  carton_count = int(count_match.group(1))
+                  formatted_parts.append(f"{dimension_text} <b>({carton_count} CTN)</b>")
+              else:
+                  # 예전 데이터에 규격별 CTN 정보가 없는 경우에도 치수는 그대로 표시합니다.
+                  formatted_parts.append(part)
+          volume_spec_html = "<br>".join(formatted_parts) if formatted_parts else "-"
           invoice_html += f"""
                     <tr>
                         <td>{r.get("날짜", "-")}</td>
