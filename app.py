@@ -2334,6 +2334,9 @@ if selected_menu == "📊 수출입 B/L 등록":
         except (TypeError, ValueError, OverflowError):
             return default
 
+    # 배포된 이전 코드에서 밑줄 없는 함수명을 호출하더라도 NameError가 나지 않도록 호환 별칭 제공
+    box_input_number = _box_input_number
+
     if "box_input_df" not in st.session_state:
         st.session_state.box_input_df = pd.DataFrame([
             {"가로(cm)": 100.0, "세로(cm)": 100.0, "높이(cm)": 100.0, "카톤수(개)": 1}
