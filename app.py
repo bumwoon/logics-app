@@ -321,42 +321,77 @@ def save_note_data(data_list):
 # ==========================================
 # [매출 거래처(화주)] 데이터 관리
 # ==========================================
+def _client_safe_number(value, default, as_int=False):
+  """거래처 요율의 빈칸/NaN/문자값 때문에 전체 거래처 로딩이 중단되지 않도록 숫자를 안전 변환합니다."""
+  try:
+    if value is None or pd.isna(value) or str(value).strip() == "":
+      return int(default) if as_int else float(default)
+    cleaned = str(value).replace(",", "").strip()
+    number = float(cleaned)
+    if not math.isfinite(number):
+      return int(default) if as_int else float(default)
+    return int(number) if as_int else number
+  except (TypeError, ValueError, OverflowError):
+    return int(default) if as_int else float(default)
+
+
+def _client_text(value, default=""):
+  """CSV/엑셀의 NaN을 문자열 'nan'으로 저장하지 않습니다."""
+  try:
+    if value is None or pd.isna(value):
+      return default
+  except (TypeError, ValueError):
+    pass
+  value = str(value).strip()
+  return default if value.lower() in ("nan", "none", "null") else value
+
+
 def load_client_data():
+  """
+  매출 거래처 CSV를 거래처 단위로 최대한 복원합니다.
+  한 행의 숫자 오류나 빈 요율이 있어도 다른 거래처까지 기본 2곳으로 축소하지 않습니다.
+  """
   if os.path.exists(CLIENT_FILE):
     try:
-      df = pd.read_csv(CLIENT_FILE)
-      clients = df["거래처명"].unique().tolist()
-      rates = {}
-      client_infos = {}
-      for client in clients:
-        rates[client] = {}
-        sub_df = df[df["거래처명"] == client]
-        first_row = sub_df.iloc[0]
-        client_infos[client] = {
-            "사업자등록번호": str(first_row.get("사업자등록번호", "")),
-            "이메일": str(first_row.get("이메일", "")),
-            "담당자": str(first_row.get("담당자", "")),
-            "전화번호": str(first_row.get("전화번호", "")),
-            "주소": str(first_row.get("주소", "")),
-        }
-        for _, row in sub_df.iterrows():
-          country = row.get("국가", "미국")
-          transport = str(row.get("운송형태", "항공(Air)")).strip()
-          item = str(row.get("품명", "일반공산품")).strip()
-          if country not in rates[client]:
-            rates[client][country] = {}
-          if transport not in rates[client][country]:
-            rates[client][country][transport] = {}
-          rates[client][country][transport][item] = {
-              "기본중량": float(row.get("기본중량", 1.0)),
-              "기본요금": int(row.get("기본요금", 38000)),
-              "추가단가": int(row.get("추가단가", 25000)),
-              "1CBM당단가": int(row.get("1CBM당단가", 3700000)),
+      df = pd.read_csv(CLIENT_FILE, dtype={"거래처명": str}, keep_default_na=False)
+      if "거래처명" in df.columns and not df.empty:
+        clients = []
+        rates = {}
+        client_infos = {}
+
+        for _, row in df.iterrows():
+          client = _client_text(row.get("거래처명", ""))
+          if not client:
+            continue
+
+          if client not in clients:
+            clients.append(client)
+            rates[client] = {}
+            client_infos[client] = {
+                "사업자등록번호": _client_text(row.get("사업자등록번호", "")),
+                "이메일": _client_text(row.get("이메일", "")),
+                "담당자": _client_text(row.get("담당자", "")),
+                "전화번호": _client_text(row.get("전화번호", "")),
+                "주소": _client_text(row.get("주소", "")),
+            }
+
+          country = _client_text(row.get("국가", "미국"), "미국")
+          transport = _client_text(row.get("운송형태", "항공(Air)"), "항공(Air)")
+          item = _client_text(row.get("품명", "일반공산품"), "일반공산품")
+
+          rates[client].setdefault(country, {}).setdefault(transport, {})[item] = {
+              "기본중량": _client_safe_number(row.get("기본중량", 1.0), 1.0),
+              "기본요금": _client_safe_number(row.get("기본요금", 38000), 38000, as_int=True),
+              "추가단가": _client_safe_number(row.get("추가단가", 25000), 25000, as_int=True),
+              "1CBM당단가": _client_safe_number(row.get("1CBM당단가", 3700000), 3700000, as_int=True),
           }
-      if clients:
-        return clients, rates, client_infos
-    except Exception:
-      pass
+
+        if clients:
+          return clients, rates, client_infos
+    except Exception as e:
+      # CSV 자체를 읽을 수 없는 경우에만 기본 거래처로 넘어갑니다.
+      # 개별 요율 숫자 변환 오류는 위에서 행 단위로 처리합니다.
+      st.warning(f"거래처 CSV 읽기 중 문제가 있어 기본 데이터 확인이 필요합니다: {e}")
 
   default_clients = ["아코글로벌", "주식회사 조은로직스"]
   default_rates = {
@@ -405,57 +440,67 @@ def load_client_data():
 
 
 def save_client_data(client_list, client_rates, client_infos):
+  """거래처 목록 전체를 보존하고 요율이 비어 있어도 거래처 자체는 CSV에 남깁니다."""
   rows = []
-  for client in client_list:
-    info = client_infos.get(
-        client,
-        {
-            "사업자등록번호": "",
-            "이메일": "",
-            "담당자": "",
-            "전화번호": "",
-            "주소": "",
-        },
-    )
-    country_dict = client_rates.get(client, {})
-    if not country_dict:
+  seen_clients = set()
+
+  for raw_client in (client_list or []):
+    client = _client_text(raw_client)
+    if not client or client in seen_clients:
+      continue
+    seen_clients.add(client)
+
+    info = client_infos.get(client, {}) if isinstance(client_infos, dict) else {}
+    info = info if isinstance(info, dict) else {}
+    country_dict = client_rates.get(client, {}) if isinstance(client_rates, dict) else {}
+    client_base = {
+        "거래처명": client,
+        "사업자등록번호": _client_text(info.get("사업자등록번호", "")),
+        "이메일": _client_text(info.get("이메일", "")),
+        "담당자": _client_text(info.get("담당자", "")),
+        "전화번호": _client_text(info.get("전화번호", "")),
+        "주소": _client_text(info.get("주소", "")),
+    }
+
+    rate_rows_added = False
+    if isinstance(country_dict, dict):
+      for country, trans_dict in country_dict.items():
+        if not isinstance(trans_dict, dict):
+          continue
+        for transport, item_dict in trans_dict.items():
+          if not isinstance(item_dict, dict):
+            continue
+          for item_name, r_val in item_dict.items():
+            r_val = r_val if isinstance(r_val, dict) else {}
+            rows.append({
+                **client_base,
+                "국가": _client_text(country, "미국"),
+                "운송형태": _client_text(transport, "항공(Air)"),
+                "품명": _client_text(item_name, "일반공산품"),
+                "기본중량": _client_safe_number(r_val.get("기본중량", 1.0), 1.0),
+                "기본요금": _client_safe_number(r_val.get("기본요금", 38000), 38000, as_int=True),
+                "추가단가": _client_safe_number(r_val.get("추가단가", 25000), 25000, as_int=True),
+                "1CBM당단가": _client_safe_number(r_val.get("1CBM당단가", 3700000), 3700000, as_int=True),
+            })
+            rate_rows_added = True
+
+    if not rate_rows_added:
+      # 요율이 없는 거래처도 거래처 목록에서 사라지지 않도록 기본 빈 요율 행으로 보존
       rows.append({
-          "거래처명": client,
-          "사업자등록번호": info.get("사업자등록번호", ""),
-          "이메일": info.get("이메일", ""),
-          "담당자": info.get("담당자", ""),
-          "전화번호": info.get("전화번호", ""),
-          "주소": info.get("주소", ""),
+          **client_base,
           "국가": "미국",
           "운송형태": "항공(Air)",
-          "품명": "보톡스",
+          "품명": "일반화물",
           "기본중량": 1.0,
           "기본요금": 38000,
           "추가단가": 25000,
           "1CBM당단가": 3700000,
       })
-    else:
-      for country, trans_dict in country_dict.items():
-        if isinstance(trans_dict, dict):
-          for transport, item_dict in trans_dict.items():
-            if isinstance(item_dict, dict):
-              for item_name, r_val in item_dict.items():
-                rows.append({
-                    "거래처명": client,
-                    "사업자등록번호": info.get("사업자등록번호", ""),
-                    "이메일": info.get("이메일", ""),
-                    "담당자": info.get("담당자", ""),
-                    "전화번호": info.get("전화번호", ""),
-                    "주소": info.get("주소", ""),
-                    "국가": country,
-                    "운송형태": transport,
-                    "품명": item_name,
-                    "기본중량": r_val.get("기본중량", 1.0),
-                    "기본요금": r_val.get("기본요금", 38000),
-                    "추가단가": r_val.get("추가단가", 25000),
-                    "1CBM당단가": r_val.get("1CBM당단가", 3700000),
-                })
-  pd.DataFrame(rows).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
+
+  pd.DataFrame(rows, columns=[
+      "거래처명", "사업자등록번호", "이메일", "담당자", "전화번호", "주소",
+      "국가", "운송형태", "품명", "기본중량", "기본요금", "추가단가", "1CBM당단가"
+  ]).to_csv(CLIENT_FILE, index=False, encoding="utf-8-sig")
 
 
 # ==========================================
@@ -1871,7 +1916,50 @@ def generate_integrated_backup_bytes():
             writer, index=False, sheet_name="고객수정이력"
         )
 
-        # 기존 거래처/요율 구조 등은 메타 시트에 보관해 손실 없이 복원합니다.
+        # 매출 거래처 목록/기본정보를 별도 시트로도 저장합니다.
+        client_info_rows = []
+        client_rate_rows = []
+        for client in client_list or []:
+            info = client_infos.get(client, {}) if isinstance(client_infos, dict) else {}
+            info = info if isinstance(info, dict) else {}
+            client_info_rows.append({
+                "거래처명": client,
+                "사업자등록번호": info.get("사업자등록번호", ""),
+                "이메일": info.get("이메일", ""),
+                "담당자": info.get("담당자", ""),
+                "전화번호": info.get("전화번호", ""),
+                "주소": info.get("주소", ""),
+            })
+            country_dict = client_rates.get(client, {}) if isinstance(client_rates, dict) else {}
+            if isinstance(country_dict, dict):
+                for country, trans_dict in country_dict.items():
+                    if not isinstance(trans_dict, dict):
+                        continue
+                    for transport, item_dict in trans_dict.items():
+                        if not isinstance(item_dict, dict):
+                            continue
+                        for item_name, rate in item_dict.items():
+                            rate = rate if isinstance(rate, dict) else {}
+                            client_rate_rows.append({
+                                "거래처명": client,
+                                "국가": country,
+                                "운송형태": transport,
+                                "품명": item_name,
+                                "기본중량": rate.get("기본중량", 1.0),
+                                "기본요금": rate.get("기본요금", 38000),
+                                "추가단가": rate.get("추가단가", 25000),
+                                "1CBM당단가": rate.get("1CBM당단가", 3700000),
+                            })
+
+        pd.DataFrame(client_info_rows, columns=[
+            "거래처명", "사업자등록번호", "이메일", "담당자", "전화번호", "주소"
+        ]).to_excel(writer, index=False, sheet_name="매출거래처목록")
+        pd.DataFrame(client_rate_rows, columns=[
+            "거래처명", "국가", "운송형태", "품명", "기본중량",
+            "기본요금", "추가단가", "1CBM당단가"
+        ]).to_excel(writer, index=False, sheet_name="매출거래처요율")
+
+        # 기존 거래처/요율 구조 등은 메타 시트에도 보관해 이전 버전과 호환합니다.
         pd.DataFrame([{
             "SYSTEM_META": json.dumps(meta_dict, ensure_ascii=False)
         }]).to_excel(writer, index=False, sheet_name="시스템설정")
@@ -1923,12 +2011,62 @@ if uploaded_integrated_file is not None:
 
         # 거래처 및 기본 정보 복원
         if parsed_meta:
-            st.session_state.client_list = parsed_meta.get("client_list", st.session_state.get("client_list", []))
-            st.session_state.client_rates = parsed_meta.get("client_rates", st.session_state.get("client_rates", {}))
-            st.session_state.client_infos = parsed_meta.get("client_infos", st.session_state.get("client_infos", {}))
-            st.session_state.supplier_list = parsed_meta.get("supplier_list", st.session_state.get("supplier_list", []))
-            st.session_state.supplier_rates = parsed_meta.get("supplier_rates", st.session_state.get("supplier_rates", {}))
-            st.session_state.supplier_infos = parsed_meta.get("supplier_infos", st.session_state.get("supplier_infos", {}))
+            meta_clients = parsed_meta.get("client_list", []) or []
+            meta_rates = parsed_meta.get("client_rates", {}) or {}
+            meta_infos = parsed_meta.get("client_infos", {}) or {}
+            st.session_state.client_list = list(dict.fromkeys(
+                _client_text(v) for v in meta_clients if _client_text(v)
+            ))
+            st.session_state.client_rates = meta_rates if isinstance(meta_rates, dict) else {}
+            st.session_state.client_infos = meta_infos if isinstance(meta_infos, dict) else {}
+            st.session_state.supplier_list = parsed_meta.get("supplier_list", st.session_state.get("supplier_list", [])) or []
+            st.session_state.supplier_rates = parsed_meta.get("supplier_rates", st.session_state.get("supplier_rates", {})) or {}
+            st.session_state.supplier_infos = parsed_meta.get("supplier_infos", st.session_state.get("supplier_infos", {})) or {}
+
+        # 새 백업 형식의 거래처 전용 시트가 있으면 해당 시트를 우선 사용합니다.
+        # 이전 백업 파일은 시스템설정의 메타데이터를 그대로 사용합니다.
+        if "매출거래처목록" in sheets:
+            info_df = sheets["매출거래처목록"].copy()
+            if "거래처명" in info_df.columns:
+                restored_clients = []
+                restored_infos = {}
+                for _, row in info_df.iterrows():
+                    client = _client_text(row.get("거래처명", ""))
+                    if not client:
+                        continue
+                    if client not in restored_clients:
+                        restored_clients.append(client)
+                    restored_infos[client] = {
+                        "사업자등록번호": _client_text(row.get("사업자등록번호", "")),
+                        "이메일": _client_text(row.get("이메일", "")),
+                        "담당자": _client_text(row.get("담당자", "")),
+                        "전화번호": _client_text(row.get("전화번호", "")),
+                        "주소": _client_text(row.get("주소", "")),
+                    }
+                if restored_clients:
+                    st.session_state.client_list = restored_clients
+                    st.session_state.client_infos = restored_infos
+
+        if "매출거래처요율" in sheets:
+            rate_df = sheets["매출거래처요율"].copy()
+            restored_rates = {client: {} for client in st.session_state.get("client_list", [])}
+            for _, row in rate_df.iterrows():
+                client = _client_text(row.get("거래처명", ""))
+                if not client:
+                    continue
+                if client not in st.session_state.client_list:
+                    st.session_state.client_list.append(client)
+                country = _client_text(row.get("국가", "미국"), "미국")
+                transport = _client_text(row.get("운송형태", "항공(Air)"), "항공(Air)")
+                item = _client_text(row.get("품명", "일반공산품"), "일반공산품")
+                restored_rates.setdefault(client, {}).setdefault(country, {}).setdefault(transport, {})[item] = {
+                    "기본중량": _client_safe_number(row.get("기본중량", 1.0), 1.0),
+                    "기본요금": _client_safe_number(row.get("기본요금", 38000), 38000, as_int=True),
+                    "추가단가": _client_safe_number(row.get("추가단가", 25000), 25000, as_int=True),
+                    "1CBM당단가": _client_safe_number(row.get("1CBM당단가", 3700000), 3700000, as_int=True),
+                }
+            if restored_rates:
+                st.session_state.client_rates = restored_rates
 
         # 1. 일계표(입출금장부) 복원: 엑셀 시트 실데이터 최우선 적용
         ledger_restored = False
