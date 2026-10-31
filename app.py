@@ -4363,9 +4363,12 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
                       else "항공(Air)"
                   ),
                   "품명": (
-                      item_name
-                      if item_name and item_name != "None"
-                      else "일반화물"
+                      item_name if item_name in ["보톡스", "필러", "화장품", "특가품목", "의약품", "일반화물", "기타"]
+                      else "기타(직접입력)"
+                  ),
+                  "기타 품목 직접입력": (
+                      "" if item_name in ["보톡스", "필러", "화장품", "특가품목", "의약품", "일반화물", "기타"]
+                      else (item_name if item_name and item_name != "None" else "")
                   ),
                   "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
                   "기본요금(원)": int(r_val.get("기본요금", 38000)),
@@ -4378,6 +4381,7 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
           "국가": "미국",
           "운송형태": "항공(Air)",
           "품명": "일반화물",
+          "기타 품목 직접입력": "",
           "기본중량(kg)": 1.0,
           "기본요금(원)": 38000,
           "추가단가(원/kg)": 25000,
@@ -4388,6 +4392,7 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
     if "선택" not in df_rates.columns:
       df_rates.insert(0, "선택", False)
 
+    st.caption("품목 선택: 보톡스 · 필러 · 화장품 · 특가품목 · 의약품 · 기타. 기타 품목은 오른쪽 '기타 품목 직접입력' 칸에 직접 입력하세요.")
     edited_rates_df = st.data_editor(
         df_rates,
         hide_index=True,
@@ -4404,9 +4409,10 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
             ),
             "품명": st.column_config.SelectboxColumn(
                 "품명",
-                options=["보톡스", "필러", "화장품", "특가품목", "기타"],
+                options=["보톡스", "필러", "화장품", "특가품목", "의약품", "일반화물", "기타", "기타(직접입력)"],
                 required=True,
             ),
+            "기타 품목 직접입력": st.column_config.TextColumn("기타 품목 직접입력", help="기타를 선택한 경우 품목명을 직접 입력하세요."),
         },
         num_rows="dynamic",
         key=f"rate_editor_{selected_client_mgr}",
@@ -4419,7 +4425,7 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
         for _, row in edited_rates_df.iterrows():
           c_cntry = str(row.get("국가", "미국")).strip()
           c_trans = str(row.get("운송형태", "항공(Air)")).strip()
-          c_item = str(row.get("품명", "일반화물")).strip()
+          c_item = str(row.get("기타 품목 직접입력", "")).strip() if str(row.get("품명", "")).strip() == "기타(직접입력)" else str(row.get("품명", "일반화물")).strip()
           if c_cntry and c_trans and c_item:
             if c_cntry not in new_rates_dict:
               new_rates_dict[c_cntry] = {}
@@ -4449,7 +4455,7 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
           for _, row in remaining_rates_df.iterrows():
             c_cntry = str(row.get("국가", "미국")).strip()
             c_trans = str(row.get("운송형태", "항공(Air)")).strip()
-            c_item = str(row.get("품명", "일반화물")).strip()
+            c_item = str(row.get("기타 품목 직접입력", "")).strip() if str(row.get("품명", "")).strip() == "기타(직접입력)" else str(row.get("품명", "일반화물")).strip()
             if c_cntry and c_trans and c_item:
               if c_cntry not in new_rates_dict:
                 new_rates_dict[c_cntry] = {}
@@ -4600,9 +4606,12 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
                       else "항공(Air)"
                   ),
                   "품명": (
-                      item_name
-                      if item_name and item_name != "None"
-                      else "일반화물"
+                      item_name if item_name in ["보톡스", "필러", "화장품", "특가품목", "의약품", "일반화물", "기타"]
+                      else "기타(직접입력)"
+                  ),
+                  "기타 품목 직접입력": (
+                      "" if item_name in ["보톡스", "필러", "화장품", "특가품목", "의약품", "일반화물", "기타"]
+                      else (item_name if item_name and item_name != "None" else "")
                   ),
                   "기본중량(kg)": float(r_val.get("기본중량", 1.0)),
                   "기본요금(원)": int(r_val.get("기본요금", 35000)),
@@ -4615,6 +4624,7 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
           "국가": "미국",
           "운송형태": "항공(Air)",
           "품명": "일반화물",
+          "기타 품목 직접입력": "",
           "기본중량(kg)": 1.0,
           "기본요금(원)": 35000,
           "추가단가(원/kg)": 22000,
@@ -4625,6 +4635,7 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
     if "선택" not in df_supp_rates.columns:
       df_supp_rates.insert(0, "선택", False)
 
+    st.caption("품목 선택: 보톡스 · 필러 · 화장품 · 특가품목 · 의약품 · 기타. 기타 품목은 오른쪽 '기타 품목 직접입력' 칸에 직접 입력하세요.")
     edited_supp_rates_df = st.data_editor(
         df_supp_rates,
         hide_index=True,
@@ -4641,9 +4652,10 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
             ),
             "품명": st.column_config.SelectboxColumn(
                 "품명",
-                options=["보톡스", "필러", "화장품", "특가품목", "기타"],
+                options=["보톡스", "필러", "화장품", "특가품목", "의약품", "일반화물", "기타", "기타(직접입력)"],
                 required=True,
             ),
+            "기타 품목 직접입력": st.column_config.TextColumn("기타 품목 직접입력", help="기타를 선택한 경우 품목명을 직접 입력하세요."),
         },
         num_rows="dynamic",
         key=f"supp_rate_editor_{selected_supplier_mgr}",
@@ -4656,7 +4668,7 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
         for _, row in edited_supp_rates_df.iterrows():
           c_cntry = str(row.get("국가", "미국")).strip()
           c_trans = str(row.get("운송형태", "항공(Air)")).strip()
-          c_item = str(row.get("품명", "일반화물")).strip()
+          c_item = str(row.get("기타 품목 직접입력", "")).strip() if str(row.get("품명", "")).strip() == "기타(직접입력)" else str(row.get("품명", "일반화물")).strip()
           if c_cntry and c_trans and c_item:
             if c_cntry not in new_supp_rates_dict:
               new_supp_rates_dict[c_cntry] = {}
@@ -4692,7 +4704,7 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
           for _, row in remaining_supp_rates_df.iterrows():
             c_cntry = str(row.get("국가", "미국")).strip()
             c_trans = str(row.get("운송형태", "항공(Air)")).strip()
-            c_item = str(row.get("품명", "일반화물")).strip()
+            c_item = str(row.get("기타 품목 직접입력", "")).strip() if str(row.get("품명", "")).strip() == "기타(직접입력)" else str(row.get("품명", "일반화물")).strip()
             if c_cntry and c_trans and c_item:
               if c_cntry not in new_supp_rates_dict:
                 new_supp_rates_dict[c_cntry] = {}
