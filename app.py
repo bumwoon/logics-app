@@ -2956,20 +2956,24 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 if custom_widget_key not in st.session_state:
                     st.session_state[custom_widget_key] = custom_item_default
 
-                e_item_choice = st.selectbox(
-                    "품명",
-                    options=item_options_list,
-                    key=item_widget_key
-                )
-                if e_item_choice == "기타":
-                    e_item_custom = st.text_input(
-                        "기타 품목 직접 입력",
-                        placeholder="예: 의료기기, 의약품 원료 등",
-                        key=custom_widget_key
+                # 품명 선택을 상세 수정 폼의 3번째 열(매입처/수금상태 위치)에 맞춰 배치합니다.
+                # Streamlit form 바깥에 두어 '기타' 선택 즉시 직접입력 칸이 표시되게 합니다.
+                item_layout_col1, item_layout_col2, item_layout_col3 = st.columns(3)
+                with item_layout_col3:
+                    e_item_choice = st.selectbox(
+                        "품명 선택",
+                        options=item_options_list,
+                        key=item_widget_key
                     )
-                    e_item = e_item_custom.strip()
-                else:
-                    e_item = e_item_choice
+                    if e_item_choice == "기타":
+                        e_item_custom = st.text_input(
+                            "기타 품목 직접 입력",
+                            placeholder="예: 의료기기, 의약품 원료 등",
+                            key=custom_widget_key
+                        )
+                        e_item = e_item_custom.strip()
+                    else:
+                        e_item = e_item_choice
 
                 with st.form("detail_bl_edit_form_filtered"):
                     d_col1, d_col2, d_col3 = st.columns(3)
