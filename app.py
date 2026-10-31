@@ -994,7 +994,7 @@ def _customer_portal():
         p3.metric("적용중량", f"{charge_preview:.2f} kg")
         export_license_no = st.text_input("수출면장 번호 (해당 시 입력)", key="customer_new_export_license")
         note = st.text_input("추가 요청 사항 (선택)")
-        submitted = st.button("📦 QR & 바코드 발급", use_container_width=True, type="primary")
+        submitted = st.button("🖨️ QR & 바코드 발급·인쇄", use_container_width=True, type="primary")
         if submitted:
             required = [shipper, shipper_address, shipper_phone, consignee, consignee_address, dest_country, item_name]
             if not all(str(v).strip() for v in required):
@@ -1026,8 +1026,52 @@ def _customer_portal():
                 all_requests.append(new_req)
                 _write_customer_csv(CUSTOMER_REQUEST_FILE, all_requests)
                 _customer_history_append({"일시": now, "접수번호": req_id, "고객사아이디": cid, "작업자": company, "작업": "신규 접수 및 박스별 바코드 발급", "변경내용": json.dumps(new_req, ensure_ascii=False)})
-                st.success(f"접수가 완료되었습니다. 접수번호: {req_id} / 바코드 {len(box_dims)}개 발급 완료")
-                st.rerun()
+                st.success(f"접수가 완료되었습니다. 접수번호: {req_id} / QR·바코드 {len(box_dims)}개 발급 완료")
+
+                # 접수 직후 해당 접수 건의 A4 라벨을 바로 인쇄할 수 있도록 출력 화면 생성
+                import html as _html
+                immediate_labels = []
+                for li, bd in enumerate(box_dims):
+                    barcode_value = str(bd.get("바코드", "")).strip()
+                    qr_data_uri = ""
+                    try:
+                        import qrcode
+                        qr_obj = qrcode.QRCode(box_size=7, border=2)
+                        qr_obj.add_data(barcode_value)
+                        qr_obj.make(fit=True)
+                        qr_img = qr_obj.make_image(fill_color="black", back_color="white")
+                        qr_buf = io.BytesIO()
+                        qr_img.save(qr_buf, format="PNG")
+                        qr_data_uri = "data:image/png;base64," + base64.b64encode(qr_buf.getvalue()).decode("ascii")
+                    except Exception:
+                        pass
+                    immediate_labels.append({
+                        "접수번호": req_id, "고객사": company, "화주": shipper.strip(),
+                        "도착국가": dest_country, "품목": item_name,
+                        "박스": f"{li+1}/{len(box_dims)}", "바코드": barcode_value,
+                        "QR이미지": qr_data_uri,
+                    })
+                safe_labels = json.dumps(immediate_labels, ensure_ascii=False).replace("</", "<\\/")
+                immediate_html = r"""<!doctype html><html><head><meta charset="utf-8"><style>
+                @page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}body{font-family:Arial,'Malgun Gothic',sans-serif;margin:0;color:#111}
+                .toolbar{text-align:center;padding:10px}.sheet{width:194mm;height:281mm;margin:0 auto;display:grid;grid-template-rows:1fr 1fr;gap:3mm;page-break-after:always;break-after:page}
+                .label{border:1px dashed #888;padding:6mm;display:grid;grid-template-columns:1fr 43mm;grid-template-rows:auto 1fr;gap:3mm;overflow:hidden;break-inside:avoid}
+                .brand{font-size:18pt;font-weight:bold;margin-bottom:3mm}.info{font-size:12pt;line-height:1.65;overflow-wrap:anywhere}.boxno{font-size:17pt;font-weight:bold;margin-top:2mm}
+                .qrwrap{grid-column:2;grid-row:1/3;display:flex;flex-direction:column;align-items:center;justify-content:center}.qr{width:39mm;height:39mm;object-fit:contain}
+                .barwrap{grid-column:1;grid-row:2;align-self:end;text-align:center}.barcode{width:100%;height:31mm}.code{font-size:12pt;font-weight:bold;overflow-wrap:anywhere}
+                @media print{.toolbar{display:none}.sheet{margin:0}}
+                </style><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script></head><body>
+                <div class="toolbar"><button onclick="window.print()">A4 라벨 인쇄</button>　접수 완료: QR·바코드 라벨 __COUNT__개 / A4 한 장에 2개</div><div id="pages"></div>
+                <script>const rows=__ROWS__;const root=document.getElementById('pages');let sheet;rows.forEach((r,i)=>{if(i%2===0){sheet=document.createElement('div');sheet.className='sheet';root.appendChild(sheet)}
+                const d=document.createElement('div');d.className='label';const info=document.createElement('div');
+                info.innerHTML='<div class="brand">범운해운항공</div><div class="info">접수번호: '+r.접수번호+'<br>고객사: '+r.고객사+'<br>화주: '+r.화주+'<br>도착국가: '+r.도착국가+'　품목: '+r.품목+'<div class="boxno">BOX '+r.박스+'</div></div>';d.appendChild(info);
+                const qr=document.createElement('div');qr.className='qrwrap';if(r.QR이미지){const im=document.createElement('img');im.className='qr';im.src=r.QR이미지;qr.appendChild(im);qr.insertAdjacentHTML('beforeend','<b>QR CODE</b>')}else{qr.textContent='QR 생성 실패';}d.appendChild(qr);
+                const bar=document.createElement('div');bar.className='barwrap';const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('barcode');bar.appendChild(svg);const code=document.createElement('div');code.className='code';code.textContent=r.바코드;bar.appendChild(code);bar.insertAdjacentHTML('beforeend','<b>CODE 128 BARCODE</b>');d.appendChild(bar);sheet.appendChild(d);
+                if(window.JsBarcode){JsBarcode(svg,r.바코드,{format:'CODE128',displayValue:false,margin:8,height:75,width:2,lineColor:'#000',background:'#fff'});}
+                });
+                window.addEventListener('load',()=>{setTimeout(()=>window.print(),900)});</script></body></html>""".replace("__ROWS__", safe_labels).replace("__COUNT__", str(len(box_dims)))
+                components.html(immediate_html, height=950, scrolling=True)
+                st.info("인쇄 창이 자동으로 열리지 않으면 위 라벨 화면의 ‘A4 라벨 인쇄’ 버튼을 눌러주세요. 인쇄 설정은 A4 세로·배율 100%를 권장합니다.")
 
     with tab_list:
         if not mine:
@@ -1038,11 +1082,84 @@ def _customer_portal():
             choice = st.selectbox("수정할 접수 건 선택", options=[r.get("접수번호", "") for r in mine], key="customer_request_select")
             target = next((r for r in mine if r.get("접수번호", "") == choice), None)
             if target:
-                # 고객사 본인 접수 건에 대해서만 박스별 라벨 인쇄 허용
+                billed = customer_request_is_billed(target)
+
+                # B/L 등록 전 고객사 본인이 잘못 접수한 건을 직접 삭제할 수 있습니다.
+                with st.expander("🗑️ 선택한 접수 건 삭제", expanded=False):
+                    if billed:
+                        st.warning("B/L 등록된 접수 건은 고객사가 직접 삭제할 수 없습니다. 관리자에게 요청해 주세요.")
+                    else:
+                        st.warning("삭제하면 이 접수 건과 박스별 바코드 정보가 고객사 목록에서 삭제됩니다.")
+                        confirm_customer_delete = st.checkbox(
+                            f"{choice} 접수 건을 삭제하는 데 동의합니다.",
+                            key=f"customer_confirm_delete_{choice}"
+                        )
+                        if st.button(
+                            "🗑️ 선택한 접수 건 삭제하기",
+                            key=f"customer_delete_{choice}",
+                            disabled=not confirm_customer_delete,
+                            use_container_width=True
+                        ):
+                            all_requests = [
+                                r for r in all_requests
+                                if not (
+                                    str(r.get("접수번호", "")) == str(choice)
+                                    and str(r.get("고객사아이디", "")) == str(cid)
+                                )
+                            ]
+                            _write_customer_csv(CUSTOMER_REQUEST_FILE, all_requests)
+                            _customer_history_append({
+                                "일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "접수번호": choice,
+                                "고객사아이디": cid,
+                                "작업자": company,
+                                "작업": "고객사 B/L 미등록 접수 삭제",
+                                "변경내용": json.dumps(target, ensure_ascii=False)
+                            })
+                            st.success("선택한 접수 건을 삭제했습니다.")
+                            st.rerun()
+
+                # 과거 접수 건에 바코드가 없으면 기존 박스 수량에 맞춰 고유번호를 보완합니다.
                 try:
                     label_boxes = json.loads(target.get("박스별정보JSON", "[]") or "[]")
                 except Exception:
                     label_boxes = []
+                if not label_boxes:
+                    try:
+                        import uuid
+                        old_count = max(1, int(float(target.get("박스수량", 1) or 1)))
+                        old_w = float(target.get("가로cm", 1) or 1)
+                        old_l = float(target.get("세로cm", 1) or 1)
+                        old_h = float(target.get("높이cm", 1) or 1)
+                        label_boxes = [
+                            {
+                                "박스순번": bi + 1,
+                                "가로cm": old_w, "세로cm": old_l, "높이cm": old_h,
+                                "바코드": f"BW{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:8].upper()}",
+                                "입고상태": "미입고"
+                            }
+                            for bi in range(old_count)
+                        ]
+                        target["박스별정보JSON"] = json.dumps(label_boxes, ensure_ascii=False)
+                        target["바코드목록JSON"] = json.dumps(
+                            [b["바코드"] for b in label_boxes], ensure_ascii=False
+                        )
+                        req_idx = next(
+                            (i for i, r in enumerate(all_requests)
+                             if r.get("접수번호", "") == choice and r.get("고객사아이디", "") == cid),
+                            None
+                        )
+                        if req_idx is not None:
+                            all_requests[req_idx] = target
+                            _write_customer_csv(CUSTOMER_REQUEST_FILE, all_requests)
+                            _customer_history_append({
+                                "일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "접수번호": choice, "고객사아이디": cid, "작업자": company,
+                                "작업": "기존 접수 건 QR·바코드 보완 발급",
+                                "변경내용": json.dumps(target, ensure_ascii=False)
+                            })
+                    except Exception as barcode_fix_error:
+                        st.warning(f"기존 접수 건의 바코드 보완 중 오류: {barcode_fix_error}")
                 if label_boxes:
                     st.markdown("#### 🏷 A4 화물 라벨 출력 (QR + 일반 바코드)")
                     st.caption("일반 A4 용지 기준 한 장에 라벨 2개씩 배치됩니다. 박스마다 QR코드와 Code 128 바코드가 함께 인쇄됩니다.")
@@ -1077,7 +1194,6 @@ def _customer_portal():
                     components.html(label_html, height=900, scrolling=True)
                 else:
                     st.info("이 접수 건에는 박스별 바코드가 없습니다. 새로 접수한 건부터 라벨 출력이 제공됩니다.")
-                billed = customer_request_is_billed(target)
                 if billed:
                     st.warning("이 건은 B/L 등록 후입니다. 아래에서 수정 요청을 제출하면 사내 관리자가 승인한 뒤 반영합니다.")
                 else:
