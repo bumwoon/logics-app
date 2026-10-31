@@ -3001,6 +3001,18 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         supp_idx = suppliers_opt.index(current_supplier_val) if current_supplier_val in suppliers_opt else 0
                         e_vendor = st.selectbox("매입처 선택", options=suppliers_opt, index=supp_idx, key="edit_vendor_dropdown")
 
+                        # 기존 B/L 상세 수정 화면의 품명 입력란 복원
+                        # 위의 품목 선택값(또는 기타 직접입력값)을 기본값으로 보여주고,
+                        # 사용자가 이 칸에서 품명을 직접 수정한 내용이 최종 저장됩니다.
+                        item_name_edit_key = f"edit_item_name_{target_item.get('B/L 번호', target_idx)}"
+                        if item_name_edit_key not in st.session_state:
+                            st.session_state[item_name_edit_key] = e_item
+                        e_item = st.text_input(
+                            "품명",
+                            key=item_name_edit_key,
+                            help="품목 선택값을 확인하거나 여기에서 품명을 직접 수정할 수 있습니다."
+                        )
+
                         e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
                     
                     st.markdown("---")
