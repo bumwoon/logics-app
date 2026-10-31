@@ -712,74 +712,79 @@ def calculate_purchase_auto_price(
   return int(35000 + math.ceil(max(0.0, float(cw) - 1.0)) * 22000)
 
 def generate_barcode_html(text):
-  clean_txt = str(text).strip()
-  code128_patterns = {
-      "0": "212222",
-      "1": "222122",
-      "2": "222221",
-      "3": "121223",
-      "4": "121322",
-      "5": "131222",
-      "6": "122213",
-      "7": "122312",
-      "8": "132212",
-      "9": "221213",
-      "A": "212321",
-      "B": "232121",
-      "C": "113222",
-      "D": "123122",
-      "E": "123221",
-      "F": "223112",
-      "G": "223211",
-      "H": "212231",
-      "I": "231221",
-      "J": "221321",
-      "K": "312122",
-      "L": "321122",
-      "M": "321221",
-      "N": "312212",
-      "O": "322112",
-      "P": "322211",
-      "Q": "212132",
-      "R": "212312",
-      "S": "232112",
-      "T": "213122",
-      "U": "311222",
-      "V": "321112",
-      "W": "322102",
-      "X": "312112",
-      "Y": "321211",
-      "Z": "212113",
-      "-": "112232",
-      ".": "122132",
-      " ": "122231",
-      "default": "212222",
-  }
+    """표준 Code 128 바코드와 QR 코드를 함께 생성합니다."""
+    clean_txt = str(text or "").strip()
+    if not clean_txt:
+        return '<div style="color:#b91c1c;font-size:9pt;">B/L 번호가 없어 바코드를 생성할 수 없습니다.</div>'
 
-  encoded_bars = "211214"
-  for ch in clean_txt.upper():
-    encoded_bars += code128_patterns.get(ch, code128_patterns["default"])
-  encoded_bars += "2331112"
+    # 사용자 입력값을 HTML에 안전하게 표시
+    from html import escape
+    safe_txt = escape(clean_txt)
 
-  bars_html = ""
-  is_black = True
-  for char_val in encoded_bars:
+    code128_html = ""
+    qr_html = ""
+
     try:
-      width_multiplier = int(char_val)
-    except:
-      width_multiplier = 1
+        from reportlab.graphics.barcode import createBarcodeDrawing
+        from reportlab.graphics import renderSVG
 
-    w_px = width_multiplier * 1.5
-    bg_color = "#000000" if is_black else "#ffffff"
-    bars_html += f"<div style='display:inline-block; width:{w_px}px; height:44px; background-color:{bg_color};'></div>"
-    is_black = not is_black
+        drawing = createBarcodeDrawing(
+            "Code128",
+            value=clean_txt,
+            barHeight=38,
+            barWidth=0.65,
+            humanReadable=False,
+            quiet=True,
+        )
+        svg = renderSVG.drawToString(drawing)
+        code128_html = (
+            '<div style="display:flex;flex-direction:column;align-items:center;'
+            'justify-content:center;min-width:0;flex:1;">'
+            f'{svg}'
+            f'<div style="font-size:8pt;font-weight:800;letter-spacing:1px;'
+            f'color:#111827;margin-top:3px;white-space:nowrap;">{safe_txt}</div>'
+            '<div style="font-size:6.5pt;color:#475569;">CODE 128 · 스캐너용</div>'
+            '</div>'
+        )
+    except Exception:
+        code128_html = (
+            '<div style="color:#b91c1c;font-size:8pt;">'
+            'Code 128 생성 실패: reportlab 패키지 설치를 확인하세요.</div>'
+        )
 
-  return f"""
-    <div style="text-align: right; display: inline-block; background: #ffffff; padding: 6px; border-radius: 4px;">
-        <div style="line-height: 0; white-space: nowrap;">{bars_html}</div>
-        <div style="font-size: 10.5pt; font-weight: 900; color: #000000; margin-top: 4px; letter-spacing: 2px; text-align: center;">{clean_txt}</div>
-    </div>
-    """
+    try:
+        import qrcode
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=5,
+            border=3,
+        )
+        qr.add_data(clean_txt)
+        qr.make(fit=True)
+        qr_image = qr.make_image(fill_color="black", back_color="white")
+        qr_buffer = io.BytesIO()
+        qr_image.save(qr_buffer, format="PNG")
+        qr_b64 = base64.b64encode(qr_buffer.getvalue()).decode("ascii")
+        qr_html = (
+            '<div style="display:flex;flex-direction:column;align-items:center;'
+            'justify-content:center;flex:0 0 82px;">'
+            f'<img src="data:image/png;base64,{qr_b64}" alt="B/L QR code" '
+            'style="width:76px;height:76px;object-fit:contain;background:#fff;">'
+            '<div style="font-size:6.5pt;color:#475569;">QR · 스마트폰용</div>'
+            '</div>'
+        )
+    except Exception:
+        qr_html = (
+            '<div style="font-size:7pt;color:#b91c1c;text-align:center;">'
+            'QR 생성 실패: qrcode 패키지 설치를 확인하세요.</div>'
+        )
+
+    return (
+        '<div style="display:flex;align-items:center;justify-content:flex-end;'
+        'gap:10px;background:#fff;padding:5px;max-width:100%;overflow:hidden;">'
+        f'{code128_html}{qr_html}</div>'
+    )
 
 
 # ==========================================
