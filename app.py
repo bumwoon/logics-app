@@ -4438,6 +4438,40 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 display_view_df["매입액(원)"] = display_view_df["매입액(원)"].apply(lambda x: f"{int(x):,} 원" if pd.notna(x) and x != "" else "")
                 display_view_df["Profit(원)"] = display_view_df["Profit(원)"].apply(lambda x: f"{int(x):,} 원" if pd.notna(x) and x != "" else "")
 
+                # 매니페스트 표 전용 A4 인쇄 버튼: 표 바로 위 오른쪽에 표시
+                import html as _manifest_html
+                manifest_print_table = display_view_df.to_html(
+                    index=False, border=0, escape=True
+                )
+                manifest_print_doc = f"""<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>
+@page {{ size:A4 landscape; margin:8mm; }}
+body {{ font-family:Arial,'Malgun Gothic',sans-serif; color:#111; margin:0; }}
+.print-btn {{ display:flex; justify-content:flex-end; padding:5px 0 8px; }}
+button {{ background:#1e3a8a; color:white; border:0; border-radius:6px;
+          padding:8px 14px; font-size:13px; font-weight:bold; cursor:pointer; }}
+h2 {{ text-align:center; font-size:15pt; margin:0 0 5mm; }}
+.meta {{ font-size:9pt; margin-bottom:4mm; }}
+table {{ width:100%; border-collapse:collapse; table-layout:auto; font-size:8pt; }}
+th,td {{ border:0.6pt solid #555; padding:4px 3px; text-align:center;
+         overflow-wrap:anywhere; word-break:break-word; }}
+th {{ background:#e8edf5 !important; font-weight:bold; }}
+tr {{ break-inside:avoid; }}
+@media print {{ .print-btn {{ display:none !important; }} }}
+</style></head><body>
+<div class="print-btn"><button onclick="window.print()">🖨 A4 인쇄</button></div>
+<section>
+<h2>(주)범운해운항공 사내 정산용 매니페스트</h2>
+<div class="meta">선적일: {_manifest_html.escape(target_date_str)} |
+매입처: {_manifest_html.escape(str(selected_vendor_filter))} |
+총 {len(manifest_display_df)}건</div>
+{manifest_print_table}
+</section></body></html>"""
+                print_left, print_right = st.columns([8, 2])
+                with print_right:
+                    components.html(manifest_print_doc, height=52, scrolling=False)
+
                 st.dataframe(display_view_df, use_container_width=True)
 
                 # A4 가로 1페이지 자동 맞춤 + 합계 행 강조 엑셀 생성
@@ -4611,6 +4645,40 @@ elif selected_menu == "📋 금일발송 매니페스트":
                     unsafe_allow_html=True
                 )
                 
+                # 고객 공유용 입고 LIST 전용 A4 인쇄 버튼
+                import html as _share_print_html
+                share_print_table = share_display_df.to_html(
+                    index=False, border=0, escape=True
+                )
+                share_print_doc = f"""<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>
+@page {{ size:A4 landscape; margin:8mm; }}
+body {{ font-family:Arial,'Malgun Gothic',sans-serif; color:#111; margin:0; }}
+.print-btn {{ display:flex; justify-content:flex-end; padding:5px 0 8px; }}
+button {{ background:#1e3a8a; color:white; border:0; border-radius:6px;
+          padding:8px 14px; font-size:13px; font-weight:bold; cursor:pointer; }}
+h2 {{ text-align:center; font-size:15pt; margin:0 0 5mm; }}
+.meta {{ font-size:9pt; margin-bottom:4mm; }}
+table {{ width:100%; border-collapse:collapse; table-layout:auto; font-size:8pt; }}
+th,td {{ border:0.6pt solid #555; padding:4px 3px; text-align:center;
+         overflow-wrap:anywhere; word-break:break-word; }}
+th {{ background:#e8edf5 !important; font-weight:bold; }}
+tr {{ break-inside:avoid; }}
+@media print {{ .print-btn {{ display:none !important; }} }}
+</style></head><body>
+<div class="print-btn"><button onclick="window.print()">🖨 A4 인쇄</button></div>
+<section>
+<h2>(주)범운해운항공 입고 LIST</h2>
+<div class="meta">입고일: {_share_print_html.escape(share_date_str)} |
+매입처: {_share_print_html.escape(str(selected_supplier_filter))} |
+총 {len(share_display_df)}건</div>
+{share_print_table}
+</section></body></html>"""
+                print_left, print_right = st.columns([8, 2])
+                with print_right:
+                    components.html(share_print_doc, height=52, scrolling=False)
+
                 st.dataframe(share_display_df, use_container_width=True, hide_index=True)
 
                 excel_buffer_share = io.BytesIO()
