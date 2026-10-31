@@ -1078,9 +1078,9 @@ def _customer_portal():
                 .toolbar{text-align:center;padding:10px}.sheet{width:194mm;height:281mm;margin:0 auto;display:grid;grid-template-rows:1fr 1fr;gap:3mm;page-break-after:always;break-after:page}
                 .label{border:1.5px solid #b3262d;border-radius:2mm;padding:6mm;display:grid;grid-template-columns:38mm minmax(0,1fr);grid-template-rows:auto 1fr;gap:3mm;overflow:hidden;break-inside:avoid;position:relative}
                 .info{grid-column:1 / -1;grid-row:1;min-width:0;font-size:10.5pt;line-height:1.55;overflow-wrap:anywhere}
-                .brandhead{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:1.5mm;border-bottom:1.2mm solid #b3262d;padding-bottom:3mm;margin-bottom:3mm}
-                .brandlogo{display:block;width:auto;max-width:30mm;max-height:18mm;object-fit:contain;object-position:left center}
-                .brand{font-size:16pt;font-weight:800;letter-spacing:0;line-height:1.2;white-space:normal}
+                .brandhead{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:1.5mm;border-bottom:1.2mm solid #b3262d;padding-bottom:3mm;margin-bottom:3mm;max-width:100%;overflow:hidden}
+                .brandlogo{display:block;width:27mm;max-width:100%;height:18mm;object-fit:contain;object-position:left center}
+                .brand{font-size:15pt;font-weight:900;letter-spacing:0;line-height:1.2;white-space:nowrap;max-width:100%}
                 .boxno{font-size:16pt;font-weight:800;margin-top:2mm;background:#f1f5f9;padding:2mm}
                 .qrwrap{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
                 .qr{width:32mm;height:32mm;object-fit:contain}
@@ -1236,11 +1236,11 @@ body{margin:0;background:#f1f3f5;color:#111;font-family:Arial,'Malgun Gothic',sa
 .toolbar button{background:#b3262d;color:#fff;border:0;border-radius:6px;padding:10px 22px;font-size:15px;font-weight:700;cursor:pointer}
 .sheet{width:196mm;height:283mm;margin:8px auto;display:grid;grid-template-rows:1fr 1fr;gap:4mm;page-break-after:always;background:#fff}
 .label{height:139.5mm;border:1.5mm solid #c9272c;border-radius:4mm;padding:5mm;display:grid;grid-template-columns:44% 36% 20%;grid-template-rows:48% 52%;gap:0;overflow:hidden;background:#fff}
-.topbrand{grid-column:1;grid-row:1;display:flex;align-items:center;gap:4mm;padding:2mm 3mm 4mm 1mm;min-width:0}
-.brandlogo{width:31mm;height:25mm;object-fit:contain;flex:0 0 auto}
-.brandtext{min-width:0;white-space:nowrap}
-.brand{font-size:21pt;font-weight:900;letter-spacing:-.8px;color:#102b50;white-space:nowrap}
-.brand-en{font-size:9pt;font-weight:700;color:#526071;letter-spacing:.3px;margin-top:2mm;white-space:nowrap}
+.topbrand{grid-column:1;grid-row:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2mm;padding:1mm 2mm 3mm;min-width:0;max-width:100%;overflow:hidden;text-align:center}
+.brandlogo{display:block;width:27mm;height:21mm;max-width:100%;object-fit:contain;object-position:center;flex:0 0 auto}
+.brandtext{display:block;width:100%;min-width:0;max-width:100%;white-space:normal;text-align:center;overflow:hidden}
+.brand{font-size:15pt;font-weight:900;letter-spacing:-.3px;line-height:1.2;color:#102b50;white-space:nowrap;max-width:100%;}
+.brand-en{font-size:6.5pt;font-weight:700;color:#526071;letter-spacing:0;margin-top:1mm;white-space:normal;overflow-wrap:anywhere}
 .shipinfo{grid-column:2;grid-row:1;border-left:1px solid #aeb4bb;padding:1mm 3mm;display:grid;grid-template-rows:repeat(4,1fr);min-width:0}
 .info-row{display:grid;grid-template-columns:25mm 1fr;align-items:center;border-bottom:1px solid #d2d5d9;font-size:11pt;min-width:0}
 .info-row:last-child{border-bottom:0}.info-key{font-weight:700;white-space:nowrap}.info-val{font-weight:700;overflow-wrap:anywhere;min-width:0}
