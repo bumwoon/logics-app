@@ -533,10 +533,10 @@ def load_supplier_data():
           if transport not in rates[supplier][country]:
             rates[supplier][country][transport] = {}
           rates[supplier][country][transport][item] = {
-              "기본중량": float(row.get("기본중량", 1.0)),
-              "기본요금": int(row.get("기본요금", 35000)),
-              "추가단가": int(row.get("추가단가", 22000)),
-              "1CBM당단가": int(row.get("1CBM당단가", 3500000)),
+              "기본중량": _client_safe_number(row.get("기본중량", 1.0), 1.0),
+              "기본요금": _client_safe_number(row.get("기본요금", 35000), 35000, as_int=True),
+              "추가단가": _client_safe_number(row.get("추가단가", 22000), 22000, as_int=True),
+              "1CBM당단가": _client_safe_number(row.get("1CBM당단가", 3500000), 3500000, as_int=True),
           }
       if suppliers:
         return suppliers, rates, supplier_infos
@@ -4425,17 +4425,17 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
         for _, row in edited_rates_df.iterrows():
           c_cntry = str(row.get("국가", "미국")).strip()
           c_trans = str(row.get("운송형태", "항공(Air)")).strip()
-          c_item = str(row.get("기타 품목 직접입력", "")).strip() if str(row.get("품명", "")).strip() == "기타(직접입력)" else str(row.get("품명", "일반화물")).strip()
+          c_item = _client_text(row.get("기타 품목 직접입력", ""), "") if str(row.get("품명", "")).strip() == "기타(직접입력)" else _client_text(row.get("품명", "일반화물"), "일반화물")
           if c_cntry and c_trans and c_item:
             if c_cntry not in new_rates_dict:
               new_rates_dict[c_cntry] = {}
             if c_trans not in new_rates_dict[c_cntry]:
               new_rates_dict[c_cntry][c_trans] = {}
             new_rates_dict[c_cntry][c_trans][c_item] = {
-                "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
-                "기본요금": int(row.get("기본요금(원)", 38000) or 0),
-                "추가단가": int(row.get("추가단가(원/kg)", 25000) or 0),
-                "1CBM당단가": int(row.get("1CBM당단가(원)", 3700000) or 0),
+                "기본중량": _client_safe_number(row.get("기본중량(kg)", 1.0), 1.0),
+                "기본요금": _client_safe_number(row.get("기본요금(원)", 38000), 38000, as_int=True),
+                "추가단가": _client_safe_number(row.get("추가단가(원/kg)", 25000), 25000, as_int=True),
+                "1CBM당단가": _client_safe_number(row.get("1CBM당단가(원)", 3700000), 3700000, as_int=True),
             }
         st.session_state.client_rates[selected_client_mgr] = new_rates_dict
         save_client_data(
@@ -4455,17 +4455,17 @@ elif selected_menu == "🏢 매출 거래처(화주) 관리":
           for _, row in remaining_rates_df.iterrows():
             c_cntry = str(row.get("국가", "미국")).strip()
             c_trans = str(row.get("운송형태", "항공(Air)")).strip()
-            c_item = str(row.get("기타 품목 직접입력", "")).strip() if str(row.get("품명", "")).strip() == "기타(직접입력)" else str(row.get("품명", "일반화물")).strip()
+            c_item = _client_text(row.get("기타 품목 직접입력", ""), "") if str(row.get("품명", "")).strip() == "기타(직접입력)" else _client_text(row.get("품명", "일반화물"), "일반화물")
             if c_cntry and c_trans and c_item:
               if c_cntry not in new_rates_dict:
                 new_rates_dict[c_cntry] = {}
               if c_trans not in new_rates_dict[c_cntry]:
                 new_rates_dict[c_cntry][c_trans] = {}
               new_rates_dict[c_cntry][c_trans][c_item] = {
-                  "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
-                  "기본요금": int(row.get("기본요금(원)", 38000) or 0),
-                  "추가단가": int(row.get("추가단가(원/kg)", 25000) or 0),
-                  "1CBM당단가": int(row.get("1CBM당단가(원)", 3700000) or 0),
+                  "기본중량": _client_safe_number(row.get("기본중량(kg)", 1.0), 1.0),
+                  "기본요금": _client_safe_number(row.get("기본요금(원)", 38000), 38000, as_int=True),
+                  "추가단가": _client_safe_number(row.get("추가단가(원/kg)", 25000), 25000, as_int=True),
+                  "1CBM당단가": _client_safe_number(row.get("1CBM당단가(원)", 3700000), 3700000, as_int=True),
               }
           st.session_state.client_rates[selected_client_mgr] = new_rates_dict
           save_client_data(
@@ -4668,17 +4668,17 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
         for _, row in edited_supp_rates_df.iterrows():
           c_cntry = str(row.get("국가", "미국")).strip()
           c_trans = str(row.get("운송형태", "항공(Air)")).strip()
-          c_item = str(row.get("기타 품목 직접입력", "")).strip() if str(row.get("품명", "")).strip() == "기타(직접입력)" else str(row.get("품명", "일반화물")).strip()
+          c_item = _client_text(row.get("기타 품목 직접입력", ""), "") if str(row.get("품명", "")).strip() == "기타(직접입력)" else _client_text(row.get("품명", "일반화물"), "일반화물")
           if c_cntry and c_trans and c_item:
             if c_cntry not in new_supp_rates_dict:
               new_supp_rates_dict[c_cntry] = {}
             if c_trans not in new_supp_rates_dict[c_cntry]:
               new_supp_rates_dict[c_cntry][c_trans] = {}
             new_supp_rates_dict[c_cntry][c_trans][c_item] = {
-                "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
-                "기본요금": int(row.get("기본요금(원)", 35000) or 0),
-                "추가단가": int(row.get("추가단가(원/kg)", 22000) or 0),
-                "1CBM당단가": int(row.get("1CBM당단가(원)", 3500000) or 0),
+                "기본중량": _client_safe_number(row.get("기본중량(kg)", 1.0), 1.0),
+                "기본요금": _client_safe_number(row.get("기본요금(원)", 35000), 35000, as_int=True),
+                "추가단가": _client_safe_number(row.get("추가단가(원/kg)", 22000), 22000, as_int=True),
+                "1CBM당단가": _client_safe_number(row.get("1CBM당단가(원)", 3500000), 3500000, as_int=True),
             }
         st.session_state.supplier_rates[selected_supplier_mgr] = (
             new_supp_rates_dict
@@ -4704,17 +4704,17 @@ elif selected_menu == "🚢 매입 거래처(선사/협력사) 관리":
           for _, row in remaining_supp_rates_df.iterrows():
             c_cntry = str(row.get("국가", "미국")).strip()
             c_trans = str(row.get("운송형태", "항공(Air)")).strip()
-            c_item = str(row.get("기타 품목 직접입력", "")).strip() if str(row.get("품명", "")).strip() == "기타(직접입력)" else str(row.get("품명", "일반화물")).strip()
+            c_item = _client_text(row.get("기타 품목 직접입력", ""), "") if str(row.get("품명", "")).strip() == "기타(직접입력)" else _client_text(row.get("품명", "일반화물"), "일반화물")
             if c_cntry and c_trans and c_item:
               if c_cntry not in new_supp_rates_dict:
                 new_supp_rates_dict[c_cntry] = {}
               if c_trans not in new_supp_rates_dict[c_cntry]:
                 new_supp_rates_dict[c_cntry][c_trans] = {}
               new_supp_rates_dict[c_cntry][c_trans][c_item] = {
-                  "기본중량": float(row.get("기본중량(kg)", 1.0) or 1.0),
-                  "기본요금": int(row.get("기본요금(원)", 35000) or 0),
-                  "추가단가": int(row.get("추가단가(원/kg)", 22000) or 0),
-                  "1CBM당단가": int(row.get("1CBM당단가(원)", 3500000) or 0),
+                  "기본중량": _client_safe_number(row.get("기본중량(kg)", 1.0), 1.0),
+                  "기본요금": _client_safe_number(row.get("기본요금(원)", 35000), 35000, as_int=True),
+                  "추가단가": _client_safe_number(row.get("추가단가(원/kg)", 22000), 22000, as_int=True),
+                  "1CBM당단가": _client_safe_number(row.get("1CBM당단가(원)", 3500000), 3500000, as_int=True),
               }
           st.session_state.supplier_rates[selected_supplier_mgr] = (
               new_supp_rates_dict
