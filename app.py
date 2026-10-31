@@ -1045,12 +1045,37 @@ def _customer_portal():
                 except Exception:
                     label_boxes = []
                 if label_boxes:
-                    st.markdown("#### 🏷 창고용 바코드 라벨 출력")
-                    st.caption("라벨 프린터에서 100×150mm(4×6인치) 라벨을 선택한 뒤 인쇄하세요. 실제 스캐너 인식은 장비로 시험해야 합니다.")
-                    label_records = [{"접수번호": target.get("접수번호", ""), "고객사": target.get("고객사상호", company), "화주": target.get("화주상호", ""), "도착국가": target.get("도착국가", ""), "품목": target.get("품목", ""), "박스": f"{i+1}/{len(label_boxes)}", "바코드": str(b.get("바코드", ""))} for i,b in enumerate(label_boxes)]
+                    st.markdown("#### 🏷 A4 화물 라벨 출력 (QR + 일반 바코드)")
+                    st.caption("일반 A4 용지 기준 한 장에 라벨 2개씩 배치됩니다. 박스마다 QR코드와 Code 128 바코드가 함께 인쇄됩니다.")
+                    label_records = []
+                    for i, b in enumerate(label_boxes):
+                        barcode_value = str(b.get("바코드", "")).strip()
+                        qr_data_uri = ""
+                        if barcode_value:
+                            try:
+                                import qrcode
+                                qr_obj = qrcode.QRCode(box_size=7, border=2)
+                                qr_obj.add_data(barcode_value)
+                                qr_obj.make(fit=True)
+                                qr_img = qr_obj.make_image(fill_color="black", back_color="white")
+                                qr_buf = io.BytesIO()
+                                qr_img.save(qr_buf, format="PNG")
+                                qr_data_uri = "data:image/png;base64," + base64.b64encode(qr_buf.getvalue()).decode("ascii")
+                            except Exception:
+                                qr_data_uri = ""
+                        label_records.append({
+                            "접수번호": target.get("접수번호", ""),
+                            "고객사": target.get("고객사상호", company),
+                            "화주": target.get("화주상호", ""),
+                            "도착국가": target.get("도착국가", ""),
+                            "품목": target.get("품목", ""),
+                            "박스": f"{i+1}/{len(label_boxes)}",
+                            "바코드": barcode_value,
+                            "QR이미지": qr_data_uri,
+                        })
                     label_json = json.dumps(label_records, ensure_ascii=False).replace("</", "<\\/")
-                    label_html = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><script src='https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js'></script><style>@page{size:100mm 150mm;margin:0}body{font-family:Arial,sans-serif;margin:0}.toolbar{padding:8px}.label{width:100mm;height:150mm;box-sizing:border-box;padding:7mm;border:1px dashed #bbb;page-break-after:always;display:flex;flex-direction:column;justify-content:space-between}.brand{font-size:17pt;font-weight:bold}.small{font-size:11pt;overflow-wrap:anywhere}.barcode{width:100%;height:48mm}.code{font-size:12pt;font-weight:bold;text-align:center;overflow-wrap:anywhere}@media print{.toolbar{display:none}.label{border:0}}@media screen{.label{margin:10px auto;background:white;color:black;box-shadow:0 0 5px #aaa}}</style></head><body><div class='toolbar'><button onclick='window.print()'>라벨 인쇄</button> 인쇄 설정에서 라벨 크기 100×150mm, 배율 100%를 선택하세요.</div><div id='labels'></div><script>const rows=__ROWS__;const root=document.getElementById('labels');rows.forEach(r=>{const d=document.createElement('div');d.className='label';d.innerHTML=`<div><div class='brand'>범운해운항공</div><div class='small'>접수번호: ${r.접수번호}</div><div class='small'>고객사: ${r.고객사}</div><div class='small'>화주: ${r.화주}</div><div class='small'>도착국가: ${r.도착국가}　품목: ${r.품목}</div><div class='small'>박스: ${r.박스}</div></div><div><svg class='barcode'></svg><div class='code'>${r.바코드}</div></div>`;root.appendChild(d);if(window.JsBarcode){JsBarcode(d.querySelector('svg'),r.바코드,{format:'CODE128',displayValue:false,margin:8,height:100,width:2,lineColor:'#000',background:'#fff'});}else{d.querySelector('svg').outerHTML='<p>바코드 라이브러리 로드 실패: 인터넷 연결을 확인하세요.</p>';}});</script></body></html>""".replace("__ROWS__", label_json)
-                    components.html(label_html, height=700, scrolling=True)
+                    label_html = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><script src='https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js'></script><style>@page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}body{font-family:Arial,'Malgun Gothic',sans-serif;margin:0;color:#111}.toolbar{padding:10px;text-align:center}.sheet{width:194mm;height:281mm;margin:0 auto;display:grid;grid-template-rows:1fr 1fr;gap:3mm;page-break-after:always}.label{border:1px dashed #888;padding:6mm;display:grid;grid-template-columns:1fr 43mm;grid-template-rows:auto 1fr;gap:3mm;overflow:hidden}.brand{font-size:18pt;font-weight:700;margin-bottom:3mm}.info{font-size:12pt;line-height:1.65;overflow-wrap:anywhere}.boxno{font-size:17pt;font-weight:700;margin-top:2mm}.qrwrap{grid-column:2;grid-row:1/3;display:flex;flex-direction:column;align-items:center;justify-content:center}.qr{width:39mm;height:39mm;object-fit:contain}.qrlabel{font-size:9pt;font-weight:bold;margin-top:2mm}.barwrap{grid-column:1;grid-row:2;align-self:end;text-align:center}.barcode{width:100%;height:31mm}.code{font-size:13pt;font-weight:bold;letter-spacing:.5px;overflow-wrap:anywhere}.empty{font-size:9pt;color:#b91c1c}@media print{.toolbar{display:none}.sheet{margin:0}.label{border:1px solid #aaa}}@media screen{body{background:#eee}.sheet{background:white;margin:12px auto;box-shadow:0 0 5px #aaa}}</style></head><body><div class='toolbar'><button onclick='window.print()'>A4 라벨 인쇄</button>　A4 세로 / 실제 크기(100%) / 여백 기본값으로 인쇄하세요. 한 장에 2개 라벨입니다.</div><div id='pages'></div><script>const rows=__ROWS__;const root=document.getElementById('pages');let sheet;rows.forEach((r,i)=>{if(i%2===0){sheet=document.createElement('div');sheet.className='sheet';root.appendChild(sheet);}const d=document.createElement('div');d.className='label';d.innerHTML=`<div><div class='brand'>범운해운항공</div><div class='info'>접수번호: ${r.접수번호}<br>고객사: ${r.고객사}<br>화주: ${r.화주}<br>도착국가: ${r.도착국가}　품목: ${r.품목}<div class='boxno'>BOX ${r.박스}</div></div></div><div class='qrwrap'>${r.QR이미지?`<img class='qr' src='${r.QR이미지}'><div class='qrlabel'>QR CODE</div>`:`<div class='empty'>QR 생성 실패</div>`}</div><div class='barwrap'><svg class='barcode'></svg><div class='code'>${r.바코드}</div><div class='qrlabel'>CODE 128 BARCODE</div></div>`;sheet.appendChild(d);if(window.JsBarcode&&r.바코드){JsBarcode(d.querySelector('svg'),r.바코드,{format:'CODE128',displayValue:false,margin:8,height:75,width:2,lineColor:'#000',background:'#fff'});}else{d.querySelector('svg').outerHTML='<div class=empty>바코드 라이브러리 로드 실패: 인터넷 연결을 확인하세요.</div>';}});</script></body></html>""".replace("__ROWS__", label_json)
+                    components.html(label_html, height=900, scrolling=True)
                 else:
                     st.info("이 접수 건에는 박스별 바코드가 없습니다. 새로 접수한 건부터 라벨 출력이 제공됩니다.")
                 billed = customer_request_is_billed(target)
