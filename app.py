@@ -952,50 +952,49 @@ def _customer_portal():
         )
         cartons = st.number_input("박스 수량 (CTN)", min_value=1, max_value=100, value=1, step=1, key="customer_new_cartons")
         box_dims = []
-        with st.form("customer_new_freight_form"):
-            c_ship = st.columns(3)
-            with c_ship[0]: shipper = st.text_input("화주 상호 *", value=company)
-            with c_ship[1]: shipper_address = st.text_input("화주 주소 *")
-            with c_ship[2]: shipper_phone = st.text_input("화주 전화번호 *")
-            c_cons = st.columns(3)
-            with c_cons[0]: consignee = st.text_input("해외 수하인 상호 *")
-            with c_cons[1]: consignee_address = st.text_input("해외 수하인 주소 *")
-            with c_cons[2]: consignee_phone = st.text_input("해외 수하인 전화번호")
-            dest_country = st.selectbox("도착 국가 선택 *", options=CUSTOMER_DEST_COUNTRIES, index=0, key="customer_new_dest_country", help="미국·중국·인도·호주·인도네시아·태국·베트남 중 선택하세요.")
-            item_name = st.selectbox("품목 / 화물 내용 *", CUSTOMER_ITEM_OPTIONS, index=4, key="customer_new_item_name")
-            transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"])
-            weight = st.number_input("실제 총중량 (kg) *", min_value=0.0, value=1.0, step=0.5, format="%.2f")
-            if use_box_details:
-                st.caption("각 박스의 크기를 입력하세요. 51.5cm 같은 소수점 치수도 유지됩니다.")
-                for bi in range(int(cartons)):
-                    st.markdown(f"박스 {bi+1} / {int(cartons)}")
-                    d1, d2, d3 = st.columns(3)
-                    with d1: bw = st.number_input(f"가로 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_w{bi}")
-                    with d2: bl = st.number_input(f"세로 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_l{bi}")
-                    with d3: bh = st.number_input(f"높이 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_h{bi}")
-                    box_dims.append({"박스순번": bi+1, "가로cm": float(bw), "세로cm": float(bl), "높이cm": float(bh), "실제중량kg": "", "바코드": "", "입고상태": "미입고"})
-                dims_valid = all(d["가로cm"] > 0 and d["세로cm"] > 0 and d["높이cm"] > 0 for d in box_dims)
-                total_cbm_preview = sum(d["가로cm"] * d["세로cm"] * d["높이cm"] / 1_000_000 for d in box_dims)
-                divisor_preview = 5000 if transport == "항공(Air)" else 6000
-                volume_preview = sum(d["가로cm"] * d["세로cm"] * d["높이cm"] / divisor_preview for d in box_dims)
-            else:
+        c_ship = st.columns(3)
+        with c_ship[0]: shipper = st.text_input("화주 상호 *", value=company)
+        with c_ship[1]: shipper_address = st.text_input("화주 주소 *")
+        with c_ship[2]: shipper_phone = st.text_input("화주 전화번호 *")
+        c_cons = st.columns(3)
+        with c_cons[0]: consignee = st.text_input("해외 수하인 상호 *")
+        with c_cons[1]: consignee_address = st.text_input("해외 수하인 주소 *")
+        with c_cons[2]: consignee_phone = st.text_input("해외 수하인 전화번호")
+        dest_country = st.selectbox("도착 국가 선택 *", options=CUSTOMER_DEST_COUNTRIES, index=0, key="customer_new_dest_country", help="미국·중국·인도·호주·인도네시아·태국·베트남 중 선택하세요.")
+        item_name = st.selectbox("품목 / 화물 내용 *", CUSTOMER_ITEM_OPTIONS, index=4, key="customer_new_item_name")
+        transport = st.selectbox("운송 형태", ["항공(Air)", "해상(LCL)"])
+        weight = st.number_input("실제 총중량 (kg) *", min_value=0.0, value=1.0, step=0.5, format="%.2f")
+        if use_box_details:
+            st.caption("각 박스의 크기를 입력하세요. 51.5cm 같은 소수점 치수도 유지됩니다.")
+            for bi in range(int(cartons)):
+                st.markdown(f"박스 {bi+1} / {int(cartons)}")
                 d1, d2, d3 = st.columns(3)
-                with d1: width = st.number_input("가로 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
-                with d2: length = st.number_input("세로 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
-                with d3: height = st.number_input("높이 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
-                box_dims = [{"박스순번": bi+1, "가로cm": float(width), "세로cm": float(length), "높이cm": float(height), "실제중량kg": "", "바코드": "", "입고상태": "미입고"} for bi in range(int(cartons))]
-                dims_valid = width > 0 and length > 0 and height > 0
-                total_cbm_preview = float(width) * float(length) * float(height) * int(cartons) / 1_000_000
-                divisor_preview = 5000 if transport == "항공(Air)" else 6000
-                volume_preview = float(width) * float(length) * float(height) * int(cartons) / divisor_preview
-            charge_preview = max(float(weight), float(volume_preview))
-            p1, p2, p3 = st.columns(3)
-            p1.metric("총 CBM", f"{total_cbm_preview:.4f}")
-            p2.metric(f"부피중량 (÷{divisor_preview})", f"{volume_preview:.2f} kg")
-            p3.metric("적용중량", f"{charge_preview:.2f} kg")
-            export_license_no = st.text_input("수출면장 번호 (해당 시 입력)", key="customer_new_export_license")
-            note = st.text_input("추가 요청 사항 (선택)")
-            submitted = st.form_submit_button("📨 화물 접수 제출 및 바코드 발급", use_container_width=True, type="primary")
+                with d1: bw = st.number_input(f"가로 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_w{bi}")
+                with d2: bl = st.number_input(f"세로 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_l{bi}")
+                with d3: bh = st.number_input(f"높이 (cm) · 박스 {bi+1}", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"customer_box_h{bi}")
+                box_dims.append({"박스순번": bi+1, "가로cm": float(bw), "세로cm": float(bl), "높이cm": float(bh), "실제중량kg": "", "바코드": "", "입고상태": "미입고"})
+            dims_valid = all(d["가로cm"] > 0 and d["세로cm"] > 0 and d["높이cm"] > 0 for d in box_dims)
+            total_cbm_preview = sum(d["가로cm"] * d["세로cm"] * d["높이cm"] / 1_000_000 for d in box_dims)
+            divisor_preview = 5000 if transport == "항공(Air)" else 6000
+            volume_preview = sum(d["가로cm"] * d["세로cm"] * d["높이cm"] / divisor_preview for d in box_dims)
+        else:
+            d1, d2, d3 = st.columns(3)
+            with d1: width = st.number_input("가로 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
+            with d2: length = st.number_input("세로 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
+            with d3: height = st.number_input("높이 (cm) ", min_value=0.0, value=1.0, step=0.1, format="%.1f")
+            box_dims = [{"박스순번": bi+1, "가로cm": float(width), "세로cm": float(length), "높이cm": float(height), "실제중량kg": "", "바코드": "", "입고상태": "미입고"} for bi in range(int(cartons))]
+            dims_valid = width > 0 and length > 0 and height > 0
+            total_cbm_preview = float(width) * float(length) * float(height) * int(cartons) / 1_000_000
+            divisor_preview = 5000 if transport == "항공(Air)" else 6000
+            volume_preview = float(width) * float(length) * float(height) * int(cartons) / divisor_preview
+        charge_preview = max(float(weight), float(volume_preview))
+        p1, p2, p3 = st.columns(3)
+        p1.metric("총 CBM", f"{total_cbm_preview:.4f}")
+        p2.metric(f"부피중량 (÷{divisor_preview})", f"{volume_preview:.2f} kg")
+        p3.metric("적용중량", f"{charge_preview:.2f} kg")
+        export_license_no = st.text_input("수출면장 번호 (해당 시 입력)", key="customer_new_export_license")
+        note = st.text_input("추가 요청 사항 (선택)")
+        submitted = st.button("📦 QR & 바코드 발급", use_container_width=True, type="primary")
         if submitted:
             required = [shipper, shipper_address, shipper_phone, consignee, consignee_address, dest_country, item_name]
             if not all(str(v).strip() for v in required):
