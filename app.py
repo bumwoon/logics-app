@@ -1210,9 +1210,68 @@ def _customer_portal():
                             "바코드": barcode_value,
                             "QR이미지": qr_data_uri,
                             "로고": label_logo_data_uri,
+                            "실제중량": float(b.get("실제중량kg") or target.get("실제중량kg") or 0),
+                            "가로": float(b.get("가로cm") or target.get("가로cm") or 0),
+                            "세로": float(b.get("세로cm") or target.get("세로cm") or 0),
+                            "높이": float(b.get("높이cm") or target.get("높이cm") or 0),
+                            "접수일자": str(target.get("접수일시", "")),
+                            "운송형태": str(target.get("운송형태", "항공(Air)")),
+                            "비고": str(target.get("추가요청", "") or target.get("추가요청사항", "") or target.get("품목", "")),
                         })
                     label_json = json.dumps(label_records, ensure_ascii=False).replace("</", "<\\/")
-                    label_html = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><script src='https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js'></script><style>@page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}body{font-family:Arial,'Malgun Gothic',sans-serif;margin:0;color:#111}.toolbar{padding:10px;text-align:center}.sheet{width:194mm;height:281mm;margin:0 auto;display:grid;grid-template-rows:1fr 1fr;gap:3mm;page-break-after:always}.label{border:1.5px solid #b3262d;border-radius:2mm;padding:6mm;display:grid;grid-template-columns:42mm 1fr;grid-template-rows:auto 1fr;gap:3mm;overflow:hidden}.brandhead{display:flex;align-items:center;gap:4mm;border-bottom:1.2mm solid #b3262d;padding-bottom:3mm;margin-bottom:3mm}.brandlogo{max-width:27mm;max-height:17mm;object-fit:contain}.brand{font-size:17pt;font-weight:800}.info{font-size:11pt;line-height:1.7;overflow-wrap:anywhere}.boxno{font-size:17pt;font-weight:800;margin-top:2mm;background:#f1f5f9;padding:2mm}.qrwrap{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:center;justify-content:center}.qr{width:34mm;height:34mm;object-fit:contain}.qrlabel{font-size:9pt;font-weight:bold;margin-top:2mm}.barwrap{grid-column:2;grid-row:2;align-self:center;text-align:center}.barcode{width:100%;height:31mm}.code{font-size:13pt;font-weight:bold;letter-spacing:.5px;overflow-wrap:anywhere}.empty{font-size:9pt;color:#b91c1c}@media print{.toolbar{display:none}.sheet{margin:0}.label{border:1px solid #aaa}}@media screen{body{background:#eee}.sheet{background:white;margin:12px auto;box-shadow:0 0 5px #aaa}}</style></head><body><div class='toolbar'><button onclick='window.print()'>A4 라벨 인쇄</button>　A4 세로 / 실제 크기(100%) / 여백 기본값으로 인쇄하세요. 한 장에 2개 라벨입니다.</div><div id='pages'></div><script>const rows=__ROWS__;const root=document.getElementById('pages');let sheet;rows.forEach((r,i)=>{if(i%2===0){sheet=document.createElement('div');sheet.className='sheet';root.appendChild(sheet);}const d=document.createElement('div');d.className='label';d.innerHTML=`<div><div class='brandhead'>${r.로고?`<img class='brandlogo' src='${r.로고}'>`:''}<div class='brand'>(주)범운해운항공</div></div><div class='info'>접수번호: ${r.접수번호}<br>고객사: ${r.고객사}<br>화주: ${r.화주}<br>도착국가: ${r.도착국가}　품목: ${r.품목}<div class='boxno'>BOX ${r.박스}</div></div></div><div class='qrwrap'>${r.QR이미지?`<img class='qr' src='${r.QR이미지}'><div class='qrlabel'>QR CODE</div>`:`<div class='empty'>QR 생성 실패</div>`}</div><div class='barwrap'><svg class='barcode'></svg><div class='code'>${r.바코드}</div><div class='qrlabel'>CODE 128 BARCODE</div></div>`;sheet.appendChild(d);if(window.JsBarcode&&r.바코드){JsBarcode(d.querySelector('svg'),r.바코드,{format:'CODE128',displayValue:false,margin:8,height:75,width:2,lineColor:'#000',background:'#fff'});}else{d.querySelector('svg').outerHTML='<div class=empty>바코드 라이브러리 로드 실패: 인터넷 연결을 확인하세요.</div>';}});</script></body></html>""".replace("__ROWS__", label_json)
+                    label_html = """<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style>
+@page{size:A4 portrait;margin:7mm}
+*{box-sizing:border-box}
+body{margin:0;background:#f1f3f5;color:#111;font-family:Arial,'Malgun Gothic',sans-serif}
+.toolbar{padding:10px;text-align:center;font-size:12px}
+.toolbar button{background:#b3262d;color:#fff;border:0;border-radius:6px;padding:10px 22px;font-size:15px;font-weight:700;cursor:pointer}
+.sheet{width:196mm;height:283mm;margin:8px auto;display:grid;grid-template-rows:1fr 1fr;gap:4mm;page-break-after:always;background:#fff}
+.label{height:139.5mm;border:1.5mm solid #c9272c;border-radius:4mm;padding:5mm;display:grid;grid-template-columns:44% 36% 20%;grid-template-rows:48% 52%;gap:0;overflow:hidden;background:#fff}
+.topbrand{grid-column:1;grid-row:1;display:flex;align-items:center;gap:4mm;padding:2mm 3mm 4mm 1mm;min-width:0}
+.brandlogo{width:31mm;height:25mm;object-fit:contain;flex:0 0 auto}
+.brandtext{min-width:0;white-space:nowrap}
+.brand{font-size:21pt;font-weight:900;letter-spacing:-.8px;color:#102b50;white-space:nowrap}
+.brand-en{font-size:9pt;font-weight:700;color:#526071;letter-spacing:.3px;margin-top:2mm;white-space:nowrap}
+.shipinfo{grid-column:2;grid-row:1;border-left:1px solid #aeb4bb;padding:1mm 3mm;display:grid;grid-template-rows:repeat(4,1fr);min-width:0}
+.info-row{display:grid;grid-template-columns:25mm 1fr;align-items:center;border-bottom:1px solid #d2d5d9;font-size:11pt;min-width:0}
+.info-row:last-child{border-bottom:0}.info-key{font-weight:700;white-space:nowrap}.info-val{font-weight:700;overflow-wrap:anywhere;min-width:0}
+.weightbox{grid-column:3;grid-row:1;border-left:1px solid #aeb4bb;padding:0 0 0 3mm;display:flex;flex-direction:column;min-width:0}
+.boxno{background:#d71920;color:white;text-align:center;font-size:19pt;font-weight:900;border-radius:2mm;padding:2mm 1mm;margin-bottom:1mm;white-space:nowrap}
+.weight-row{display:flex;justify-content:space-between;gap:1mm;border-bottom:1px solid #d2d5d9;padding:2mm 0;font-size:10pt;white-space:nowrap}.weight-row b{font-size:11pt}
+.codes{grid-column:1/4;grid-row:2;border-top:1.5mm solid #d71920;margin-top:1mm;padding-top:3mm;display:grid;grid-template-columns:29mm minmax(0,1fr) 54mm;gap:4mm;align-items:center;min-height:0}
+.qrwrap{height:100%;border:1px solid #cbd0d5;border-radius:2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1mm;min-width:0}
+.qr{width:25mm;height:25mm;object-fit:contain}.qrlabel{font-size:8pt;font-weight:900;margin-top:1mm;color:#222}
+.barwrap{height:100%;border:1px solid #cbd0d5;border-radius:2mm;padding:2mm 3mm;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;overflow:hidden}
+.barcode{display:block;width:100%;height:23mm;max-width:100%;overflow:hidden}.code{font-size:11pt;font-weight:900;letter-spacing:.2px;text-align:center;overflow-wrap:anywhere;max-width:100%;margin-top:1mm}.barcaption{font-size:8pt;font-weight:800;margin-top:1mm}
+.extrainfo{height:100%;border-left:1px solid #aeb4bb;padding-left:3mm;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.extra-row{display:grid;grid-template-columns:19mm 1fr;gap:1mm;border-bottom:1px solid #d2d5d9;padding:3mm 0;font-size:9.5pt;min-width:0}.extra-row:last-child{border-bottom:0}.extra-val{overflow-wrap:anywhere;font-weight:600}
+.empty{font-size:8pt;color:#b91c1c;text-align:center}
+@media print{body{background:#fff}.toolbar{display:none}.sheet{margin:0;box-shadow:none}.label{break-inside:avoid}}
+@media screen{.sheet{box-shadow:0 1px 8px #bbb}}
+</style></head><body>
+<div class="toolbar"><button onclick="window.print()">A4 라벨 인쇄</button>　A4 세로 · 한 장에 라벨 2개 · 인쇄 배율 100%</div><div id="pages"></div>
+<script>
+const rows=__ROWS__;const root=document.getElementById('pages');let sheet;
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+rows.forEach((r,i)=>{
+ if(i%2===0){sheet=document.createElement('div');sheet.className='sheet';root.appendChild(sheet);}
+ const actual=Number(r.실제중량||0),cbm=(Number(r.가로||0)*Number(r.세로||0)*Number(r.높이||0))/1000000;
+ const divisor=String(r.운송형태||'').includes('해상')?6000:5000;
+ const volume=(Number(r.가로||0)*Number(r.세로||0)*Number(r.높이||0))/divisor;
+ const charge=Math.max(actual,volume);
+ const d=document.createElement('div');d.className='label';
+ d.innerHTML=`<div class="topbrand">${r.로고?`<img class="brandlogo" src="${r.로고}" alt="범운 로고">`:''}<div class="brandtext"><div class="brand">(주)범운해운항공</div><div class="brand-en">BUMWOON OCEAN &amp; AIR CO., LTD.</div></div></div>
+ <div class="shipinfo"><div class="info-row"><span class="info-key">접수번호</span><span class="info-val">${esc(r.접수번호)}</span></div><div class="info-row"><span class="info-key">화주명</span><span class="info-val">${esc(r.화주)}</span></div><div class="info-row"><span class="info-key">도착국가</span><span class="info-val">${esc(r.도착국가)}</span></div><div class="info-row"><span class="info-key">품　목</span><span class="info-val">${esc(r.품목)}</span></div></div>
+ <div class="weightbox"><div class="boxno">BOX ${esc(r.박스)}</div><div class="weight-row"><span>실제중량</span><b>${actual.toFixed(2)} kg</b></div><div class="weight-row"><span>부피중량</span><b>${volume.toFixed(2)} kg</b></div><div class="weight-row"><span>적용중량</span><b>${charge.toFixed(2)} kg</b></div></div>
+ <div class="codes"><div class="qrwrap">${r.QR이미지?`<img class="qr" src="${r.QR이미지}" alt="QR 코드"><div class="qrlabel">QR CODE</div>`:`<div class="empty">QR 생성 실패</div>`}</div><div class="barwrap"><svg class="barcode"></svg><div class="code">${esc(r.바코드)}</div><div class="barcaption">CODE 128 BARCODE</div></div><div class="extrainfo"><div class="extra-row"><span>접수일자</span><span class="extra-val">${esc(r.접수일자)}</span></div><div class="extra-row"><span>고객사</span><span class="extra-val">${esc(r.고객사)}</span></div><div class="extra-row"><span>비　고</span><span class="extra-val">${esc(r.비고)}</span></div></div></div>`;
+ sheet.appendChild(d);
+ if(window.JsBarcode&&r.바코드){try{JsBarcode(d.querySelector('svg'),r.바코드,{format:'CODE128',displayValue:false,margin:3,height:58,width:1.45,lineColor:'#000',background:'#fff'});}catch(e){d.querySelector('.barwrap').insertAdjacentHTML('beforeend','<div class="empty">바코드 생성 실패</div>');}}
+ else{d.querySelector('.barwrap').insertAdjacentHTML('beforeend','<div class="empty">바코드 라이브러리 연결 실패</div>');}
+});
+</script></body></html>""".replace("__ROWS__", label_json)
                     components.html(label_html, height=900, scrolling=True)
                 else:
                     st.info("이 접수 건에는 박스별 바코드가 없습니다. 새로 접수한 건부터 라벨 출력이 제공됩니다.")
