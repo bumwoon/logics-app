@@ -1187,70 +1187,97 @@ def _admin_customer_freight_menu():
             st.info("고객사 화물 접수 내역이 없습니다.")
         else:
             st.markdown("#### 📲 창고 바코드 스캔 입고")
-            st.caption("휴대폰에서는 아래 카메라 버튼을 눌러 박스 라벨을 촬영하세요. Code 128 등 바코드를 읽어 입력란에 넣습니다. 촬영이 어려우면 기존 스캐너/수동 입력도 사용할 수 있습니다.")
-            camera_photo = st.camera_input("📷 휴대폰 카메라로 바코드 촬영", key="warehouse_barcode_camera")
+            st.caption("휴대폰은 QR/Code 128 라벨을 촬영하면 자동 입고 처리합니다. USB/무선 스캐너는 입력칸에 커서를 두고 스캔한 뒤 Enter를 누르면 자동 처리됩니다.")
+
+            def _warehouse_receive_one(scan_value, source="스캔"):
+                scan_value = str(scan_value or "").strip()
+                if not scan_value:
+                    return False, "바코드 번호가 비어 있습니다."
+                for req in requests:
+                    try:
+                        scan_boxes = json.loads(req.get("박스별정보JSON", "[]") or "[]")
+                    except Exception:
+                        scan_boxes = []
+                    for bx in scan_boxes:
+                        if str(bx.get("바코드", "")).strip() != scan_value:
+                            continue
+                        if bx.get("입고상태") == "입고":
+                            return False, f"이미 입고된 박스입니다: {req.get('접수번호','')} / 박스 {bx.get('박스순번','')}"
+                        now_scan = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        bx["입고상태"] = "입고"
+                        bx["입고일시"] = now_scan
+                        req["박스별정보JSON"] = json.dumps(scan_boxes, ensure_ascii=False)
+                        total_boxes = len(scan_boxes)
+                        arrived_boxes = sum(1 for item in scan_boxes if item.get("입고상태") == "입고")
+                        req["입고박스수"] = str(arrived_boxes)
+                        req["상태"] = ("전체 박스 입고 완료" if arrived_boxes >= total_boxes
+                                       else f"부분 입고 ({arrived_boxes}/{total_boxes})")
+                        write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                        customer_history_append({
+                            "일시": now_scan, "접수번호": req.get("접수번호", ""),
+                            "고객사아이디": req.get("고객사아이디", ""),
+                            "작업자": st.session_state.get("logged_in_user", "관리자"),
+                            "작업": f"{source} 박스 입고", "변경내용": scan_value
+                        })
+                        return True, f"입고 완료: {req.get('접수번호','')} / 박스 {bx.get('박스순번','')} ({arrived_boxes}/{total_boxes})"
+                return False, "등록되지 않은 바코드입니다. 해당 박스의 QR/바코드 라벨을 확인해 주세요."
+
+            def _warehouse_scanner_enter():
+                ok, message = _warehouse_receive_one(st.session_state.get("warehouse_scanned_barcode", ""), "USB/무선 스캐너")
+                st.session_state["warehouse_scan_feedback"] = ("success" if ok else "warning", message)
+                st.session_state["warehouse_scanned_barcode"] = ""
+
+            camera_photo = st.camera_input("📷 휴대폰으로 QR 또는 Code 128 촬영", key="warehouse_barcode_camera")
             if camera_photo is not None:
                 try:
-                    from PIL import Image
-                    from pyzbar.pyzbar import decode as decode_barcode
-                    camera_image = Image.open(camera_photo).convert("RGB")
-                    decoded_items = decode_barcode(camera_image)
-                    if decoded_items:
-                        decoded_value = decoded_items[0].data.decode("utf-8", errors="ignore").strip()
-                        if decoded_value:
-                            st.session_state["warehouse_scanned_barcode"] = decoded_value
-                            st.success(f"바코드 인식 완료: {decoded_value} — 아래 ‘입고 처리’를 눌러 확정하세요.")
+                    import hashlib
+                    photo_bytes = camera_photo.getvalue()
+                    photo_hash = hashlib.sha256(photo_bytes).hexdigest()
+                    if st.session_state.get("warehouse_last_camera_hash") != photo_hash:
+                        from PIL import Image
+                        from pyzbar.pyzbar import decode as decode_barcode
+                        camera_image = Image.open(io.BytesIO(photo_bytes)).convert("RGB")
+                        decoded_items = decode_barcode(camera_image)
+                        if decoded_items:
+                            decoded_value = decoded_items[0].data.decode("utf-8", errors="ignore").strip()
+                            if decoded_value:
+                                st.session_state["warehouse_last_camera_hash"] = photo_hash
+                                ok, message = _warehouse_receive_one(decoded_value, "휴대폰 카메라")
+                                st.session_state["warehouse_scan_feedback"] = ("success" if ok else "warning", f"{message} · 인식번호: {decoded_value}")
+                                if ok:
+                                    st.session_state["warehouse_scanned_barcode"] = ""
+                                    st.rerun()
+                            else:
+                                st.warning("바코드는 감지했지만 번호를 읽지 못했습니다. 라벨을 다시 촬영해 주세요.")
                         else:
-                            st.warning("바코드는 감지했지만 번호를 읽지 못했습니다. 라벨을 가까이서 다시 촬영해 주세요.")
-                    else:
-                        st.warning("바코드를 읽지 못했습니다. 바코드가 선명하게 보이도록 화면에 맞춰 다시 촬영해 주세요.")
+                            st.warning("QR 또는 Code 128을 읽지 못했습니다. 라벨을 화면에 크게 맞춰 다시 촬영해 주세요.")
                 except ImportError:
-                    st.error("카메라 바코드 판독 모듈이 설치되지 않았습니다. 배포 저장소에 pyzbar와 packages.txt(libzbar0)를 추가한 뒤 재배포해야 합니다.")
+                    st.error("카메라 판독 모듈이 없습니다. requirements.txt의 pyzbar/Pillow와 packages.txt의 libzbar0 설치 후 재배포해 주세요.")
                 except Exception as camera_error:
-                    st.error(f"카메라 바코드 판독 중 오류가 발생했습니다: {camera_error}")
-            scan_col, scan_btn_col = st.columns([4, 1])
-            with scan_col:
-                scanned_barcode = st.text_input("박스 바코드 번호 확인", key="warehouse_scanned_barcode", placeholder="카메라 인식 번호 또는 스캐너 입력")
-            with scan_btn_col:
-                st.write("")
-                scan_submit = st.button("📦 입고 처리", key="warehouse_scan_submit", type="primary")
-            if scan_submit:
-                scan_value = str(scanned_barcode or "").strip()
-                match_found = False
-                if not scan_value:
-                    st.warning("먼저 바코드를 스캔해 주세요.")
+                    st.error(f"카메라 판독 오류: {camera_error}")
+
+            feedback = st.session_state.pop("warehouse_scan_feedback", None)
+            if feedback:
+                if feedback[0] == "success":
+                    st.success(feedback[1])
                 else:
-                    for req in requests:
-                        try:
-                            scan_boxes = json.loads(req.get("박스별정보JSON", "[]") or "[]")
-                        except Exception:
-                            scan_boxes = []
-                        for bx in scan_boxes:
-                            if str(bx.get("바코드", "")).strip() == scan_value:
-                                match_found = True
-                                if bx.get("입고상태") == "입고":
-                                    st.warning(f"이미 입고 처리된 박스입니다: {req.get('접수번호','')} / 박스 {bx.get('박스순번','')}")
-                                else:
-                                    bx["입고상태"] = "입고"
-                                    bx["입고일시"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    req["박스별정보JSON"] = json.dumps(scan_boxes, ensure_ascii=False)
-                                    total_boxes = len(scan_boxes)
-                                    arrived_boxes = sum(1 for item in scan_boxes if item.get("입고상태") == "입고")
-                                    req["입고박스수"] = str(arrived_boxes)
-                                    if arrived_boxes >= total_boxes:
-                                        req["상태"] = "전체 박스 입고 완료"
-                                    else:
-                                        req["상태"] = f"부분 입고 ({arrived_boxes}/{total_boxes})"
-                                    write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
-                                    customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req.get("접수번호",""),"고객사아이디":req.get("고객사아이디",""),"작업자":st.session_state.get("logged_in_user","관리자"),"작업":"바코드 스캔 입고","변경내용":scan_value})
-                                    st.success(f"입고 처리 완료: {req.get('접수번호','')} / 박스 {bx.get('박스순번','')} ({arrived_boxes}/{total_boxes})")
-                                break
-                        if match_found:
-                            break
-                    if not match_found:
-                        st.error("등록되지 않은 바코드입니다. 접수 라벨과 바코드 번호를 확인해 주세요.")
-                    else:
-                        st.rerun()
+                    st.warning(feedback[1])
+
+            st.text_input(
+                "박스 바코드 번호 (USB/무선 스캐너는 여기를 클릭 후 스캔하고 Enter)",
+                key="warehouse_scanned_barcode",
+                placeholder="QR/바코드 번호가 자동 입력됩니다.",
+                on_change=warehouse_scanner_enter,
+            )
+            manual_scan = st.button("📦 수동 입고 처리", key="warehouse_scan_submit", type="secondary")
+            if manual_scan:
+                ok, message = warehouse_receive_one(st.session_state.get("warehouse_scanned_barcode", ""), "수동")
+                if ok:
+                    st.success(message)
+                    st.session_state["warehouse_scanned_barcode"] = ""
+                    st.rerun()
+                else:
+                    st.warning(message)
             st.dataframe(pd.DataFrame([{k:r.get(k,"") for k in ["접수번호","접수일시","고객사상호","화주상호","품목","실제중량kg","CBM","상태","연결 B/L 번호"]} for r in requests]), use_container_width=True, hide_index=True)
             req_id = st.selectbox("관리할 접수 건", [r.get("접수번호","") for r in requests], key="admin_customer_request_select")
             target = next(r for r in requests if r.get("접수번호","")==req_id)
@@ -1306,9 +1333,9 @@ def _admin_customer_freight_menu():
                 with row4[0]:
                     ae_weight = st.number_input("실제 중량 (kg)", min_value=0.01, value=max(0.01, float(target.get("실제중량kg", 1) or 1)), step=0.5, key=f"admin_req_weight{req_id}")
                 with row4[1]:
-                    ae_width = st.number_input("가로 (cm)", min_value=0.01, value=max(0.01, float(target.get("가로cm", 1) or 1)), step=1.0, key=f"admin_req_width_{req_id}")
+                    ae_width = st.number_input("가로 (cm)", min_value=0.01, value=max(0.01, float(target.get("가로cm", 1) or 1)), step=1.0, key=f"admin_req_width{req_id}")
                 with row4[2]:
-                    ae_length = st.number_input("세로 (cm)", min_value=0.01, value=max(0.01, float(target.get("세로cm", 1) or 1)), step=1.0, key=f"admin_req_length_{req_id}")
+                    ae_length = st.number_input("세로 (cm)", min_value=0.01, value=max(0.01, float(target.get("세로cm", 1) or 1)), step=1.0, key=f"admin_req_length{req_id}")
                 with row4[3]:
                     ae_height = st.number_input("높이 (cm)", min_value=0.01, value=max(0.01, float(target.get("높이cm", 1) or 1)), step=1.0, key=f"admin_req_height_{req_id}")
                 with row4[4]:
