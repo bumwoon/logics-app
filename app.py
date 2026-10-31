@@ -1076,10 +1076,16 @@ def _customer_portal():
                 immediate_html = r"""<!doctype html><html><head><meta charset="utf-8"><style>
                 @page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}body{font-family:Arial,'Malgun Gothic',sans-serif;margin:0;color:#111}
                 .toolbar{text-align:center;padding:10px}.sheet{width:194mm;height:281mm;margin:0 auto;display:grid;grid-template-rows:1fr 1fr;gap:3mm;page-break-after:always;break-after:page}
-                .label{border:1.5px solid #b3262d;border-radius:2mm;padding:6mm;display:grid;grid-template-columns:42mm 1fr;grid-template-rows:auto 1fr;gap:3mm;overflow:hidden;break-inside:avoid;position:relative}
-                .brandhead{display:flex;align-items:center;gap:4mm;border-bottom:1.2mm solid #b3262d;padding-bottom:3mm;margin-bottom:3mm}.brandlogo{max-width:27mm;max-height:17mm;object-fit:contain}.brand{font-size:17pt;font-weight:800;letter-spacing:.2px}.info{font-size:11pt;line-height:1.7;overflow-wrap:anywhere}.boxno{font-size:17pt;font-weight:800;margin-top:2mm;background:#f1f5f9;padding:2mm}
-                .qrwrap{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:center;justify-content:center}.qr{width:34mm;height:34mm;object-fit:contain}
-                .barwrap{grid-column:2;grid-row:2;align-self:center;text-align:center}.barcode{width:100%;height:31mm}.code{font-size:12pt;font-weight:bold;overflow-wrap:anywhere}
+                .label{border:1.5px solid #b3262d;border-radius:2mm;padding:6mm;display:grid;grid-template-columns:38mm minmax(0,1fr);grid-template-rows:auto 1fr;gap:3mm;overflow:hidden;break-inside:avoid;position:relative}
+                .info{grid-column:1 / -1;grid-row:1;min-width:0;font-size:10.5pt;line-height:1.55;overflow-wrap:anywhere}
+                .brandhead{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:1.5mm;border-bottom:1.2mm solid #b3262d;padding-bottom:3mm;margin-bottom:3mm}
+                .brandlogo{display:block;width:auto;max-width:30mm;max-height:18mm;object-fit:contain;object-position:left center}
+                .brand{font-size:16pt;font-weight:800;letter-spacing:0;line-height:1.2;white-space:normal}
+                .boxno{font-size:16pt;font-weight:800;margin-top:2mm;background:#f1f5f9;padding:2mm}
+                .qrwrap{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
+                .qr{width:32mm;height:32mm;object-fit:contain}
+                .barwrap{grid-column:2;grid-row:2;align-self:center;text-align:center;min-width:0;overflow:hidden}
+                .barcode{display:block;width:100%;height:27mm}.code{font-size:10pt;font-weight:bold;overflow-wrap:anywhere}
                 @media print{.toolbar{display:none}.sheet{margin:0}}
                 </style><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script></head><body>
                 <div class="toolbar"><button onclick="window.print()">A4 라벨 인쇄</button>　접수 완료: QR·바코드 라벨 __COUNT__개 / A4 한 장에 2개</div><div id="pages"></div>
