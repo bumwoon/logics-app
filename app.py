@@ -2968,10 +2968,33 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         supp_idx = suppliers_opt.index(current_supplier_val) if current_supplier_val in suppliers_opt else 0
                         e_vendor = st.selectbox("매입처 선택", options=suppliers_opt, index=supp_idx, key="edit_vendor_dropdown")
 
-                        item_options_list = ["보톡스", "필러", "화장품", "특가품목", "기타"]
-                        current_item_val = str(target_item.get("품목", "보톡스")).strip()
-                        item_idx = item_options_list.index(current_item_val) if current_item_val in item_options_list else 0
-                        e_item = st.selectbox("품목 선택", options=item_options_list, index=item_idx, key="edit_item_dropdown")
+                        # B/L 상세 수정 품목: 의약품 추가, 기타 선택 시 직접 입력
+                        item_options_list = ["보톡스", "필러", "화장품", "특가품목", "의약품", "기타", "기타(직접입력)"]
+                        current_item_val = _client_text(target_item.get("품목", "보톡스"), "보톡스")
+                        standard_item_options = ["보톡스", "필러", "화장품", "특가품목", "의약품", "기타"]
+                        if current_item_val in standard_item_options:
+                            item_default = current_item_val
+                            custom_item_default = ""
+                        else:
+                            item_default = "기타(직접입력)"
+                            custom_item_default = current_item_val
+                        item_idx = item_options_list.index(item_default)
+                        e_item_choice = st.selectbox(
+                            "품목 선택",
+                            options=item_options_list,
+                            index=item_idx,
+                            key="edit_item_dropdown"
+                        )
+                        if e_item_choice == "기타(직접입력)":
+                            e_item_custom = st.text_input(
+                                "기타 품목 직접 입력",
+                                value=custom_item_default,
+                                placeholder="예: 의료기기, 의약품 원료 등",
+                                key="edit_item_custom_input"
+                            )
+                            e_item = e_item_custom.strip()
+                        else:
+                            e_item = e_item_choice
 
                         e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
                     
