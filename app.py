@@ -2720,6 +2720,105 @@ header_html = f"""
 st.markdown(header_html, unsafe_allow_html=True)
 
 # ==========================================
+# [공통] 모든 메뉴 현재 화면 A4 인쇄 / PDF 저장
+# ==========================================
+st.markdown("""
+<style>
+@media print {
+    @page { size: A4 landscape; margin: 9mm; }
+    html, body, [data-testid="stAppViewContainer"],
+    [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
+        width: 100% !important; max-width: 100% !important;
+        overflow: visible !important; height: auto !important;
+        background: #fff !important;
+    }
+    [data-testid="stSidebar"], [data-testid="stHeader"],
+    [data-testid="stToolbar"], [data-testid="stStatusWidget"],
+    [data-testid="stDecoration"], [data-testid="stBottom"],
+    [data-testid="stDeployButton"], footer,
+    .stButton, button, [data-testid="stFileUploader"],
+    [data-testid="stFormSubmitButton"], iframe {
+        display: none !important;
+    }
+    [data-testid="stMainBlockContainer"] {
+        padding: 0 !important; margin: 0 !important;
+    }
+    [data-testid="stVerticalBlock"], [data-testid="stHorizontalBlock"],
+    [data-testid="stColumn"], [data-testid="stElementContainer"] {
+        overflow: visible !important; max-height: none !important;
+        break-inside: avoid-page;
+    }
+    [data-testid="stDataFrame"], [data-testid="stDataEditor"],
+    [data-testid="stTable"] {
+        width: 100% !important; max-width: 100% !important;
+        overflow: visible !important; max-height: none !important;
+    }
+    table { width: 100% !important; border-collapse: collapse !important;
+            font-size: 8pt !important; }
+    th, td { border: 1px solid #777 !important; padding: 4px !important;
+             color: #111 !important; }
+    h1, h2, h3, h4, p, label, span, div { -webkit-print-color-adjust: exact; }
+    a { color: #111 !important; text-decoration: none !important; }
+}
+</style>
+""", unsafe_allow_html=True)
+
+# 상위 Streamlit 화면에서 브라우저 인쇄창을 열어 현재 선택된 메뉴를 A4로 출력합니다.
+components.html("""
+<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:2px 0 10px;">
+  <button id="bw-print-current" type="button"
+    style="background:#1e3a8a;color:white;border:0;border-radius:7px;padding:9px 16px;
+           font-size:13px;font-weight:700;cursor:pointer;">
+    🖨️ 현재 메뉴 A4 인쇄 / PDF 저장
+  </button>
+</div>
+<script>
+(() => {
+  const btn = document.getElementById('bw-print-current');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    try {
+      const doc = window.parent.document;
+      if (!doc.getElementById('bw-global-print-style')) {
+        const style = doc.createElement('style');
+        style.id = 'bw-global-print-style';
+        style.textContent = `
+          @media print {
+            @page { size: A4 landscape; margin: 9mm; }
+            [data-testid="stSidebar"], [data-testid="stHeader"],
+            [data-testid="stToolbar"], [data-testid="stStatusWidget"],
+            [data-testid="stDecoration"], [data-testid="stBottom"],
+            [data-testid="stDeployButton"], footer, button,
+            [data-testid="stFileUploader"], iframe { display:none !important; }
+            [data-testid="stAppViewContainer"], [data-testid="stMain"],
+            [data-testid="stMainBlockContainer"] {
+              width:100% !important; max-width:100% !important;
+              height:auto !important; max-height:none !important;
+              overflow:visible !important; background:#fff !important;
+              padding:0 !important; margin:0 !important;
+            }
+            [data-testid="stDataFrame"], [data-testid="stDataEditor"],
+            [data-testid="stTable"], [data-testid="stVerticalBlock"],
+            [data-testid="stHorizontalBlock"], [data-testid="stColumn"] {
+              overflow:visible !important; max-height:none !important;
+            }
+            table { width:100% !important; border-collapse:collapse !important; }
+            th,td { border:1px solid #777 !important; padding:4px !important; color:#111 !important; }
+          }
+        `;
+        doc.head.appendChild(style);
+      }
+      window.parent.focus();
+      window.parent.print();
+    } catch (e) {
+      alert('인쇄창을 열지 못했습니다. 브라우저의 팝업/인쇄 권한을 확인해 주세요.');
+    }
+  });
+})();
+</script>
+""", height=52, scrolling=False)
+
+# ==========================================
 # [1] 수출입 B/L 등록
 # ==========================================
 if selected_menu == "📊 수출입 B/L 등록":
@@ -3219,6 +3318,55 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
             key="edit_bl_profit_table_select_filtered",
             height=300
         )
+
+        # [A4 인쇄] 현재 조회된 B/L 전체 행을 A4 가로 한 장 폭에 맞춰 출력
+        print_cols = [
+            c for c in [
+                "날짜", "Job 번호", "B/L 번호", "화주명(매출)", "해외수하인",
+                "박스수", "부피규격", "매출청구중량(kg)", "매입처",
+                "매출액(원)", "매입액(원)", "예상Profit(원)"
+            ] if c in filtered_df.columns
+        ]
+        print_df = filtered_df[print_cols].copy() if print_cols else pd.DataFrame()
+        if not print_df.empty:
+            import html as _bl_print_html
+            money_cols = [c for c in ["매출액(원)", "매입액(원)", "예상Profit(원)"] if c in print_df.columns]
+            for c in money_cols:
+                print_df[c] = pd.to_numeric(
+                    print_df[c].astype(str).str.replace(",", "", regex=False).str.replace("원", "", regex=False),
+                    errors="coerce"
+                ).fillna(0).map(lambda v: f"{v:,.0f}원")
+            total_sales = pd.to_numeric(filtered_df.get("매출액(원)", pd.Series(dtype=float)).astype(str).str.replace(",", "", regex=False), errors="coerce").fillna(0).sum()
+            total_purchase = pd.to_numeric(filtered_df.get("매입액(원)", pd.Series(dtype=float)).astype(str).str.replace(",", "", regex=False), errors="coerce").fillna(0).sum()
+            total_profit = pd.to_numeric(filtered_df.get("예상Profit(원)", pd.Series(dtype=float)).astype(str).str.replace(",", "", regex=False), errors="coerce").fillna(0).sum()
+            if st.button("🖨️ 조회된 B/L 전체 A4 인쇄 / PDF 저장", type="primary", use_container_width=True, key="print_filtered_bl_a4"):
+                table_html = print_df.to_html(index=False, border=0, escape=True, classes="bl-a4-table")
+                title_text = "범운해운항공 B/L 및 Profit 내역"
+                print_html = f"""<!doctype html><html lang='ko'><head><meta charset='utf-8'><title>{title_text}</title>
+                <style>
+                @page {{ size: A4 landscape; margin: 8mm; }}
+                * {{ box-sizing: border-box; }}
+                body {{ font-family: Arial, 'Malgun Gothic', sans-serif; color:#111; margin:0; }}
+                h2 {{ text-align:center; font-size:16pt; margin:0 0 5mm; }}
+                .meta {{ font-size:9pt; margin-bottom:3mm; }}
+                table {{ width:100%; border-collapse:collapse; table-layout:auto; font-size:7.2pt; }}
+                th,td {{ border:1px solid #555; padding:4px 3px; text-align:center; word-break:break-all; }}
+                th {{ background:#e9eef5; font-weight:bold; }}
+                .summary {{ margin-top:4mm; display:flex; justify-content:flex-end; gap:8mm; font-size:9pt; font-weight:bold; }}
+                .foot {{ margin-top:5mm; text-align:right; font-size:8pt; color:#555; }}
+                @media screen {{ body {{ padding:10px; }} .print-btn {{ margin-bottom:12px; padding:8px 16px; }} }}
+                @media print {{ .print-btn {{ display:none; }} }}
+                </style></head><body>
+                <button class='print-btn' onclick='window.print()'>A4 인쇄 / PDF 저장</button>
+                <h2>🚢 (주)범운해운항공 B/L 및 Profit 내역</h2>
+                <div class='meta'>출력일: {datetime.now().strftime('%Y-%m-%d %H:%M')}　|　조회 건수: {len(print_df)}건　|　거래처: {_bl_print_html.escape(str(selected_client_filter))}</div>
+                {table_html}
+                <div class='summary'><span>총 매출: {total_sales:,.0f}원</span><span>총 매입: {total_purchase:,.0f}원</span><span>총 Profit: {total_profit:,.0f}원</span></div>
+                <div class='foot'>범운해운항공 물류관리 시스템</div>
+                </body></html>"""
+                components.html(print_html, height=90, scrolling=False)
+        else:
+            st.caption("A4 인쇄할 B/L 내역이 없습니다.")
         
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
