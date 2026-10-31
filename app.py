@@ -2937,30 +2937,33 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                 
                 # 품목 선택은 form 바깥에 둡니다. Streamlit form 안에서는 선택 변경 시 재실행되지 않아
                 # 조건부 직접입력 칸이 즉시 나타나지 않는 문제가 발생합니다.
-                item_options_list = ["보톡스", "필러", "화장품", "특가품목", "의약품", "기타", "기타(직접입력)"]
+                item_options_list = ["보톡스", "필러", "화장품", "특가품목", "의약품", "기타"]
                 current_item_val = _client_text(target_item.get("품목", "보톡스"), "보톡스")
                 standard_item_options = ["보톡스", "필러", "화장품", "특가품목", "의약품", "기타"]
                 if current_item_val in standard_item_options:
                     item_default = current_item_val
                     custom_item_default = ""
                 else:
-                    item_default = "기타(직접입력)"
+                    # 저장된 사용자 지정 품목은 드롭다운에서 '기타'로 표시하고
+                    # 아래 직접입력 칸에 원래 품목명을 유지합니다.
+                    item_default = "기타"
                     custom_item_default = current_item_val
 
                 item_widget_key = f"edit_item_dropdown_{target_item.get('B/L 번호', target_idx)}"
                 custom_widget_key = f"edit_item_custom_input_{target_item.get('B/L 번호', target_idx)}"
                 if item_widget_key not in st.session_state:
                     st.session_state[item_widget_key] = item_default
+                if custom_widget_key not in st.session_state:
+                    st.session_state[custom_widget_key] = custom_item_default
 
                 e_item_choice = st.selectbox(
-                    "품목 선택",
+                    "품명",
                     options=item_options_list,
                     key=item_widget_key
                 )
-                if e_item_choice == "기타(직접입력)":
+                if e_item_choice == "기타":
                     e_item_custom = st.text_input(
                         "기타 품목 직접 입력",
-                        value=st.session_state.get(custom_widget_key, custom_item_default),
                         placeholder="예: 의료기기, 의약품 원료 등",
                         key=custom_widget_key
                     )
@@ -3000,18 +3003,6 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
                         current_supplier_val = str(target_item.get("매입처", "")).strip()
                         supp_idx = suppliers_opt.index(current_supplier_val) if current_supplier_val in suppliers_opt else 0
                         e_vendor = st.selectbox("매입처 선택", options=suppliers_opt, index=supp_idx, key="edit_vendor_dropdown")
-
-                        # 기존 B/L 상세 수정 화면의 품명 입력란 복원
-                        # 위의 품목 선택값(또는 기타 직접입력값)을 기본값으로 보여주고,
-                        # 사용자가 이 칸에서 품명을 직접 수정한 내용이 최종 저장됩니다.
-                        item_name_edit_key = f"edit_item_name_{target_item.get('B/L 번호', target_idx)}"
-                        if item_name_edit_key not in st.session_state:
-                            st.session_state[item_name_edit_key] = e_item
-                        e_item = st.text_input(
-                            "품명",
-                            key=item_name_edit_key,
-                            help="품목 선택값을 확인하거나 여기에서 품명을 직접 수정할 수 있습니다."
-                        )
 
                         e_status = st.selectbox("수금 상태", ["미수", "수금완료"], index=0 if str(target_item.get("수금상태", "")) != "수금완료" else 1)
                     
