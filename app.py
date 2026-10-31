@@ -3206,10 +3206,11 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
             
         st.info("💡 수정할 B/L 행의 [선택] 체크박스를 체크하시면, 아래쪽에 내용을 상세히 수정할 수 있는 **[B/L 개별 수정 입력칸]**이 나타납니다.")
         
-        # 표 오른쪽 위에 A4 인쇄 버튼 배치: 해당 표 데이터만 출력합니다.
+        # B/L 표 바로 위 오른쪽에 Streamlit 기본 A4 인쇄 버튼을 표시합니다.
         print_df = filtered_df.drop(columns=["선택"], errors="ignore").copy()
         if not print_df.empty:
             import html as _bl_print_html
+
             money_cols = [
                 c for c in ["매출액(원)", "매입액(원)", "예상Profit(원)"]
                 if c in print_df.columns
@@ -3235,48 +3236,43 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
   @page {{ size: A4 landscape; margin: 7mm; }}
   * {{ box-sizing: border-box; }}
   body {{ margin:0; font-family:Arial,'Malgun Gothic',sans-serif; color:#111; }}
-  .print-control {{ display:flex; justify-content:flex-end; align-items:center; height:48px; }}
-  .print-control button {{
-    border:1px solid #1e3a8a; border-radius:6px; background:#1e3a8a;
-    color:#fff; padding:8px 13px; font-size:13px; font-weight:700; cursor:pointer;
-    white-space:nowrap;
-  }}
-  .print-area {{ display:none; }}
-  @media print {{
-    .print-control {{ display:none !important; }}
-    .print-area {{ display:block !important; }}
-    h2 {{ text-align:center; font-size:14pt; margin:0 0 3mm; }}
-    .meta {{ font-size:8pt; margin-bottom:3mm; }}
-    table {{ width:100%; border-collapse:collapse; table-layout:auto; font-size:6.2pt; }}
-    th,td {{ border:0.5pt solid #555; padding:2.2px 2px; text-align:center;
-             overflow-wrap:anywhere; word-break:break-word; }}
-    th {{ background:#e9eef5 !important; font-weight:bold; }}
-    tr {{ break-inside:avoid; }}
-    .foot {{ margin-top:3mm; text-align:right; font-size:7pt; }}
-  }}
+  h2 {{ text-align:center; font-size:14pt; margin:0 0 3mm; }}
+  .meta {{ font-size:8pt; margin-bottom:3mm; }}
+  table {{ width:100%; border-collapse:collapse; table-layout:auto; font-size:6.2pt; }}
+  th,td {{ border:0.5pt solid #555; padding:2.2px 2px; text-align:center;
+           overflow-wrap:anywhere; word-break:break-word; }}
+  th {{ background:#e9eef5 !important; font-weight:bold; }}
+  tr {{ break-inside:avoid; }}
+  .foot {{ margin-top:3mm; text-align:right; font-size:7pt; }}
 </style>
 </head>
 <body>
-  <div class="print-control">
-    <button type="button" onclick="window.print()">🖨 A4 인쇄 / PDF 저장</button>
+  <h2>(주)범운해운항공 B/L 및 Profit 내역</h2>
+  <div class="meta">
+    출력일: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+    | 조회 건수: {len(print_df)}건
+    | 거래처: {_bl_print_html.escape(str(selected_client_filter))}
   </div>
-  <div class="print-area">
-    <h2>(주)범운해운항공 B/L 및 Profit 내역</h2>
-    <div class="meta">
-      출력일: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-      | 조회 건수: {len(print_df)}건
-      | 거래처: {_bl_print_html.escape(str(selected_client_filter))}
-    </div>
-    {table_html}
-    <div class="foot">범운해운항공 물류관리 시스템</div>
-  </div>
+  {table_html}
+  <div class="foot">범운해운항공 물류관리 시스템</div>
+  <script>
+    window.addEventListener('load', function() {{
+      window.print();
+    }});
+  </script>
 </body>
 </html>"""
 
-            # 인쇄 버튼을 표 바로 위 오른쪽 끝에 둡니다.
-            print_spacer, print_button_col = st.columns([7, 3])
+            # 표 오른쪽 상단에 실제 Streamlit 버튼을 표시합니다.
+            print_spacer, print_button_col = st.columns([7, 1.7])
             with print_button_col:
-                components.html(print_html, height=52, scrolling=False)
+                click_a4_print = st.button(
+                    "🖨 A4 인쇄",
+                    key="bl_table_a4_print_button",
+                    use_container_width=True
+                )
+            if click_a4_print:
+                components.html(print_html, height=1, scrolling=False)
         else:
             st.caption("A4 인쇄할 B/L 내역이 없습니다.")
 
