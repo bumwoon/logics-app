@@ -2723,6 +2723,21 @@ st.markdown(header_html, unsafe_allow_html=True)
 # [1] 수출입 B/L 등록
 # ==========================================
 if selected_menu == "📊 수출입 B/L 등록":
+    # B/L 등록 화면 전용 컴팩트 레이아웃: 세로 여백과 입력창 높이를 줄입니다.
+    st.markdown("""
+    <style>
+    [data-testid="stMainBlockContainer"] { padding-top: 0.65rem !important; padding-bottom: 0.7rem !important; }
+    [data-testid="stVerticalBlock"] { gap: 0.48rem !important; }
+    [data-testid="stWidgetLabel"] p { font-size: 0.82rem !important; margin-bottom: 0.12rem !important; }
+    [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input,
+    [data-testid="stSelectbox"] div[data-baseweb="select"] { min-height: 2.05rem !important; }
+    [data-testid="stTextInput"] , [data-testid="stNumberInput"], [data-testid="stSelectbox"],
+    [data-testid="stDateInput"] { margin-bottom: -0.22rem !important; }
+    [data-testid="stMarkdown"] h3, [data-testid="stMarkdown"] h4,
+    [data-testid="stMarkdown"] h5 { margin-top: 0.25rem !important; margin-bottom: 0.35rem !important; }
+    [data-testid="stTextArea"] textarea { min-height: 3.2rem !important; }
+    </style>
+    """, unsafe_allow_html=True)
     approved_customer_requests = [r for r in _customer_requests() if r.get("상태", "") == "승인완료-B/L 등록대기" and str(r.get("연결 B/L 번호", "")).strip()]
     if approved_customer_requests:
         st.markdown("### 📦 승인된 고객사 화물에서 B/L 등록")
@@ -2934,80 +2949,56 @@ if selected_menu == "📊 수출입 B/L 등록":
     st.markdown("---")
     st.markdown("#### 📝 B/L 및 청구 금액 실시간 미리보기")
 
-    form_col1, form_col2 = st.columns(2)
+    form_col1, form_col2, form_col3 = st.columns([0.95, 1.15, 1.05], gap="small")
     with form_col1:
         io_type = st.selectbox("수출입 구분", ["수출 (Export)", "수입 (Import)"])
 
         suggested_job = "BW-2026-003"
         if st.session_state.bl_data_list:
             try:
-                last_job = str(
-                    st.session_state.bl_data_list[-1].get("Job 번호", "BW-2026-003")
-                )
+                last_job = str(st.session_state.bl_data_list[-1].get("Job 번호", "BW-2026-003"))
                 if "-" in last_job:
                     parts = last_job.split("-")
                     num_part = int(parts[-1]) + 1
                     suggested_job = f"{parts[0]}-{parts[1]}-{num_part:03d}"
-            except:
+            except Exception:
                 pass
-        job_no = st.text_input(
-            "Job 번호 (필수 입력)",
-            value=suggested_job,
-            placeholder="예: BW-2026-003",
-        )
+        job_no = st.text_input("Job 번호", value=suggested_job, placeholder="예: BW-2026-003")
 
         suggested_bl = "BW260003"
         if st.session_state.bl_data_list:
-            last_b = str(
-                st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003")
-            )
+            last_b = str(st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003"))
             if last_b.startswith("BW") and len(last_b) >= 8:
                 try:
                     suggested_bl = f"BW{int(last_b[2:]) + 1:06d}"
-                except:
+                except Exception:
                     pass
-        bl_no = st.text_input("B/L 번호 (운송장 번호)", value=suggested_bl)
+        bl_no = st.text_input("B/L 번호", value=suggested_bl)
         reg_date = st.date_input("선적 날짜", value=date.today())
 
-        col1, col2 = st.columns(2)
+    with form_col2:
+        dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
+        item_desc = st.selectbox("품목", options=["보톡스", "필러", "화장품", "특가품목", "기타"])
+        consignee_name = st.text_input("해외 수하인")
+        consignee_addr = st.text_input("해외 수하인 주소", placeholder="예: 123 Main St, New York, NY 10001")
+        consignee_tel = st.text_input("해외 수하인 전화번호", placeholder="예: +1-212-555-0199")
+        transport_type = st.selectbox("운송 형태", options=["항공(Air)", "해상(LCL)", "에어카고"])
+        tracking_status = st.selectbox("현재 진행 상태", options=TRACKING_STATUS_OPTIONS)
 
-        with col1:
-            dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
-            item_desc = st.selectbox(
-                "품목", options=["보톡스", "필러", "화장품", "특가품목", "기타"]
-            )
-            consignee_name = st.text_input("해외 수하인")
-            consignee_addr = st.text_input("해외 수하인 주소", placeholder="예: 123 Main St, New York, NY 10001")
-            consignee_tel = st.text_input("해외 수하인 전화번호", placeholder="예: +1-212-555-0199")
-            transport_type = st.selectbox(
-                "운송 형태", options=["항공(Air)", "해상(LCL)", "에어카고"]
-            )
-            tracking_status = st.selectbox(
-                "현재 진행 상태 선택", options=TRACKING_STATUS_OPTIONS
-            )
-
-        with col2:
-            origin_place = st.text_input("출발지", value="대한민국 (KOREA)")
-            shipper_options = [""] + st.session_state.client_list
-            shipper_name = st.selectbox(
-                "화주명 (매출처)",
-                options=shipper_options,
-                index=1 if len(shipper_options) > 1 else 0,
-            )
-            supplier_options = (
-                [""] + st.session_state.supplier_list
-                if "supplier_list" in st.session_state
-                else [""]
-            )
-            purchase_vendor = st.selectbox(
-                "매입처 (비용처)",
-                options=supplier_options,
-                index=1 if len(supplier_options) > 1 else 0,
-            )
-            service_option = st.selectbox("서비스 옵션", ["Door To Door"])
-            payment_status_input = st.selectbox(
-                "수금 상태", options=["미수", "수금완료"], index=0
-            )
+    with form_col3:
+        origin_place = st.text_input("출발지", value="대한민국 (KOREA)")
+        shipper_options = [""] + st.session_state.client_list
+        shipper_name = st.selectbox(
+            "화주명 (매출처)", options=shipper_options,
+            index=1 if len(shipper_options) > 1 else 0,
+        )
+        supplier_options = [""] + st.session_state.supplier_list if "supplier_list" in st.session_state else [""]
+        purchase_vendor = st.selectbox(
+            "매입처 (비용처)", options=supplier_options,
+            index=1 if len(supplier_options) > 1 else 0,
+        )
+        service_option = st.selectbox("서비스 옵션", ["Door To Door"])
+        payment_status_input = st.selectbox("수금 상태", options=["미수", "수금완료"], index=0)
 
         st.markdown("---")
 
