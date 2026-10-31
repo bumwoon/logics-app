@@ -3138,59 +3138,206 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
 # ==========================================
 elif selected_menu == "🤝 매입 관리 (협력사별 독립 트랙)":
     st.markdown("<h3 style='color: #0f172a; font-weight: 700; margin-bottom: 5px;'>🤝 매입 관리 및 협력사별 미지급금(미지급 원가) 관리</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>협력사별 매입 원가, 지급완료 금액, 미지급 잔액을 집계하고 건별 지급 상태를 관리합니다.</p>", unsafe_allow_html=True)
-    
+    st.markdown("<p style='color: #64748b; font-size: 13px; margin-bottom: 15px;'>월별 매입 원가와 협력사별 지급완료·미지급 잔액을 확인하고, 원하는 기간을 지정해 출력할 수 있습니다.</p>", unsafe_allow_html=True)
+
     if st.session_state.get("bl_data_list"):
-        df_bl = pd.DataFrame(st.session_state.bl_data_list)
+        df_bl = pd.DataFrame(st.session_state.bl_data_list).copy()
         if "매입처" in df_bl.columns and "매입액(원)" in df_bl.columns:
-            df_bl["매입처"] = df_bl["매입처"].astype(str).str.strip()
-            df_bl["매입액(원)"] = pd.to_numeric(df_bl["매입액(원)"], errors="coerce").fillna(0)
+            df_bl["매입처"] = df_bl["매입처"].fillna("").astype(str).str.strip()
+            df_bl["매입액(원)"] = pd.to_numeric(
+                df_bl["매입액(원)"].astype(str).str.replace(",", "", regex=False),
+                errors="coerce"
+            ).fillna(0)
             if "지급상태" not in df_bl.columns:
                 df_bl["지급상태"] = "미지급"
-            
-            # 1. 협력사별 매입 및 미지급 요약
-            purchase_group = df_bl.groupby("매입처").agg(
-                총매입액=("매입액(원)", "sum"),
-                지급완료액=("매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] == "지급완료"].sum()),
-                미지급잔액=("매입액(원)", lambda x: x[df_bl.loc[x.index, "지급상태"] != "지급완료"].sum()),
-                건수=("B/L 번호", "count")
-            ).reset_index().sort_values("미지급잔액", ascending=False)
-            
-            st.subheader("📋 협력사별 매입 원가 및 미지급 잔액 요약")
-            st.dataframe(purchase_group, use_container_width=True)
-            
+            df_bl["지급상태"] = df_bl["지급상태"].fillna("미지급").astype(str).str.strip()
+            if "날짜" not in df_bl.columns:
+                df_bl["날짜"] = ""
+            df_bl["_매입일자"] = pd.to_datetime(
+                df_bl["날짜"].astype(str).str[:10], errors="coerce"
+            )
+            df_bl = df_bl[df_bl["매입처"] != ""].copy()
+
+            # 월별 조회: B/L 등록일(날짜) 기준
+            st.markdown("### 📅 월별 매입 관리")
+            valid_dates = df_bl["_매입일자"].dropna()
+            available_years = sorted(set(valid_dates.dt.year.tolist() + [date.today().year]), reverse=True)
+            mc1, mc2 = st.columns([1, 2])
+            with mc1:
+                selected_purchase_year = st.selectbox(
+                    "조회 연도", available_years, index=0, key="purchase_month_year"
+                )
+            with mc2:
+                selected_purchase_month = st.selectbox(
+                    "조회 월", list(range(1, 13)),
+                    index=date.today().month - 1, format_func=lambda m: f"{m}월",
+                    key="purchase_month_value"
+                )
+
+            month_start = date(int(selected_purchase_year), int(selected_purchase_month), 1)
+            if selected_purchase_month == 12:
+                month_end = date(int(selected_purchase_year) + 1, 1, 1) - pd.Timedelta(days=1)
+            else:
+                month_end = date(int(selected_purchase_year), int(selected_purchase_month) + 1, 1) - pd.Timedelta(days=1)
+
+            month_df = df_bl[
+                (df_bl["_매입일자"] >= pd.Timestamp(month_start)) &
+                (df_bl["_매입일자"] < pd.Timestamp(month_end) + pd.Timedelta(days=1))
+            ].copy()
+
+            if not month_df.empty:
+                month_df["_지급완료금액"] = month_df["매입액(원)"].where(month_df["지급상태"] == "지급완료", 0)
+                month_df["_미지급금액"] = month_df["매입액(원)"].where(month_df["지급상태"] != "지급완료", 0)
+                purchase_group = month_df.groupby("매입처", dropna=False).agg(
+                    총매입액=("매입액(원)", "sum"),
+                    지급완료액=("_지급완료금액", "sum"),
+                    미지급잔액=("_미지급금액", "sum"),
+                    건수=("매입액(원)", "size")
+                ).reset_index().sort_values("미지급잔액", ascending=False)
+                total_purchase = int(month_df["매입액(원)"].sum())
+                total_paid = int(month_df["_지급완료금액"].sum())
+                total_unpaid = int(month_df["_미지급금액"].sum())
+            else:
+                purchase_group = pd.DataFrame(columns=["매입처", "총매입액", "지급완료액", "미지급잔액", "건수"])
+                total_purchase = total_paid = total_unpaid = 0
+
+            st.caption(f"조회 기준: {selected_purchase_year}년 {selected_purchase_month}월")
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("월 매입 총액", f"{total_purchase:,.0f}원")
+            k2.metric("지급완료", f"{total_paid:,.0f}원")
+            k3.metric("미지급 잔액", f"{total_unpaid:,.0f}원")
+            k4.metric("매입 건수", f"{len(month_df):,}건")
+            st.subheader("🤝 협력사별 월 매입·지급 현황")
+            st.dataframe(purchase_group, use_container_width=True, hide_index=True)
+            if month_df.empty:
+                st.info("선택한 월에 등록된 매입 내역이 없습니다.")
+
             st.markdown("---")
-            
-            # 2. 특정 협력사 상세 매입 내역 및 지급 상태 체크 관리
-            st.subheader("🔍 특정 협력사 상세 매입 내역 및 지급 상태 관리")
-            col_v1, col_v2 = st.columns([2, 1])
-            with col_v1:
-                sel_v = st.selectbox("조회할 협력사 선택", df_bl["매입처"].unique(), key="purchase_track_vendor")
-            with col_v2:
-                only_unpaid_v = st.checkbox("📌 미지급 건만 보기", value=True, key="only_unpaid_vendor")
-            
+            # 지정 기간 출력 및 엑셀 다운로드
+            st.markdown("### 🖨️ 기간 지정 매입 내역 출력")
+            p1, p2 = st.columns(2)
+            with p1:
+                print_start = st.date_input(
+                    "시작일", value=month_start, key="purchase_print_start"
+                )
+            with p2:
+                print_end = st.date_input(
+                    "종료일", value=month_end, key="purchase_print_end"
+                )
+
+            supplier_options = ["전체 협력사"] + sorted(df_bl["매입처"].dropna().unique().tolist())
+            selected_print_supplier = st.selectbox(
+                "출력할 협력사", supplier_options, key="purchase_print_supplier"
+            )
+            if print_start > print_end:
+                st.error("시작일은 종료일보다 늦을 수 없습니다.")
+                print_df = df_bl.iloc[0:0].copy()
+            else:
+                print_df = df_bl[
+                    (df_bl["_매입일자"] >= pd.Timestamp(print_start)) &
+                    (df_bl["_매입일자"] < pd.Timestamp(print_end) + pd.Timedelta(days=1))
+                ].copy()
+                if selected_print_supplier != "전체 협력사":
+                    print_df = print_df[print_df["매입처"] == selected_print_supplier]
+
+            print_columns = [
+                c for c in [
+                    "날짜", "매입처", "B/L 번호", "화주명(매출)", "해외수하인",
+                    "도착국가", "운송형태", "매입액(원)", "지급상태"
+                ] if c in print_df.columns
+            ]
+            printable_df = print_df[print_columns].copy() if print_columns else pd.DataFrame()
+            if not printable_df.empty:
+                printable_df["매입액(원)"] = pd.to_numeric(
+                    printable_df["매입액(원)"], errors="coerce"
+                ).fillna(0).map(lambda v: f"{v:,.0f}")
+            st.caption(f"출력 대상: {len(print_df)}건 / {print_start} ~ {print_end}")
+            st.dataframe(printable_df, use_container_width=True, hide_index=True)
+
+            if not print_df.empty:
+                export_df = print_df[print_columns].copy()
+                excel_buffer = io.BytesIO()
+                with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+                    export_df.to_excel(writer, sheet_name="매입내역", index=False)
+                    summary_df = pd.DataFrame([{
+                        "조회 시작일": str(print_start),
+                        "조회 종료일": str(print_end),
+                        "협력사": selected_print_supplier,
+                        "매입 총액": int(print_df["매입액(원)"].sum()),
+                        "지급완료액": int(print_df.loc[print_df["지급상태"] == "지급완료", "매입액(원)"].sum()),
+                        "미지급 잔액": int(print_df.loc[print_df["지급상태"] != "지급완료", "매입액(원)"].sum()),
+                        "건수": len(print_df)
+                    }])
+                    summary_df.to_excel(writer, sheet_name="기간요약", index=False)
+                st.download_button(
+                    "📥 지정 기간 매입 내역 엑셀 다운로드",
+                    data=excel_buffer.getvalue(),
+                    file_name=f"범운해운항공_매입내역_{print_start}_{print_end}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+
+                # 브라우저 인쇄: 선택한 기간의 매입 내역만 별도 인쇄 화면으로 제공
+                import html as _html
+                table_html = printable_df.to_html(index=False, border=0, escape=True, classes="purchase-print-table")
+                total_print_amount = int(print_df["매입액(원)"].sum())
+                paid_print_amount = int(print_df.loc[print_df["지급상태"] == "지급완료", "매입액(원)"].sum())
+                unpaid_print_amount = int(print_df.loc[print_df["지급상태"] != "지급완료", "매입액(원)"].sum())
+                print_title = "전체 협력사" if selected_print_supplier == "전체 협력사" else _html.escape(selected_print_supplier)
+                print_html = f"""
+                <html><head><meta charset="utf-8"><style>
+                body{{font-family:Arial,'Malgun Gothic',sans-serif;padding:18px;color:#111}}
+                h2{{text-align:center;margin-bottom:8px}} .meta{{text-align:center;margin-bottom:18px}}
+                .summary{{display:flex;justify-content:space-around;margin:14px 0;padding:12px;border:1px solid #bbb;font-weight:bold}}
+                table{{width:100%;border-collapse:collapse;font-size:10pt}}
+                th,td{{border:1px solid #777;padding:7px;text-align:center}}
+                th{{background:#eee}} .actions{{margin-bottom:12px}}
+                @media print{{.actions{{display:none}} body{{padding:0}}}}
+                </style></head><body>
+                <div class="actions"><button onclick="window.print()">🖨️ 이 매입 내역 인쇄</button></div>
+                <h2>(주)범운해운항공 매입 내역서</h2>
+                <div class="meta">{print_start} ~ {print_end}　|　협력사: {print_title}</div>
+                <div class="summary">
+                <span>매입 합계: {total_print_amount:,.0f}원</span>
+                <span>지급완료: {paid_print_amount:,.0f}원</span>
+                <span>미지급: {unpaid_print_amount:,.0f}원</span>
+                <span>총 {len(print_df)}건</span>
+                </div>{table_html}</body></html>
+                """
+                components.html(print_html, height=650, scrolling=True)
+            else:
+                st.info("선택한 기간과 협력사에 해당하는 매입 내역이 없습니다.")
+
+            st.markdown("---")
+            # 협력사 상세 및 기존 지급완료 처리 기능 유지
+            st.subheader("🔍 협력사 상세 매입 내역 및 지급 상태 관리")
+            vendor_options = sorted(df_bl["매입처"].dropna().unique().tolist())
+            sel_v = st.selectbox(
+                "조회할 협력사 선택", vendor_options, key="purchase_track_vendor"
+            )
+            only_unpaid_v = st.checkbox(
+                "📌 미지급 건만 보기", value=True, key="only_unpaid_vendor"
+            )
             vendor_detail = df_bl[df_bl["매입처"] == sel_v].copy()
             if only_unpaid_v:
-                vendor_detail = vendor_detail[vendor_detail["지급상태"].astype(str).str.strip() != "지급완료"]
-            
+                vendor_detail = vendor_detail[vendor_detail["지급상태"] != "지급완료"]
             if "선택" not in vendor_detail.columns:
                 vendor_detail.insert(0, "선택", False)
-            
+
             edited_vendor_table = st.data_editor(
-                vendor_detail,
+                vendor_detail.drop(columns=["_매입일자"], errors="ignore"),
                 hide_index=True,
                 use_container_width=True,
                 column_config={"선택": st.column_config.CheckboxColumn(required=True)},
                 key="vendor_unpaid_edit_table"
             )
-            
             selected_vendor_rows = edited_vendor_table[edited_vendor_table["선택"] == True]
-            
             if st.button("💳 선택한 매입 건 [지급완료] 일괄 처리", type="primary", use_container_width=True):
                 if len(selected_vendor_rows) > 0:
                     for real_idx in selected_vendor_rows.index.tolist():
-                        st.session_state.bl_data_list[real_idx]["지급상태"] = "지급완료"
-                        st.session_state.bl_data_list[real_idx]["최종수정자"] = current_user_name
+                        if 0 <= int(real_idx) < len(st.session_state.bl_data_list):
+                            st.session_state.bl_data_list[int(real_idx)]["지급상태"] = "지급완료"
+                            st.session_state.bl_data_list[int(real_idx)]["최종수정자"] = current_user_name
                     save_bl_data(st.session_state.bl_data_list)
                     st.success("선택하신 매입 건들이 '지급완료' 처리되었습니다!")
                     st.rerun()
@@ -3200,6 +3347,7 @@ elif selected_menu == "🤝 매입 관리 (협력사별 독립 트랙)":
             st.warning("데이터에 '매입처' 또는 '매입액(원)' 컬럼이 없습니다.")
     else:
         st.info("등록된 B/L 데이터가 없습니다.")
+
 # ==========================================
 # [3] B/L 운송장 출력 메뉴 (검색창 추가 버전)
 # ==========================================
