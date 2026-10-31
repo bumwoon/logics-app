@@ -1222,11 +1222,6 @@ def _admin_customer_freight_menu():
                         return True, f"입고 완료: {req.get('접수번호','')} / 박스 {bx.get('박스순번','')} ({arrived_boxes}/{total_boxes})"
                 return False, "등록되지 않은 바코드입니다. 해당 박스의 QR/바코드 라벨을 확인해 주세요."
 
-            def _warehouse_scanner_enter():
-                ok, message = _warehouse_receive_one(st.session_state.get("warehouse_scanned_barcode", ""), "USB/무선 스캐너")
-                st.session_state["warehouse_scan_feedback"] = ("success" if ok else "warning", message)
-                st.session_state["warehouse_scanned_barcode"] = ""
-
             camera_photo = st.camera_input("📷 휴대폰으로 QR 또는 Code 128 촬영", key="warehouse_barcode_camera")
             if camera_photo is not None:
                 try:
@@ -1263,18 +1258,18 @@ def _admin_customer_freight_menu():
                 else:
                     st.warning(feedback[1])
 
-            st.text_input(
-                "박스 바코드 번호 (USB/무선 스캐너는 여기를 클릭 후 스캔하고 Enter)",
-                key="warehouse_scanned_barcode",
-                placeholder="QR/바코드 번호가 자동 입력됩니다.",
-                on_change=warehouse_scanner_enter,
-            )
-            manual_scan = st.button("📦 수동 입고 처리", key="warehouse_scan_submit", type="secondary")
-            if manual_scan:
-                ok, message = warehouse_receive_one(st.session_state.get("warehouse_scanned_barcode", ""), "수동")
+            with st.form("warehouse_scanner_form", clear_on_submit=True):
+                scanned_barcode = st.text_input(
+                    "박스 바코드 번호 (USB/무선 스캐너는 여기를 클릭 후 스캔하고 Enter)",
+                    key="warehouse_scanned_barcode",
+                    placeholder="QR/바코드 번호가 자동 입력됩니다.",
+                    help="스캐너가 바코드를 입력한 뒤 Enter를 보내면 입고 처리됩니다.",
+                )
+                scan_submit = st.form_submit_button("📦 스캔 입고 처리", type="secondary")
+            if scan_submit:
+                ok, message = warehouse_receive_one(scanned_barcode, "USB/무선 스캐너 또는 수동")
                 if ok:
                     st.success(message)
-                    st.session_state["warehouse_scanned_barcode"] = ""
                     st.rerun()
                 else:
                     st.warning(message)
@@ -1335,7 +1330,7 @@ def _admin_customer_freight_menu():
                 with row4[1]:
                     ae_width = st.number_input("가로 (cm)", min_value=0.01, value=max(0.01, float(target.get("가로cm", 1) or 1)), step=1.0, key=f"admin_req_width{req_id}")
                 with row4[2]:
-                    ae_length = st.number_input("세로 (cm)", min_value=0.01, value=max(0.01, float(target.get("세로cm", 1) or 1)), step=1.0, key=f"admin_req_length{req_id}")
+                    ae_length = st.number_input("세로 (cm)", min_value=0.01, value=max(0.01, float(target.get("세로cm", 1) or 1)), step=1.0, key=f"admin_req_length_{req_id}")
                 with row4[3]:
                     ae_height = st.number_input("높이 (cm)", min_value=0.01, value=max(0.01, float(target.get("높이cm", 1) or 1)), step=1.0, key=f"admin_req_height_{req_id}")
                 with row4[4]:
