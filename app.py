@@ -1507,9 +1507,9 @@ def _admin_customer_freight_menu():
             bl_exists = bool(linked_bl) or str(target.get("상태", "")).strip() == "B/L 등록"
             with st.expander("🗑 접수 건 삭제", expanded=False):
                 if bl_exists:
-                    st.warning("B/L이 연결/등록된 접수 건은 여기서 삭제할 수 없습니다. B/L 등록 내역을 먼저 관리자 절차로 정리해야 합니다.")
+                    st.caption("B/L 등록된 접수 건은 삭제할 수 없습니다.")
                 else:
-                    st.warning("삭제하면 해당 고객의 접수 목록에서도 사라집니다. 필요한 경우 먼저 백업해 주세요.")
+                    st.caption("삭제한 접수 건은 고객사 목록에서도 사라집니다.")
                     confirm_delete = st.checkbox(f"접수번호 {req_id} 삭제에 동의합니다", key=f"confirm_delete_req{req_id}")
                     if st.button("🗑 B/L 미등록 접수 삭제", key=f"delete_customer_request{req_id}", disabled=not confirm_delete):
                         now_delete = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1564,7 +1564,7 @@ def _admin_customer_freight_menu():
                     ae_cartons = st.number_input("박스 수량", min_value=1, value=max(1, int(float(target.get("박스수량", 1) or 1))), step=1, key=f"admin_req_cartons_{req_id}")
                 ae_license = st.text_input("수출면장 번호 (해당 시 입력)", value=target.get("수출면장번호", ""), key=f"admin_req_license_{req_id}")
                 ae_note = st.text_input("추가 요청 사항", value=target.get("추가요청", ""), key=f"admin_req_note_{req_id}")
-                save_admin_edit = st.form_submit_button("💾 승인 전 수정 저장", use_container_width=True)
+                save_admin_edit = st.form_submit_button("수정 저장", use_container_width=True)
             if save_admin_edit:
                 now_edit = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 updated_request = dict(target)
@@ -1583,12 +1583,12 @@ def _admin_customer_freight_menu():
                         break
                 _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
                 _customer_history_append({"일시":now_edit,"접수번호":req_id,"고객사아이디":target.get("고객사아이디", ""),"작업자":st.session_state.logged_in_user,"작업":"관리자 승인 전 접수내용 수정","변경내용":json.dumps(updated_request, ensure_ascii=False)})
-                st.success("수정 내용을 저장했습니다. 확인 후 승인해 주세요.")
+                st.success("수정 저장 완료")
                 st.rerun()
 
             # 승인 버튼 한 번으로 B/L 번호를 발급하고 수출입 B/L 데이터에 즉시 저장합니다.
-            if target.get("상태", "접수") != "B/L 등록":
-                if st.button("✅ 내용 확인 후 승인 및 수출입 B/L에 자동 등록", type="primary", use_container_width=True, key=f"approve_issue_bl_{req_id}"):
+            if not str(target.get("연결 B/L 번호", "")).strip() and target.get("상태", "접수") != "B/L 등록":
+                if st.button("승인", use_container_width=True, key=f"approve_issue_bl_{req_id}"):
                     existing_nums = [str(x.get("B/L 번호", "")).strip() for x in st.session_state.get("bl_data_list", [])]
                     existing_nums += [str(x.get("연결 B/L 번호", "")).strip() for x in requests]
                     nums = [int(v[2:]) for v in existing_nums if v.startswith("BW") and v[2:].isdigit()]
@@ -1643,109 +1643,83 @@ def _admin_customer_freight_menu():
                                     rr["B/L등록일시"] = now_approve
                                     break
                             _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
-                            _customer_history_append({"일시": now_approve, "접수번호": req_id, "고객사아이디": target.get("고객사아이디", ""), "작업자": st.session_state.get("logged_in_user", "관리자"), "작업": "관리자 승인 및 수출입 B/L 자동 등록", "변경내용": new_bl})
-                            st.success(f"승인 및 수출입 B/L 자동 등록 완료: {new_bl} / Job 번호: {job_no_auto}")
+                            customer_history_append({"일시": now_approve, "접수번호": req_id, "고객사아이디": target.get("고객사아이디", ""), "작업자": st.session_state.get("logged_in_user", "관리자"), "작업": "관리자 승인 및 수출입 B/L 자동 등록", "변경내용": new_bl})
+                            st.success(f"승인 완료: {new_bl}")
                             st.rerun()
                         except Exception as exc:
                             st.error(f"B/L 자동 등록 중 오류가 발생했습니다. 접수 상태는 확인 후 다시 시도해 주세요. 상세: {exc}")
-            pending = target.get("변경요청JSON", "")
+            pending = str(target.get("변경요청JSON", "") or "").strip()
             if pending:
                 try:
                     change = json.loads(pending)
-                    st.warning(f"수정 승인 대기: {change.get('요청일시','')} / {change.get('요청자','')}")
-                    st.json(change.get("변경후", {}))
-                    ac1, ac2 = st.columns(2)
-                    with ac1:
-                        if st.button("✅ 수정 승인", use_container_width=True):
-                            changed = change.get("변경후", {})
-                            for i, r in enumerate(requests):
-                                if r.get("접수번호","")==req_id:
-                                    preserved_bl = r.get("연결 B/L 번호", "")
-                                    requests[i] = changed
-                                    requests[i]["연결 B/L 번호"] = preserved_bl
-                                    requests[i]["상태"] = "B/L 등록" if preserved_bl else "접수"
-                                    requests[i]["변경요청JSON"] = ""
-                                    break
-                            _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
-                            _customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req_id,"고객사아이디":target.get("고객사아이디",""),"작업자":st.session_state.logged_in_user,"작업":"관리자 수정 승인","변경내용":pending})
-                            st.success("수정 내용을 승인했습니다.")
-                            st.rerun()
-                    with ac2:
-                        if st.button("❌ 수정 반려", use_container_width=True):
-                            for r in requests:
-                                if r.get("접수번호","")==req_id:
-                                    r["변경요청JSON"] = ""
-                                    r["상태"] = "B/L 등록" if r.get("연결 B/L 번호","") else "접수"
-                                    break
-                            _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
-                            customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req_id,"고객사아이디":target.get("고객사아이디",""),"작업자":st.session_state.logged_in_user,"작업":"관리자 수정 반려","변경내용":pending})
-                            st.success("수정 요청을 반려했습니다.")
-                            st.rerun()
+                    changed = change.get("변경후", {})
+                    st.caption("고객사 수정 요청이 있습니다. 내용을 확인한 뒤 승인해 주세요.")
+                    if isinstance(changed, dict):
+                        preview = {
+                            "화주": changed.get("화주상호", ""),
+                            "도착국가": changed.get("도착국가", ""),
+                            "품목": changed.get("품목", ""),
+                            "중량(kg)": changed.get("실제중량kg", ""),
+                            "박스": changed.get("박스수량", ""),
+                        }
+                        st.dataframe(pd.DataFrame([preview]), use_container_width=True, hide_index=True)
+                    if st.button("수정 승인", key=f"approve_customer_edit{req_id}", use_container_width=True):
+                        for i, r in enumerate(requests):
+                            if r.get("접수번호", "") == req_id:
+                                preserved_bl = r.get("연결 B/L 번호", "")
+                                approved_data = dict(changed)
+                                approved_data["연결 B/L 번호"] = preserved_bl
+                                approved_data["상태"] = "B/L 등록" if preserved_bl else "접수"
+                                approved_data["변경요청JSON"] = ""
+                                requests[i] = approved_data
+
+                                # 이미 B/L이 연결된 경우 수정 내용도 B/L 자료에 반영합니다.
+                                if preserved_bl:
+                                    for bl in st.session_state.get("bl_data_list", []):
+                                        if str(bl.get("B/L 번호", "")).strip() == str(preserved_bl).strip():
+                                            w = float(approved_data.get("실제중량kg", 0) or 0)
+                                            width = float(approved_data.get("가로cm", 0) or 0)
+                                            length = float(approved_data.get("세로cm", 0) or 0)
+                                            height = float(approved_data.get("높이cm", 0) or 0)
+                                            cartons = max(1, int(float(approved_data.get("박스수량", 1) or 1)))
+                                            cbm = width * length * height * cartons / 1000000
+                                            divisor = 5000 if approved_data.get("운송형태") == "항공(Air)" else 6000
+                                            volume_weight = width * length * height * cartons / divisor
+                                            bl.update({
+                                                "화주명(매출)": approved_data.get("화주상호", ""),
+                                                "해외수하인": approved_data.get("해외수하인", ""),
+                                                "해외수하인주소": approved_data.get("해외수하인주소", ""),
+                                                "해외수하인전화번호": approved_data.get("해외수하인전화번호", ""),
+                                                "국가": approved_data.get("도착국가", ""),
+                                                "운송형태": approved_data.get("운송형태", ""),
+                                                "품목": approved_data.get("품목", ""),
+                                                "박스수": f"{cartons} 박스 (CTN)",
+                                                "부피규격": f"{width:g}×{length:g}×{height:g}cm({cartons}CTN)",
+                                                "실중량(kg)": w,
+                                                "매출실중량(kg)": w,
+                                                "매입실중량(kg)": w,
+                                                "CBM": f"{cbm:.3f} CBM",
+                                                "수출면장번호": approved_data.get("수출면장번호", ""),
+                                                "비고": f"고객사 접수번호: {req_id} / {approved_data.get('추가요청', '')}",
+                                            })
+                                            break
+                                    save_bl_data(st.session_state.get("bl_data_list", []))
+
+                                break
+                        _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                        _customer_history_append({
+                            "일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "접수번호": req_id,
+                            "고객사아이디": target.get("고객사아이디", ""),
+                            "작업자": st.session_state.get("logged_in_user", "관리자"),
+                            "작업": "고객사 수정 승인",
+                            "변경내용": pending,
+                        })
+                        st.success("수정 승인 완료")
+                        st.rerun()
                 except Exception:
-                    st.error("수정 요청 내용을 읽지 못했습니다. 이력을 확인해 주세요.")
-            st.markdown("---")
-            st.markdown("#### B/L 등록 상태 연결")
-            bl_no = st.text_input("연결할 B/L 번호 (비워두면 B/L 등록 전)", value=target.get("연결 B/L 번호", ""), key="admin_customer_link_bl")
-            if st.button("B/L 번호 / 상태 저장", type="primary", key=f"save_customer_bl_link{req_id}"):
-                clean_bl = str(bl_no).strip()
-                now_link = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                try:
-                    # B/L 번호가 입력되면 고객 접수 내용을 수출입 B/L 자료에 생성/연결합니다.
-                    if clean_bl:
-                        existing_record = next((x for x in st.session_state.get("bl_data_list", []) if str(x.get("B/L 번호", "")).strip() == clean_bl), None)
-                        if existing_record is None:
-                            shipper_auto = str(target.get("화주상호", "")).strip()
-                            country_auto = str(target.get("도착국가", "미국")).strip()
-                            item_auto = str(target.get("품목", "일반화물")).strip()
-                            transport_auto = str(target.get("운송형태", "항공(Air)")).strip()
-                            weight_auto = float(target.get("실제중량kg", 0) or 0)
-                            width_auto = float(target.get("가로cm", 0) or 0)
-                            length_auto = float(target.get("세로cm", 0) or 0)
-                            height_auto = float(target.get("높이cm", 0) or 0)
-                            cartons_auto = max(1, int(float(target.get("박스수량", 1) or 1)))
-                            cbm_auto = width_auto * length_auto * height_auto * cartons_auto / 1000000.0
-                            divisor_auto = 5000 if transport_auto == "항공(Air)" else 6000
-                            charge_auto = float(math.ceil(max(weight_auto, width_auto * length_auto * height_auto * cartons_auto / divisor_auto)))
-                            sales_auto = int(calculate_auto_price(shipper_auto, charge_auto, transport_auto, item_auto, country_auto))
-                            purchase_auto = int(calculate_purchase_auto_price("", charge_auto, transport_auto, item_auto, country_auto))
-                            job_nums = []
-                            for x in st.session_state.get("bl_data_list", []):
-                                try:
-                                    job_nums.append(int(str(x.get("Job 번호", "")).split("-")[-1]))
-                                except (ValueError, TypeError):
-                                    pass
-                            job_no_auto = f"BW-{date.today().year}-{(max(job_nums) if job_nums else 0)+1:03d}"
-                            bl_record = {
-                                "구분": "수출 (Export)", "날짜": str(date.today()), "Job 번호": job_no_auto, "B/L 번호": clean_bl,
-                                "국가": country_auto, "출발지": "대한민국 (KOREA)", "화주명(매출)": shipper_auto,
-                                "해외수하인": target.get("해외수하인", ""), "해외수하인주소": target.get("해외수하인주소", ""), "해외수하인전화번호": target.get("해외수하인전화번호", ""), "수출면장번호": target.get("수출면장번호", ""),
-                                "매입처": "", "운송형태": transport_auto, "서비스옵션": "Door To Door", "품목": item_auto,
-                                "박스수": f"{cartons_auto} 박스 (CTN)", "부피규격": f"{width_auto:g}×{length_auto:g}×{height_auto:g}cm({cartons_auto}CTN)",
-                                "실중량(kg)": weight_auto, "매출실중량(kg)": weight_auto, "매입실중량(kg)": weight_auto,
-                                "매출청구중량(kg)": charge_auto, "매입청구중량(kg)": charge_auto, "CBM": f"{cbm_auto:.3f} CBM",
-                                "현재 상태": "📦 물류센터 입고 및 접수 완료", "수금상태": "미수", "매출액(원)": sales_auto, "매입액(원)": purchase_auto,
-                                "예상Profit(원)": sales_auto-purchase_auto, "비고": f"고객사 접수번호: {req_id} / {target.get('추가요청', '')}",
-                                "최종작성자": st.session_state.get("logged_in_user", "관리자"), "최종수정자": "-"
-                            }
-                            st.session_state.bl_data_list.append(bl_record)
-                            save_bl_data(st.session_state.bl_data_list)
-                        # 동일 B/L이 이미 있으면 중복 생성하지 않고 접수 건만 연결합니다.
-                    for r in requests:
-                        if r.get("접수번호", "") == req_id:
-                            r["연결 B/L 번호"] = clean_bl
-                            r["상태"] = "B/L 등록" if clean_bl else "접수"
-                            if clean_bl:
-                                r["B/L등록일시"] = now_link
-                            break
-                    _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
-                    _customer_history_append({"일시":now_link,"접수번호":req_id,"고객사아이디":target.get("고객사아이디", ""),"작업자":st.session_state.get("logged_in_user", "관리자"),"작업":"B/L 번호 연결 및 수출입 B/L 저장","변경내용":clean_bl})
-                    if clean_bl:
-                        st.success(f"B/L {clean_bl} 저장 및 연결 완료. ‘등록 B/L 수정 및 Profit 내역’에서 요금과 Profit을 수정할 수 있습니다.")
-                    else:
-                        st.success("B/L 연결을 비웠습니다. 고객사 접수 상태로 저장했습니다.")
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"B/L 저장 중 오류가 발생했습니다: {exc}")
+                    st.caption("수정 요청 내용을 확인할 수 없습니다. 접수 내역을 다시 확인해 주세요.")
+
     with t_history:
         history = _read_customer_csv(CUSTOMER_HISTORY_FILE)
         if history:
