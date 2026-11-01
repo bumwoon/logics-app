@@ -3816,6 +3816,39 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
                 axis=1
             )
 
+            # 1-1. 전체 미수금 및 월별 미수금 현황
+            st.markdown("---")
+            st.subheader("🚨 전체 미수금 및 월별 미수금 현황")
+
+            # 날짜/금액을 안전하게 정리합니다. 현재 B/L 데이터에는 수금일·부분수금액이
+            # 별도 저장되지 않으므로, 미수 여부는 현재 수금상태를 기준으로 집계합니다.
+            df_bl["_선적일"] = pd.to_datetime(
+                df_bl.get("날짜", pd.Series(index=df_bl.index, dtype="object")).astype(str).str[:10],
+                errors="coerce"
+            )
+            df_bl["_현재미수액"] = df_bl["매출액(원)"].where(
+                df_bl["수금상태"].astype(str).str.strip() != "수금완료", 0
+            )
+            df_bl["_연월"] = df_bl["_선적일"].dt.strftime("%Y-%m")
+
+            # B/L별 수금 이력: 기존 수금완료 건은 과거 전액 수금으로 간주하고,
+            # 신규 이력이 있는 건은 이력 합계로 실제 잔액을 계산합니다.
+            payment_df = load_payment_history()
+            df_bl["_BL키"] = df_bl.get("B/L 번호", pd.Series(index=df_bl.index, dtype=str)).astype(str).str.strip()
+            if not payment_df.empty:
+                payment_df["B/L 번호"] = payment_df["B/L 번호"].astype(str).str.strip()
+                payment_df["수금액(원)"] = pd.to_numeric(payment_df["수금액(원)"], errors="coerce").fillna(0)
+                paid_by_bl = payment_df.groupby("B/L 번호")["수금액(원)"].sum().to_dict()
+            else:
+                paid_by_bl = {}
+            df_bl["_누적수금액"] = df_bl.apply(
+                lambda row: min(float(row["매출액(원)"]), float(paid_by_bl.get(row["_BL키"], row["매출액(원)"] if row["수금상태"] == "수금완료" else 0))),
+                axis=1
+            )
+            df_bl["_현재미수액"] = (df_bl["매출액(원)"] - df_bl["_누적수금액"]).clip(lower=0)
+            df_bl["수금완료액"] = df_bl["_누적수금액"]
+            df_bl["미수금잔액"] = df_bl["_현재미수액"]
+
             # 1. 화주별 매출, 매입, Profit 및 미수 요약
             sales_group = df_bl.groupby("화주명(매출)").agg(
                 총매출액=("매출액(원)", "sum"),
@@ -3850,38 +3883,6 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
                 }
             )
 
-            # 1-1. 전체 미수금 및 월별 미수금 현황
-            st.markdown("---")
-            st.subheader("🚨 전체 미수금 및 월별 미수금 현황")
-
-            # 날짜/금액을 안전하게 정리합니다. 현재 B/L 데이터에는 수금일·부분수금액이
-            # 별도 저장되지 않으므로, 미수 여부는 현재 수금상태를 기준으로 집계합니다.
-            df_bl["_선적일"] = pd.to_datetime(
-                df_bl.get("날짜", pd.Series(index=df_bl.index, dtype="object")).astype(str).str[:10],
-                errors="coerce"
-            )
-            df_bl["_현재미수액"] = df_bl["매출액(원)"].where(
-                df_bl["수금상태"].astype(str).str.strip() != "수금완료", 0
-            )
-            df_bl["_연월"] = df_bl["_선적일"].dt.strftime("%Y-%m")
-
-            # B/L별 수금 이력: 기존 수금완료 건은 과거 전액 수금으로 간주하고,
-            # 신규 이력이 있는 건은 이력 합계로 실제 잔액을 계산합니다.
-            payment_df = load_payment_history()
-            df_bl["_BL키"] = df_bl.get("B/L 번호", pd.Series(index=df_bl.index, dtype=str)).astype(str).str.strip()
-            if not payment_df.empty:
-                payment_df["B/L 번호"] = payment_df["B/L 번호"].astype(str).str.strip()
-                payment_df["수금액(원)"] = pd.to_numeric(payment_df["수금액(원)"], errors="coerce").fillna(0)
-                paid_by_bl = payment_df.groupby("B/L 번호")["수금액(원)"].sum().to_dict()
-            else:
-                paid_by_bl = {}
-            df_bl["_누적수금액"] = df_bl.apply(
-                lambda row: min(float(row["매출액(원)"]), float(paid_by_bl.get(row["_BL키"], row["매출액(원)"] if row["수금상태"] == "수금완료" else 0))),
-                axis=1
-            )
-            df_bl["_현재미수액"] = (df_bl["매출액(원)"] - df_bl["_누적수금액"]).clip(lower=0)
-            df_bl["수금완료액"] = df_bl["_누적수금액"]
-            df_bl["미수금잔액"] = df_bl["_현재미수액"]
 
             # 신규 수금 등록: 부분 수금도 여러 차례 기록할 수 있습니다.
             st.markdown("#### 💳 B/L별 수금 등록 (부분 수금 가능)")
