@@ -3628,17 +3628,55 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
             if "수금상태" not in df_bl.columns:
                 df_bl["수금상태"] = "미수"
             
-            # 1. 화주별 매출 및 미수 요약
+            # 매출/매입 금액을 숫자로 정리하고 B/L별 실제 Profit을 계산합니다.
+            if "매입액(원)" not in df_bl.columns:
+                df_bl["매입액(원)"] = 0
+            df_bl["매입액(원)"] = pd.to_numeric(
+                df_bl["매입액(원)"].astype(str).str.replace(",", "", regex=False),
+                errors="coerce"
+            ).fillna(0)
+            df_bl["수금상태"] = df_bl["수금상태"].fillna("미수").astype(str).str.strip()
+            df_bl["Profit(원)"] = df_bl["매출액(원)"] - df_bl["매입액(원)"]
+            df_bl["Profit률(%)"] = df_bl.apply(
+                lambda row: round(row["Profit(원)"] / row["매출액(원)"] * 100, 2)
+                if row["매출액(원)"] > 0 else 0.0,
+                axis=1
+            )
+
+            # 1. 화주별 매출, 매입, Profit 및 미수 요약
             sales_group = df_bl.groupby("화주명(매출)").agg(
                 총매출액=("매출액(원)", "sum"),
+                총매입액=("매입액(원)", "sum"),
+                총Profit=("Profit(원)", "sum"),
                 수금완료액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] == "수금완료"].sum()),
                 미수금잔액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] != "수금완료"].sum()),
                 건수=("B/L 번호", "count")
-            ).reset_index().sort_values("미수금잔액", ascending=False)
-            
-            st.subheader("📋 화주별 매출 및 미수금 현황 요약")
-            st.dataframe(sales_group, use_container_width=True)
-            
+            ).reset_index()
+            sales_group["Profit률(%)"] = sales_group.apply(
+                lambda row: round(row["총Profit"] / row["총매출액"] * 100, 2)
+                if row["총매출액"] > 0 else 0.0,
+                axis=1
+            )
+            sales_group = sales_group[
+                ["화주명(매출)", "총매출액", "총매입액", "총Profit",
+                 "Profit률(%)", "수금완료액", "미수금잔액", "건수"]
+            ].sort_values("미수금잔액", ascending=False)
+
+            st.subheader("📋 화주별 매출 · 매입 · Profit 및 미수금 현황")
+            st.dataframe(
+                sales_group,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "총매출액": st.column_config.NumberColumn(format="%d 원"),
+                    "총매입액": st.column_config.NumberColumn(format="%d 원"),
+                    "총Profit": st.column_config.NumberColumn("Profit(원)", format="%d 원"),
+                    "Profit률(%)": st.column_config.NumberColumn(format="%.2f%%"),
+                    "수금완료액": st.column_config.NumberColumn(format="%d 원"),
+                    "미수금잔액": st.column_config.NumberColumn(format="%d 원"),
+                }
+            )
+
             st.markdown("---")
             
             # 2. 특정 화주 상세 매출 내역 및 수금 상태 관리
