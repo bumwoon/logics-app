@@ -58,34 +58,7 @@ def simple_dual_backup():
 
     except Exception as e:
         st.error(f"백업 저장 중 오류 발생: {e}")
-# ==========================================
-# 🔄 깃허브 백업 엑셀 파일 자동 복원 로직 (개선판)
-# ==========================================
-def auto_load_latest_backup():
-    if st.session_state.get("auto_backup_loaded", False):
-        return
-    backup_files = glob.glob("*.xlsx")
-    if not backup_files:
-        st.session_state["auto_backup_loaded"] = True
-        return
-    latest_backup = max(backup_files, key=os.path.getmtime)
-    try:
-        excel_data = pd.ExcelFile(latest_backup)
-        # BL_Data 시트가 있으면 읽고, 없으면 엑셀의 첫 번째 시트를 자동으로 읽음
-        target_sheet = "BL_Data" if "BL_Data" in excel_data.sheet_names else excel_data.sheet_names[0]
-        df_bl = pd.read_excel(excel_data, sheet_name=target_sheet)
-        st.session_state.bl_data_list = df_bl.to_dict(orient="records")
-        
-        if "Expense_Data" in excel_data.sheet_names:
-            df_exp = pd.read_excel(excel_data, sheet_name="Expense_Data")
-            st.session_state.expense_list = df_exp.to_dict(orient="records")
-            
-        st.session_state["auto_backup_loaded"] = True
-        st.sidebar.success(f"📁 자동 복원 완료: {latest_backup}")
-    except Exception as e:
-        st.session_state["auto_backup_loaded"] = True
-
-auto_load_latest_backup()
+# GitHub에 포함된 통합 백업은 데이터 로더가 정의된 뒤 초기 복원합니다.
 # ==========================================
 # [보안 및 계정 파일 저장소 시스템]
 # ==========================================
@@ -808,6 +781,285 @@ def generate_barcode_html(text):
 
 
 # ==========================================
+# ☁️ GitHub 통합 백업 자동 초기 복원
+# ==========================================
+def _find_latest_integrated_backup():
+  """프로젝트 폴더(하위 backup 폴더 포함)에서 통합 백업 파일만 찾습니다."""
+  base_dir = os.path.dirname(os.path.abspath(file))
+  backup_prefix = "범운해운항공_전체데이터_통합백업"
+  found = []
+  excluded_dirs = {".git", ".venv", "venv", "pycache", "node_modules"}
+
+  for root, dirs, files in os.walk(base_dir):
+    dirs[:] = [d for d in dirs if d not in excluded_dirs and not d.startswith(".")]
+    for filename in files:
+      if filename.startswith(backup_prefix) and filename.lower().endswith(".xlsx"):
+        found.append(os.path.join(root, filename))
+
+  if not found:
+    return None
+
+  def _backup_sort_key(path):
+    filename = os.path.basename(path)
+    date_match = re.search(r"(20\d{2}-\d{2}-\d{2})", filename)
+    date_text = date_match.group(1) if date_match else ""
+    try:
+      modified = os.path.getmtime(path)
+    except OSError:
+      modified = 0
+    return date_text, modified
+
+  return max(found, key=_backup_sort_key)
+
+
+def _startup_sheet_records(sheets, *sheet_names):
+  """여러 버전의 시트명과 빈 행을 안전하게 처리해 레코드 목록을 반환합니다."""
+  for sheet_name in sheet_names:
+    df = sheets.get(sheet_name)
+    if df is None:
+      continue
+    clean_df = df.drop(columns=["SYSTEM_META", "SYSTEM_META"], errors="ignore")
+    clean_df = clean_df.dropna(how="all").fillna("")
+    if not clean_df.empty:
+      return clean_df.to_dict(orient="records")
+  return []
+
+
+def _startup_backup_meta(sheets):
+  """현재 통합 백업은 시스템설정 시트를 우선하고, 구형 B/L 메타를 보조로 사용합니다."""
+  preferred = ["시스템설정", "SystemSettings", "SYSTEM_SETTINGS"]
+  ordered_names = preferred + [name for name in sheets if name not in preferred]
+  for sheet_name in ordered_names:
+    df = sheets.get(sheet_name)
+    if df is None or df.empty:
+      continue
+    for column in ("SYSTEM_META", "SYSTEM_META"):
+      if column not in df.columns:
+        continue
+      for raw_value in df[column].tolist():
+        if raw_value is None or pd.isna(raw_value) or not str(raw_value).strip():
+          continue
+        try:
+          parsed = json.loads(str(raw_value))
+          if isinstance(parsed, dict):
+            return parsed
+        except Exception:
+          continue
+  return {}
+
+
+def _startup_csv_has_rows(path):
+  if not os.path.exists(path) or os.path.getsize(path) == 0:
+    return False
+  try:
+    return not pd.read_csv(path).dropna(how="all").empty
+  except Exception:
+    return False
+
+
+def _startup_csv_names(path, column_name):
+  if not _startup_csv_has_rows(path):
+    return []
+  try:
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    if column_name not in df.columns:
+      return []
+    return list(dict.fromkeys(
+        str(v).strip() for v in df[column_name].tolist() if str(v).strip()
+    ))
+  except Exception:
+    return []
+
+
+def auto_restore_integrated_backup_once():
+  """CSV가 없거나 기본 샘플만 있는 최초 실행에서 GitHub 통합 백업으로 복원합니다.
+
+  이미 실제 데이터가 저장된 CSV는 덮어쓰지 않습니다. 따라서 앱 재실행 때마다
+  과거 백업으로 최근 변경사항을 되돌리는 동작을 하지 않습니다.
+  """
+  if st.session_state.get("integrated_backup_bootstrap_checked", False):
+    return
+  st.session_state["integrated_backup_bootstrap_checked"] = True
+
+  backup_path = _find_latest_integrated_backup()
+  if not backup_path:
+    return
+
+  try:
+    excel_file = pd.ExcelFile(backup_path)
+    sheets = {
+        sheet_name: pd.read_excel(excel_file, sheet_name=sheet_name)
+        for sheet_name in excel_file.sheet_names
+    }
+    meta = _startup_backup_meta(sheets)
+
+    restored_counts = {}
+
+    # 1) 매출 거래처: 메타데이터를 기본으로 하고 별도 거래처/요율 시트가 있으면 보완합니다.
+    backup_clients = meta.get("client_list", []) if isinstance(meta, dict) else []
+    backup_clients = list(dict.fromkeys(
+        _client_text(v) for v in (backup_clients or []) if _client_text(v)
+    ))
+    backup_client_rates = meta.get("client_rates", {}) if isinstance(meta, dict) else {}
+    backup_client_infos = meta.get("client_infos", {}) if isinstance(meta, dict) else {}
+    backup_client_rates = backup_client_rates if isinstance(backup_client_rates, dict) else {}
+    backup_client_infos = backup_client_infos if isinstance(backup_client_infos, dict) else {}
+
+    info_records = _startup_sheet_records(sheets, "매출거래처목록", "거래처목록", "Client_List")
+    if not backup_clients and info_records:
+      backup_clients = list(dict.fromkeys(
+          _client_text(row.get("거래처명", "")) for row in info_records
+          if _client_text(row.get("거래처명", ""))
+      ))
+    if info_records and not backup_client_infos:
+      backup_client_infos = {}
+      for row in info_records:
+        client = _client_text(row.get("거래처명", ""))
+        if client:
+          backup_client_infos[client] = {
+              key: _client_text(row.get(source, ""))
+              for key, source in [
+                  ("사업자등록번호", "사업자등록번호"), ("이메일", "이메일"),
+                  ("담당자", "담당자"), ("전화번호", "전화번호"), ("주소", "주소")
+              ]
+          }
+
+    rate_records = _startup_sheet_records(sheets, "매출거래처요율", "거래처요율", "Client_Rates")
+    if rate_records:
+      sheet_rates = {client: {} for client in backup_clients}
+      for row in rate_records:
+        client = _client_text(row.get("거래처명", ""))
+        if not client:
+          continue
+        if client not in backup_clients:
+          backup_clients.append(client)
+        country = _client_text(row.get("국가", "미국"), "미국")
+        transport = _client_text(row.get("운송형태", "항공(Air)"), "항공(Air)")
+        item = _client_text(row.get("품명", "일반공산품"), "일반공산품")
+        sheet_rates.setdefault(client, {}).setdefault(country, {}).setdefault(transport, {})[item] = {
+            "기본중량": _client_safe_number(row.get("기본중량", 1.0), 1.0),
+            "기본요금": _client_safe_number(row.get("기본요금", 38000), 38000, as_int=True),
+            "추가단가": _client_safe_number(row.get("추가단가", 25000), 25000, as_int=True),
+            "1CBM당단가": _client_safe_number(row.get("1CBM당단가", 3700000), 3700000, as_int=True),
+        }
+      # 정상적인 새 백업이면 전용 시트에 전체 요율이 있으므로 시트 내용을 우선 사용합니다.
+      backup_client_rates = sheet_rates
+
+    current_clients = _startup_csv_names(CLIENT_FILE, "거래처명")
+    default_client_names = {"아코글로벌", "주식회사 조은로직스"}
+    client_csv_needs_restore = (
+        not _startup_csv_has_rows(CLIENT_FILE)
+        or (
+            bool(current_clients)
+            and set(current_clients).issubset(default_client_names)
+            and len(backup_clients) > len(current_clients)
+        )
+    )
+    if backup_clients and client_csv_needs_restore:
+      cleaned_infos = {}
+      for client in backup_clients:
+        raw_info = backup_client_infos.get(client, {}) if isinstance(backup_client_infos, dict) else {}
+        raw_info = raw_info if isinstance(raw_info, dict) else {}
+        cleaned_infos[client] = {
+            key: _client_text(raw_info.get(key, ""))
+            for key in ("사업자등록번호", "이메일", "담당자", "전화번호", "주소")
+        }
+      save_client_data(backup_clients, backup_client_rates, cleaned_infos)
+      restored_counts["매출 거래처"] = len(backup_clients)
+
+    # 2) 매입 거래처: 이 백업 버전에서는 메타데이터가 전체 요율 구조를 보관합니다.
+    backup_suppliers = meta.get("supplier_list", []) if isinstance(meta, dict) else []
+    backup_suppliers = list(dict.fromkeys(
+        _client_text(v) for v in (backup_suppliers or []) if _client_text(v)
+    ))
+    backup_supplier_rates = meta.get("supplier_rates", {}) if isinstance(meta, dict) else {}
+    backup_supplier_infos = meta.get("supplier_infos", {}) if isinstance(meta, dict) else {}
+    current_suppliers = _startup_csv_names(SUPPLIER_FILE, "거래처명")
+    default_supplier_names = {"(주)카스익스프레스", "ESI"}
+    supplier_csv_needs_restore = (
+        not _startup_csv_has_rows(SUPPLIER_FILE)
+        or (
+            bool(current_suppliers)
+            and set(current_suppliers).issubset(default_supplier_names)
+            and len(backup_suppliers) > len(current_suppliers)
+        )
+    )
+    if backup_suppliers and supplier_csv_needs_restore:
+      cleaned_supplier_infos = {}
+      for supplier in backup_suppliers:
+        info = backup_supplier_infos.get(supplier, {}) if isinstance(backup_supplier_infos, dict) else {}
+        info = info if isinstance(info, dict) else {}
+        cleaned_supplier_infos[supplier] = {
+            key: _client_text(info.get(key, ""))
+            for key in ("사업자등록번호", "이메일", "담당자", "전화번호", "주소")
+        }
+      save_supplier_data(backup_suppliers, backup_supplier_rates or {}, cleaned_supplier_infos)
+      restored_counts["매입 거래처"] = len(backup_suppliers)
+
+    # 3) B/L 및 일반 CSV 자료: 파일이 없거나 비어 있을 때만 복원합니다.
+    def _restore_list_csv(path, records, saver=None, label=None):
+      clean_records = records if isinstance(records, list) else []
+      if clean_records and not _startup_csv_has_rows(path):
+        if saver:
+          saver(clean_records)
+        else:
+          pd.DataFrame(clean_records).to_csv(path, index=False, encoding="utf-8-sig")
+        if label:
+          restored_counts[label] = len(clean_records)
+
+    bl_records = _startup_sheet_records(sheets, "B_L데이터", "BL_Data", "BL_History", "Bumwoon_Integrated_Backup")
+    bl_records = [row for row in bl_records if _client_text(row.get("B/L 번호", ""))]
+    for row in bl_records:
+      row.pop("SYSTEM_META", None)
+      row.pop("SYSTEM_META", None)
+    _restore_list_csv(DATA_FILE, bl_records, save_bl_data, "B/L")
+
+    ledger_records = _startup_sheet_records(sheets, "일계표_입출금장부", "일계표", "입출금장부", "계정장부")
+    if not ledger_records:
+      ledger_records = meta.get("ledger_data", []) if isinstance(meta, dict) else []
+    _restore_list_csv(ACCOUNT_FILE, ledger_records, save_account_data, "일계표")
+
+    expense_records = _startup_sheet_records(sheets, "경비_지출내역", "Expense_Data", "지출내역")
+    if not expense_records:
+      expense_records = meta.get("expense_data", []) if isinstance(meta, dict) else []
+    _restore_list_csv(EXPENSE_FILE, expense_records, save_expense_data, "경비")
+
+    meeting_records = _startup_sheet_records(sheets, "거래처미팅노트", "Meeting_Notes")
+    if not meeting_records:
+      meeting_records = meta.get("meeting_data", []) if isinstance(meta, dict) else []
+    _restore_list_csv(MEETING_FILE, meeting_records, save_meeting_data, "미팅 노트")
+
+    note_records = _startup_sheet_records(sheets, "업무용일지", "Daily_Notes")
+    if not note_records:
+      note_records = meta.get("note_data", []) if isinstance(meta, dict) else []
+    _restore_list_csv(NOTE_FILE, note_records, save_note_data, "업무용 일지")
+
+    # 4) 고객사 접수 데이터도 해당 CSV가 없는 최초 실행에서 복구합니다.
+    customer_files = [
+        ("고객사계정", "customer_accounts.csv", "customer_accounts"),
+        ("고객화물접수", "customer_freight_requests.csv", "customer_requests"),
+        ("고객수정이력", "customer_freight_edit_history.csv", "customer_history"),
+    ]
+    for sheet_name, file_path, meta_key in customer_files:
+      customer_records = _startup_sheet_records(sheets, sheet_name)
+      if not customer_records:
+        customer_records = meta.get(meta_key, []) if isinstance(meta, dict) else []
+      _restore_list_csv(file_path, customer_records, label=sheet_name)
+
+    if restored_counts:
+      st.sidebar.success(
+          "☁️ GitHub 통합 백업에서 초기 데이터를 자동 복원했습니다. "
+          + " / ".join(f"{key}: {value}건" for key, value in restored_counts.items())
+      )
+
+  except Exception as e:
+    st.sidebar.warning(f"통합 백업 자동 복원을 건너뛰었습니다: {e}")
+
+
+auto_restore_integrated_backup_once()
+
+
+# ==========================================
 # 세션 상태 필수 데이터 초기화
 # ==========================================
 if "client_list" not in st.session_state or not st.session_state.client_list:
@@ -1507,9 +1759,9 @@ def _admin_customer_freight_menu():
             bl_exists = bool(linked_bl) or str(target.get("상태", "")).strip() == "B/L 등록"
             with st.expander("🗑 접수 건 삭제", expanded=False):
                 if bl_exists:
-                    st.caption("B/L 등록된 접수 건은 삭제할 수 없습니다.")
+                    st.warning("B/L이 연결/등록된 접수 건은 여기서 삭제할 수 없습니다. B/L 등록 내역을 먼저 관리자 절차로 정리해야 합니다.")
                 else:
-                    st.caption("삭제한 접수 건은 고객사 목록에서도 사라집니다.")
+                    st.warning("삭제하면 해당 고객의 접수 목록에서도 사라집니다. 필요한 경우 먼저 백업해 주세요.")
                     confirm_delete = st.checkbox(f"접수번호 {req_id} 삭제에 동의합니다", key=f"confirm_delete_req{req_id}")
                     if st.button("🗑 B/L 미등록 접수 삭제", key=f"delete_customer_request{req_id}", disabled=not confirm_delete):
                         now_delete = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1564,7 +1816,7 @@ def _admin_customer_freight_menu():
                     ae_cartons = st.number_input("박스 수량", min_value=1, value=max(1, int(float(target.get("박스수량", 1) or 1))), step=1, key=f"admin_req_cartons_{req_id}")
                 ae_license = st.text_input("수출면장 번호 (해당 시 입력)", value=target.get("수출면장번호", ""), key=f"admin_req_license_{req_id}")
                 ae_note = st.text_input("추가 요청 사항", value=target.get("추가요청", ""), key=f"admin_req_note_{req_id}")
-                save_admin_edit = st.form_submit_button("수정 저장", use_container_width=True)
+                save_admin_edit = st.form_submit_button("💾 승인 전 수정 저장", use_container_width=True)
             if save_admin_edit:
                 now_edit = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 updated_request = dict(target)
@@ -1583,116 +1835,12 @@ def _admin_customer_freight_menu():
                         break
                 _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
                 _customer_history_append({"일시":now_edit,"접수번호":req_id,"고객사아이디":target.get("고객사아이디", ""),"작업자":st.session_state.logged_in_user,"작업":"관리자 승인 전 접수내용 수정","변경내용":json.dumps(updated_request, ensure_ascii=False)})
-                st.success("수정 저장 완료")
+                st.success("수정 내용을 저장했습니다. 확인 후 승인해 주세요.")
                 st.rerun()
 
-            # 기존 B/L 번호를 고객 접수 건에 연결하는 기능 복구
-            link_col, link_btn_col = st.columns([4, 1])
-            with link_col:
-                bl_no = st.text_input(
-                    "연결 B/L 번호",
-                    value=str(target.get("연결 B/L 번호", "") or ""),
-                    key=f"admin_customer_link_bl_{req_id}",
-                    placeholder="예: BW260001",
-                )
-            with link_btn_col:
-                st.write(" ")
-                save_bl_link = st.button(
-                    "B/L 연결 저장",
-                    key=f"save_customer_bl_link_{req_id}",
-                    use_container_width=True,
-                )
-
-            if save_bl_link:
-                clean_bl = str(bl_no or "").strip()
-                now_link = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                try:
-                    if clean_bl:
-                        existing_record = next(
-                            (x for x in st.session_state.get("bl_data_list", [])
-                             if str(x.get("B/L 번호", "")).strip() == clean_bl),
-                            None,
-                        )
-                        if existing_record is None:
-                            shipper_auto = str(target.get("화주상호", "")).strip()
-                            country_auto = str(target.get("도착국가", "미국")).strip()
-                            item_auto = str(target.get("품목", "일반화물")).strip()
-                            transport_auto = str(target.get("운송형태", "항공(Air)")).strip()
-                            weight_auto = float(target.get("실제중량kg", 0) or 0)
-                            width_auto = float(target.get("가로cm", 0) or 0)
-                            length_auto = float(target.get("세로cm", 0) or 0)
-                            height_auto = float(target.get("높이cm", 0) or 0)
-                            cartons_auto = max(1, int(float(target.get("박스수량", 1) or 1)))
-                            cbm_auto = width_auto * length_auto * height_auto * cartons_auto / 1_000_000
-                            divisor_auto = 5000 if transport_auto == "항공(Air)" else 6000
-                            charge_auto = float(math.ceil(max(
-                                weight_auto,
-                                width_auto * length_auto * height_auto * cartons_auto / divisor_auto,
-                            )))
-                            sales_auto = int(calculate_auto_price(
-                                shipper_auto, charge_auto, transport_auto, item_auto, country_auto
-                            ))
-                            purchase_auto = int(calculate_purchase_auto_price(
-                                "", charge_auto, transport_auto, item_auto, country_auto
-                            ))
-                            job_nums = []
-                            for x in st.session_state.get("bl_data_list", []):
-                                try:
-                                    job_nums.append(int(str(x.get("Job 번호", "")).split("-")[-1]))
-                                except (ValueError, TypeError):
-                                    pass
-                            job_no_auto = f"BW-{date.today().year}-{(max(job_nums) if job_nums else 0)+1:03d}"
-                            bl_record = {
-                                "구분": "수출 (Export)", "날짜": str(date.today()),
-                                "Job 번호": job_no_auto, "B/L 번호": clean_bl,
-                                "국가": country_auto, "출발지": "대한민국 (KOREA)",
-                                "화주명(매출)": shipper_auto,
-                                "해외수하인": target.get("해외수하인", ""),
-                                "해외수하인주소": target.get("해외수하인주소", ""),
-                                "해외수하인전화번호": target.get("해외수하인전화번호", ""),
-                                "수출면장번호": target.get("수출면장번호", ""),
-                                "매입처": "", "운송형태": transport_auto,
-                                "서비스옵션": "Door To Door", "품목": item_auto,
-                                "박스수": f"{cartons_auto} 박스 (CTN)",
-                                "부피규격": f"{width_auto:g}×{length_auto:g}×{height_auto:g}cm({cartons_auto}CTN)",
-                                "실중량(kg)": weight_auto, "매출실중량(kg)": weight_auto,
-                                "매입실중량(kg)": weight_auto, "매출청구중량(kg)": charge_auto,
-                                "매입청구중량(kg)": charge_auto, "CBM": f"{cbm_auto:.3f} CBM",
-                                "현재 상태": "📦 물류센터 입고 및 접수 완료", "수금상태": "미수",
-                                "매출액(원)": sales_auto, "매입액(원)": purchase_auto,
-                                "예상Profit(원)": sales_auto - purchase_auto,
-                                "비고": f"고객사 접수번호: {req_id} / {target.get('추가요청', '')}",
-                                "최종작성자": st.session_state.get("logged_in_user", "관리자"),
-                                "최종수정자": "-",
-                            }
-                            st.session_state.bl_data_list.append(bl_record)
-                            save_bl_data(st.session_state.bl_data_list)
-
-                    for request_row in requests:
-                        if request_row.get("접수번호", "") == req_id:
-                            request_row["연결 B/L 번호"] = clean_bl
-                            request_row["상태"] = "B/L 등록" if clean_bl else "접수"
-                            if clean_bl:
-                                request_row["B/L등록일시"] = now_link
-                            else:
-                                request_row.pop("B/L등록일시", None)
-                            break
-                    _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
-                    _customer_history_append({
-                        "일시": now_link, "접수번호": req_id,
-                        "고객사아이디": target.get("고객사아이디", ""),
-                        "작업자": st.session_state.get("logged_in_user", "관리자"),
-                        "작업": "B/L 번호 연결 및 수출입 B/L 저장",
-                        "변경내용": clean_bl,
-                    })
-                    st.success(f"B/L {clean_bl} 연결 완료" if clean_bl else "B/L 연결을 해제했습니다.")
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"B/L 연결 저장 중 오류가 발생했습니다: {exc}")
-
             # 승인 버튼 한 번으로 B/L 번호를 발급하고 수출입 B/L 데이터에 즉시 저장합니다.
-            if not str(target.get("연결 B/L 번호", "")).strip() and target.get("상태", "접수") != "B/L 등록":
-                if st.button("승인", use_container_width=True, key=f"approve_issue_bl_{req_id}"):
+            if target.get("상태", "접수") != "B/L 등록":
+                if st.button("✅ 내용 확인 후 승인 및 수출입 B/L에 자동 등록", type="primary", use_container_width=True, key=f"approve_issue_bl_{req_id}"):
                     existing_nums = [str(x.get("B/L 번호", "")).strip() for x in st.session_state.get("bl_data_list", [])]
                     existing_nums += [str(x.get("연결 B/L 번호", "")).strip() for x in requests]
                     nums = [int(v[2:]) for v in existing_nums if v.startswith("BW") and v[2:].isdigit()]
@@ -1747,83 +1895,109 @@ def _admin_customer_freight_menu():
                                     rr["B/L등록일시"] = now_approve
                                     break
                             _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
-                            customer_history_append({"일시": now_approve, "접수번호": req_id, "고객사아이디": target.get("고객사아이디", ""), "작업자": st.session_state.get("logged_in_user", "관리자"), "작업": "관리자 승인 및 수출입 B/L 자동 등록", "변경내용": new_bl})
-                            st.success(f"승인 완료: {new_bl}")
+                            _customer_history_append({"일시": now_approve, "접수번호": req_id, "고객사아이디": target.get("고객사아이디", ""), "작업자": st.session_state.get("logged_in_user", "관리자"), "작업": "관리자 승인 및 수출입 B/L 자동 등록", "변경내용": new_bl})
+                            st.success(f"승인 및 수출입 B/L 자동 등록 완료: {new_bl} / Job 번호: {job_no_auto}")
                             st.rerun()
                         except Exception as exc:
                             st.error(f"B/L 자동 등록 중 오류가 발생했습니다. 접수 상태는 확인 후 다시 시도해 주세요. 상세: {exc}")
-            pending = str(target.get("변경요청JSON", "") or "").strip()
+            pending = target.get("변경요청JSON", "")
             if pending:
                 try:
                     change = json.loads(pending)
-                    changed = change.get("변경후", {})
-                    st.caption("고객사 수정 요청이 있습니다. 내용을 확인한 뒤 승인해 주세요.")
-                    if isinstance(changed, dict):
-                        preview = {
-                            "화주": changed.get("화주상호", ""),
-                            "도착국가": changed.get("도착국가", ""),
-                            "품목": changed.get("품목", ""),
-                            "중량(kg)": changed.get("실제중량kg", ""),
-                            "박스": changed.get("박스수량", ""),
-                        }
-                        st.dataframe(pd.DataFrame([preview]), use_container_width=True, hide_index=True)
-                    if st.button("수정 승인", key=f"approve_customer_edit{req_id}", use_container_width=True):
-                        for i, r in enumerate(requests):
-                            if r.get("접수번호", "") == req_id:
-                                preserved_bl = r.get("연결 B/L 번호", "")
-                                approved_data = dict(changed)
-                                approved_data["연결 B/L 번호"] = preserved_bl
-                                approved_data["상태"] = "B/L 등록" if preserved_bl else "접수"
-                                approved_data["변경요청JSON"] = ""
-                                requests[i] = approved_data
-
-                                # 이미 B/L이 연결된 경우 수정 내용도 B/L 자료에 반영합니다.
-                                if preserved_bl:
-                                    for bl in st.session_state.get("bl_data_list", []):
-                                        if str(bl.get("B/L 번호", "")).strip() == str(preserved_bl).strip():
-                                            w = float(approved_data.get("실제중량kg", 0) or 0)
-                                            width = float(approved_data.get("가로cm", 0) or 0)
-                                            length = float(approved_data.get("세로cm", 0) or 0)
-                                            height = float(approved_data.get("높이cm", 0) or 0)
-                                            cartons = max(1, int(float(approved_data.get("박스수량", 1) or 1)))
-                                            cbm = width * length * height * cartons / 1000000
-                                            divisor = 5000 if approved_data.get("운송형태") == "항공(Air)" else 6000
-                                            volume_weight = width * length * height * cartons / divisor
-                                            bl.update({
-                                                "화주명(매출)": approved_data.get("화주상호", ""),
-                                                "해외수하인": approved_data.get("해외수하인", ""),
-                                                "해외수하인주소": approved_data.get("해외수하인주소", ""),
-                                                "해외수하인전화번호": approved_data.get("해외수하인전화번호", ""),
-                                                "국가": approved_data.get("도착국가", ""),
-                                                "운송형태": approved_data.get("운송형태", ""),
-                                                "품목": approved_data.get("품목", ""),
-                                                "박스수": f"{cartons} 박스 (CTN)",
-                                                "부피규격": f"{width:g}×{length:g}×{height:g}cm({cartons}CTN)",
-                                                "실중량(kg)": w,
-                                                "매출실중량(kg)": w,
-                                                "매입실중량(kg)": w,
-                                                "CBM": f"{cbm:.3f} CBM",
-                                                "수출면장번호": approved_data.get("수출면장번호", ""),
-                                                "비고": f"고객사 접수번호: {req_id} / {approved_data.get('추가요청', '')}",
-                                            })
-                                            break
-                                    save_bl_data(st.session_state.get("bl_data_list", []))
-
-                                break
-                        _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
-                        _customer_history_append({
-                            "일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "접수번호": req_id,
-                            "고객사아이디": target.get("고객사아이디", ""),
-                            "작업자": st.session_state.get("logged_in_user", "관리자"),
-                            "작업": "고객사 수정 승인",
-                            "변경내용": pending,
-                        })
-                        st.success("수정 승인 완료")
-                        st.rerun()
+                    st.warning(f"수정 승인 대기: {change.get('요청일시','')} / {change.get('요청자','')}")
+                    st.json(change.get("변경후", {}))
+                    ac1, ac2 = st.columns(2)
+                    with ac1:
+                        if st.button("✅ 수정 승인", use_container_width=True):
+                            changed = change.get("변경후", {})
+                            for i, r in enumerate(requests):
+                                if r.get("접수번호","")==req_id:
+                                    preserved_bl = r.get("연결 B/L 번호", "")
+                                    requests[i] = changed
+                                    requests[i]["연결 B/L 번호"] = preserved_bl
+                                    requests[i]["상태"] = "B/L 등록" if preserved_bl else "접수"
+                                    requests[i]["변경요청JSON"] = ""
+                                    break
+                            _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                            _customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req_id,"고객사아이디":target.get("고객사아이디",""),"작업자":st.session_state.logged_in_user,"작업":"관리자 수정 승인","변경내용":pending})
+                            st.success("수정 내용을 승인했습니다.")
+                            st.rerun()
+                    with ac2:
+                        if st.button("❌ 수정 반려", use_container_width=True):
+                            for r in requests:
+                                if r.get("접수번호","")==req_id:
+                                    r["변경요청JSON"] = ""
+                                    r["상태"] = "B/L 등록" if r.get("연결 B/L 번호","") else "접수"
+                                    break
+                            _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                            customer_history_append({"일시":datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"접수번호":req_id,"고객사아이디":target.get("고객사아이디",""),"작업자":st.session_state.logged_in_user,"작업":"관리자 수정 반려","변경내용":pending})
+                            st.success("수정 요청을 반려했습니다.")
+                            st.rerun()
                 except Exception:
-                    st.caption("수정 요청 내용을 확인할 수 없습니다. 접수 내역을 다시 확인해 주세요.")
-
+                    st.error("수정 요청 내용을 읽지 못했습니다. 이력을 확인해 주세요.")
+            st.markdown("---")
+            st.markdown("#### B/L 등록 상태 연결")
+            bl_no = st.text_input("연결할 B/L 번호 (비워두면 B/L 등록 전)", value=target.get("연결 B/L 번호", ""), key="admin_customer_link_bl")
+            if st.button("B/L 번호 / 상태 저장", type="primary", key=f"save_customer_bl_link{req_id}"):
+                clean_bl = str(bl_no).strip()
+                now_link = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                try:
+                    # B/L 번호가 입력되면 고객 접수 내용을 수출입 B/L 자료에 생성/연결합니다.
+                    if clean_bl:
+                        existing_record = next((x for x in st.session_state.get("bl_data_list", []) if str(x.get("B/L 번호", "")).strip() == clean_bl), None)
+                        if existing_record is None:
+                            shipper_auto = str(target.get("화주상호", "")).strip()
+                            country_auto = str(target.get("도착국가", "미국")).strip()
+                            item_auto = str(target.get("품목", "일반화물")).strip()
+                            transport_auto = str(target.get("운송형태", "항공(Air)")).strip()
+                            weight_auto = float(target.get("실제중량kg", 0) or 0)
+                            width_auto = float(target.get("가로cm", 0) or 0)
+                            length_auto = float(target.get("세로cm", 0) or 0)
+                            height_auto = float(target.get("높이cm", 0) or 0)
+                            cartons_auto = max(1, int(float(target.get("박스수량", 1) or 1)))
+                            cbm_auto = width_auto * length_auto * height_auto * cartons_auto / 1000000.0
+                            divisor_auto = 5000 if transport_auto == "항공(Air)" else 6000
+                            charge_auto = float(math.ceil(max(weight_auto, width_auto * length_auto * height_auto * cartons_auto / divisor_auto)))
+                            sales_auto = int(calculate_auto_price(shipper_auto, charge_auto, transport_auto, item_auto, country_auto))
+                            purchase_auto = int(calculate_purchase_auto_price("", charge_auto, transport_auto, item_auto, country_auto))
+                            job_nums = []
+                            for x in st.session_state.get("bl_data_list", []):
+                                try:
+                                    job_nums.append(int(str(x.get("Job 번호", "")).split("-")[-1]))
+                                except (ValueError, TypeError):
+                                    pass
+                            job_no_auto = f"BW-{date.today().year}-{(max(job_nums) if job_nums else 0)+1:03d}"
+                            bl_record = {
+                                "구분": "수출 (Export)", "날짜": str(date.today()), "Job 번호": job_no_auto, "B/L 번호": clean_bl,
+                                "국가": country_auto, "출발지": "대한민국 (KOREA)", "화주명(매출)": shipper_auto,
+                                "해외수하인": target.get("해외수하인", ""), "해외수하인주소": target.get("해외수하인주소", ""), "해외수하인전화번호": target.get("해외수하인전화번호", ""), "수출면장번호": target.get("수출면장번호", ""),
+                                "매입처": "", "운송형태": transport_auto, "서비스옵션": "Door To Door", "품목": item_auto,
+                                "박스수": f"{cartons_auto} 박스 (CTN)", "부피규격": f"{width_auto:g}×{length_auto:g}×{height_auto:g}cm({cartons_auto}CTN)",
+                                "실중량(kg)": weight_auto, "매출실중량(kg)": weight_auto, "매입실중량(kg)": weight_auto,
+                                "매출청구중량(kg)": charge_auto, "매입청구중량(kg)": charge_auto, "CBM": f"{cbm_auto:.3f} CBM",
+                                "현재 상태": "📦 물류센터 입고 및 접수 완료", "수금상태": "미수", "매출액(원)": sales_auto, "매입액(원)": purchase_auto,
+                                "예상Profit(원)": sales_auto-purchase_auto, "비고": f"고객사 접수번호: {req_id} / {target.get('추가요청', '')}",
+                                "최종작성자": st.session_state.get("logged_in_user", "관리자"), "최종수정자": "-"
+                            }
+                            st.session_state.bl_data_list.append(bl_record)
+                            save_bl_data(st.session_state.bl_data_list)
+                        # 동일 B/L이 이미 있으면 중복 생성하지 않고 접수 건만 연결합니다.
+                    for r in requests:
+                        if r.get("접수번호", "") == req_id:
+                            r["연결 B/L 번호"] = clean_bl
+                            r["상태"] = "B/L 등록" if clean_bl else "접수"
+                            if clean_bl:
+                                r["B/L등록일시"] = now_link
+                            break
+                    _write_customer_csv(CUSTOMER_REQUEST_FILE, requests)
+                    _customer_history_append({"일시":now_link,"접수번호":req_id,"고객사아이디":target.get("고객사아이디", ""),"작업자":st.session_state.get("logged_in_user", "관리자"),"작업":"B/L 번호 연결 및 수출입 B/L 저장","변경내용":clean_bl})
+                    if clean_bl:
+                        st.success(f"B/L {clean_bl} 저장 및 연결 완료. ‘등록 B/L 수정 및 Profit 내역’에서 요금과 Profit을 수정할 수 있습니다.")
+                    else:
+                        st.success("B/L 연결을 비웠습니다. 고객사 접수 상태로 저장했습니다.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"B/L 저장 중 오류가 발생했습니다: {exc}")
     with t_history:
         history = _read_customer_csv(CUSTOMER_HISTORY_FILE)
         if history:
@@ -2439,7 +2613,7 @@ if uploaded_integrated_file is not None:
                     break
 
         if bl_df is not None:
-            bl_df = bl_df.drop(columns=["SYSTEM_META"], errors="ignore")
+            bl_df = bl_df.drop(columns=["SYSTEM_META", "SYSTEM_META"], errors="ignore")
             bl_df = bl_df[bl_df["B/L 번호"].notna()]
             st.session_state.bl_data_list = bl_df.fillna("").to_dict("records")
             save_bl_data(st.session_state.bl_data_list)
@@ -2723,21 +2897,6 @@ st.markdown(header_html, unsafe_allow_html=True)
 # [1] 수출입 B/L 등록
 # ==========================================
 if selected_menu == "📊 수출입 B/L 등록":
-    # B/L 등록 화면 전용 컴팩트 레이아웃: 세로 여백과 입력창 높이를 줄입니다.
-    st.markdown("""
-    <style>
-    [data-testid="stMainBlockContainer"] { padding-top: 0.65rem !important; padding-bottom: 0.7rem !important; }
-    [data-testid="stVerticalBlock"] { gap: 0.48rem !important; }
-    [data-testid="stWidgetLabel"] p { font-size: 0.82rem !important; margin-bottom: 0.12rem !important; }
-    [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input,
-    [data-testid="stSelectbox"] div[data-baseweb="select"] { min-height: 2.05rem !important; }
-    [data-testid="stTextInput"] , [data-testid="stNumberInput"], [data-testid="stSelectbox"],
-    [data-testid="stDateInput"] { margin-bottom: -0.22rem !important; }
-    [data-testid="stMarkdown"] h3, [data-testid="stMarkdown"] h4,
-    [data-testid="stMarkdown"] h5 { margin-top: 0.25rem !important; margin-bottom: 0.35rem !important; }
-    [data-testid="stTextArea"] textarea { min-height: 3.2rem !important; }
-    </style>
-    """, unsafe_allow_html=True)
     approved_customer_requests = [r for r in _customer_requests() if r.get("상태", "") == "승인완료-B/L 등록대기" and str(r.get("연결 B/L 번호", "")).strip()]
     if approved_customer_requests:
         st.markdown("### 📦 승인된 고객사 화물에서 B/L 등록")
@@ -2949,56 +3108,80 @@ if selected_menu == "📊 수출입 B/L 등록":
     st.markdown("---")
     st.markdown("#### 📝 B/L 및 청구 금액 실시간 미리보기")
 
-    form_col1, form_col2, form_col3 = st.columns([0.95, 1.15, 1.05], gap="small")
+    form_col1, form_col2 = st.columns(2)
     with form_col1:
         io_type = st.selectbox("수출입 구분", ["수출 (Export)", "수입 (Import)"])
 
         suggested_job = "BW-2026-003"
         if st.session_state.bl_data_list:
             try:
-                last_job = str(st.session_state.bl_data_list[-1].get("Job 번호", "BW-2026-003"))
+                last_job = str(
+                    st.session_state.bl_data_list[-1].get("Job 번호", "BW-2026-003")
+                )
                 if "-" in last_job:
                     parts = last_job.split("-")
                     num_part = int(parts[-1]) + 1
                     suggested_job = f"{parts[0]}-{parts[1]}-{num_part:03d}"
-            except Exception:
+            except:
                 pass
-        job_no = st.text_input("Job 번호", value=suggested_job, placeholder="예: BW-2026-003")
+        job_no = st.text_input(
+            "Job 번호 (필수 입력)",
+            value=suggested_job,
+            placeholder="예: BW-2026-003",
+        )
 
         suggested_bl = "BW260003"
         if st.session_state.bl_data_list:
-            last_b = str(st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003"))
+            last_b = str(
+                st.session_state.bl_data_list[-1].get("B/L 번호", "BW260003")
+            )
             if last_b.startswith("BW") and len(last_b) >= 8:
                 try:
                     suggested_bl = f"BW{int(last_b[2:]) + 1:06d}"
-                except Exception:
+                except:
                     pass
-        bl_no = st.text_input("B/L 번호", value=suggested_bl)
+        bl_no = st.text_input("B/L 번호 (운송장 번호)", value=suggested_bl)
         reg_date = st.date_input("선적 날짜", value=date.today())
 
-    with form_col2:
-        dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
-        item_desc = st.selectbox("품목", options=["보톡스", "필러", "화장품", "특가품목", "기타"])
-        consignee_name = st.text_input("해외 수하인")
-        consignee_addr = st.text_input("해외 수하인 주소", placeholder="예: 123 Main St, New York, NY 10001")
-        consignee_tel = st.text_input("해외 수하인 전화번호", placeholder="예: +1-212-555-0199")
-        transport_type = st.selectbox("운송 형태", options=["항공(Air)", "해상(LCL)", "에어카고"])
-        tracking_status = st.selectbox("현재 진행 상태", options=TRACKING_STATUS_OPTIONS)
+        col1, col2 = st.columns(2)
 
-    with form_col3:
-        origin_place = st.text_input("출발지", value="대한민국 (KOREA)")
-        shipper_options = [""] + st.session_state.client_list
-        shipper_name = st.selectbox(
-            "화주명 (매출처)", options=shipper_options,
-            index=1 if len(shipper_options) > 1 else 0,
-        )
-        supplier_options = [""] + st.session_state.supplier_list if "supplier_list" in st.session_state else [""]
-        purchase_vendor = st.selectbox(
-            "매입처 (비용처)", options=supplier_options,
-            index=1 if len(supplier_options) > 1 else 0,
-        )
-        service_option = st.selectbox("서비스 옵션", ["Door To Door"])
-        payment_status_input = st.selectbox("수금 상태", options=["미수", "수금완료"], index=0)
+        with col1:
+            dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
+            item_desc = st.selectbox(
+                "품목", options=["보톡스", "필러", "화장품", "특가품목", "기타"]
+            )
+            consignee_name = st.text_input("해외 수하인")
+            consignee_addr = st.text_input("해외 수하인 주소", placeholder="예: 123 Main St, New York, NY 10001")
+            consignee_tel = st.text_input("해외 수하인 전화번호", placeholder="예: +1-212-555-0199")
+            transport_type = st.selectbox(
+                "운송 형태", options=["항공(Air)", "해상(LCL)", "에어카고"]
+            )
+            tracking_status = st.selectbox(
+                "현재 진행 상태 선택", options=TRACKING_STATUS_OPTIONS
+            )
+
+        with col2:
+            origin_place = st.text_input("출발지", value="대한민국 (KOREA)")
+            shipper_options = [""] + st.session_state.client_list
+            shipper_name = st.selectbox(
+                "화주명 (매출처)",
+                options=shipper_options,
+                index=1 if len(shipper_options) > 1 else 0,
+            )
+            supplier_options = (
+                [""] + st.session_state.supplier_list
+                if "supplier_list" in st.session_state
+                else [""]
+            )
+            purchase_vendor = st.selectbox(
+                "매입처 (비용처)",
+                options=supplier_options,
+                index=1 if len(supplier_options) > 1 else 0,
+            )
+            service_option = st.selectbox("서비스 옵션", ["Door To Door"])
+            payment_status_input = st.selectbox(
+                "수금 상태", options=["미수", "수금완료"], index=0
+            )
 
         st.markdown("---")
 
@@ -3206,76 +3389,6 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
             
         st.info("💡 수정할 B/L 행의 [선택] 체크박스를 체크하시면, 아래쪽에 내용을 상세히 수정할 수 있는 **[B/L 개별 수정 입력칸]**이 나타납니다.")
         
-        # B/L 표 바로 위 오른쪽에 Streamlit 기본 A4 인쇄 버튼을 표시합니다.
-        print_df = filtered_df.drop(columns=["선택"], errors="ignore").copy()
-        if not print_df.empty:
-            import html as _bl_print_html
-
-            money_cols = [
-                c for c in ["매출액(원)", "매입액(원)", "예상Profit(원)"]
-                if c in print_df.columns
-            ]
-            for c in money_cols:
-                numeric_values = pd.to_numeric(
-                    print_df[c].astype(str)
-                    .str.replace(",", "", regex=False)
-                    .str.replace("원", "", regex=False),
-                    errors="coerce"
-                ).fillna(0)
-                print_df[c] = numeric_values.map(lambda v: f"{v:,.0f}원")
-
-            table_html = print_df.to_html(
-                index=False, border=0, escape=True, classes="bl-a4-table"
-            )
-            print_html = f"""<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<title>범운해운항공 B/L 내역 A4 인쇄</title>
-<style>
-  @page {{ size: A4 landscape; margin: 7mm; }}
-  * {{ box-sizing: border-box; }}
-  body {{ margin:0; font-family:Arial,'Malgun Gothic',sans-serif; color:#111; }}
-  h2 {{ text-align:center; font-size:14pt; margin:0 0 3mm; }}
-  .meta {{ font-size:8pt; margin-bottom:3mm; }}
-  table {{ width:100%; border-collapse:collapse; table-layout:auto; font-size:6.2pt; }}
-  th,td {{ border:0.5pt solid #555; padding:2.2px 2px; text-align:center;
-           overflow-wrap:anywhere; word-break:break-word; }}
-  th {{ background:#e9eef5 !important; font-weight:bold; }}
-  tr {{ break-inside:avoid; }}
-  .foot {{ margin-top:3mm; text-align:right; font-size:7pt; }}
-</style>
-</head>
-<body>
-  <h2>(주)범운해운항공 B/L 및 Profit 내역</h2>
-  <div class="meta">
-    출력일: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-    | 조회 건수: {len(print_df)}건
-    | 거래처: {_bl_print_html.escape(str(selected_client_filter))}
-  </div>
-  {table_html}
-  <div class="foot">범운해운항공 물류관리 시스템</div>
-  <script>
-    window.addEventListener('load', function() {{
-      window.print();
-    }});
-  </script>
-</body>
-</html>"""
-
-            # 표 오른쪽 상단에 실제 Streamlit 버튼을 표시합니다.
-            print_spacer, print_button_col = st.columns([7, 1.7])
-            with print_button_col:
-                click_a4_print = st.button(
-                    "🖨 A4 인쇄",
-                    key="bl_table_a4_print_button",
-                    use_container_width=True
-                )
-            if click_a4_print:
-                components.html(print_html, height=1, scrolling=False)
-        else:
-            st.caption("A4 인쇄할 B/L 내역이 없습니다.")
-
         edited_bl_table = st.data_editor(
             filtered_df,
             hide_index=True,
@@ -3289,7 +3402,7 @@ elif selected_menu == "📋 등록 B/L 수정 및 Profit 내역":
             key="edit_bl_profit_table_select_filtered",
             height=300
         )
-
+        
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             delete_clicked = st.button("🚨 선택한 B/L 삭제", type="secondary", use_container_width=True)
@@ -4438,40 +4551,6 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 display_view_df["매입액(원)"] = display_view_df["매입액(원)"].apply(lambda x: f"{int(x):,} 원" if pd.notna(x) and x != "" else "")
                 display_view_df["Profit(원)"] = display_view_df["Profit(원)"].apply(lambda x: f"{int(x):,} 원" if pd.notna(x) and x != "" else "")
 
-                # 매니페스트 표 전용 A4 인쇄 버튼: 표 바로 위 오른쪽에 표시
-                import html as _manifest_html
-                manifest_print_table = display_view_df.to_html(
-                    index=False, border=0, escape=True
-                )
-                manifest_print_doc = f"""<!doctype html>
-<html lang="ko"><head><meta charset="utf-8">
-<style>
-@page {{ size:A4 landscape; margin:8mm; }}
-body {{ font-family:Arial,'Malgun Gothic',sans-serif; color:#111; margin:0; }}
-.print-btn {{ display:flex; justify-content:flex-end; padding:5px 0 8px; }}
-button {{ background:#1e3a8a; color:white; border:0; border-radius:6px;
-          padding:8px 14px; font-size:13px; font-weight:bold; cursor:pointer; }}
-h2 {{ text-align:center; font-size:15pt; margin:0 0 5mm; }}
-.meta {{ font-size:9pt; margin-bottom:4mm; }}
-table {{ width:100%; border-collapse:collapse; table-layout:auto; font-size:8pt; }}
-th,td {{ border:0.6pt solid #555; padding:4px 3px; text-align:center;
-         overflow-wrap:anywhere; word-break:break-word; }}
-th {{ background:#e8edf5 !important; font-weight:bold; }}
-tr {{ break-inside:avoid; }}
-@media print {{ .print-btn {{ display:none !important; }} }}
-</style></head><body>
-<div class="print-btn"><button onclick="window.print()">🖨 A4 인쇄</button></div>
-<section>
-<h2>(주)범운해운항공 사내 정산용 매니페스트</h2>
-<div class="meta">선적일: {_manifest_html.escape(target_date_str)} |
-매입처: {_manifest_html.escape(str(selected_vendor_filter))} |
-총 {len(manifest_display_df)}건</div>
-{manifest_print_table}
-</section></body></html>"""
-                print_left, print_right = st.columns([8, 2])
-                with print_right:
-                    components.html(manifest_print_doc, height=52, scrolling=False)
-
                 st.dataframe(display_view_df, use_container_width=True)
 
                 # A4 가로 1페이지 자동 맞춤 + 합계 행 강조 엑셀 생성
@@ -4645,40 +4724,6 @@ tr {{ break-inside:avoid; }}
                     unsafe_allow_html=True
                 )
                 
-                # 고객 공유용 입고 LIST 전용 A4 인쇄 버튼
-                import html as _share_print_html
-                share_print_table = share_display_df.to_html(
-                    index=False, border=0, escape=True
-                )
-                share_print_doc = f"""<!doctype html>
-<html lang="ko"><head><meta charset="utf-8">
-<style>
-@page {{ size:A4 landscape; margin:8mm; }}
-body {{ font-family:Arial,'Malgun Gothic',sans-serif; color:#111; margin:0; }}
-.print-btn {{ display:flex; justify-content:flex-end; padding:5px 0 8px; }}
-button {{ background:#1e3a8a; color:white; border:0; border-radius:6px;
-          padding:8px 14px; font-size:13px; font-weight:bold; cursor:pointer; }}
-h2 {{ text-align:center; font-size:15pt; margin:0 0 5mm; }}
-.meta {{ font-size:9pt; margin-bottom:4mm; }}
-table {{ width:100%; border-collapse:collapse; table-layout:auto; font-size:8pt; }}
-th,td {{ border:0.6pt solid #555; padding:4px 3px; text-align:center;
-         overflow-wrap:anywhere; word-break:break-word; }}
-th {{ background:#e8edf5 !important; font-weight:bold; }}
-tr {{ break-inside:avoid; }}
-@media print {{ .print-btn {{ display:none !important; }} }}
-</style></head><body>
-<div class="print-btn"><button onclick="window.print()">🖨 A4 인쇄</button></div>
-<section>
-<h2>(주)범운해운항공 입고 LIST</h2>
-<div class="meta">입고일: {_share_print_html.escape(share_date_str)} |
-매입처: {_share_print_html.escape(str(selected_supplier_filter))} |
-총 {len(share_display_df)}건</div>
-{share_print_table}
-</section></body></html>"""
-                print_left, print_right = st.columns([8, 2])
-                with print_right:
-                    components.html(share_print_doc, height=52, scrolling=False)
-
                 st.dataframe(share_display_df, use_container_width=True, hide_index=True)
 
                 excel_buffer_share = io.BytesIO()
