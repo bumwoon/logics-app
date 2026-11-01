@@ -62,6 +62,24 @@ def simple_dual_backup():
 # ==========================================
 # [보안 및 계정 파일 저장소 시스템]
 # ==========================================
+PAYMENT_HISTORY_FILE = "payment_history_data.csv"
+
+def load_payment_history():
+    """B/L별 부분 수금 이력 로드. 파일이 없으면 빈 이력으로 시작합니다."""
+    if os.path.exists(PAYMENT_HISTORY_FILE):
+        try:
+            df = pd.read_csv(PAYMENT_HISTORY_FILE, dtype={"B/L 번호": str})
+            for c in ["B/L 번호", "수금일", "수금액(원)", "수금방법"]:
+                if c not in df.columns: df[c] = ""
+            df["수금액(원)"] = pd.to_numeric(df["수금액(원)"], errors="coerce").fillna(0)
+            return df
+        except Exception:
+            return pd.DataFrame(columns=["B/L 번호", "수금일", "수금액(원)", "수금방법"])
+    return pd.DataFrame(columns=["B/L 번호", "수금일", "수금액(원)", "수금방법"])
+
+def save_payment_history(df):
+    df.to_csv(PAYMENT_HISTORY_FILE, index=False, encoding="utf-8-sig")
+
 ACCOUNT_USER_FILE = "system_user_accounts.csv"
 
 
@@ -3803,8 +3821,8 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
                 총매출액=("매출액(원)", "sum"),
                 총매입액=("매입액(원)", "sum"),
                 총Profit=("Profit(원)", "sum"),
-                수금완료액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] == "수금완료"].sum()),
-                미수금잔액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] != "수금완료"].sum()),
+                수금완료액=("_누적수금액", "sum"),
+                미수금잔액=("_현재미수액", "sum"),
                 건수=("B/L 번호", "count")
             ).reset_index()
             sales_group["Profit률(%)"] = sales_group.apply(
@@ -3832,6 +3850,162 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
                 }
             )
 
+            # 1-1. 전체 미수금 및 월별 미수금 현황
+            st.markdown("---")
+            st.subheader("🚨 전체 미수금 및 월별 미수금 현황")
+
+            # 날짜/금액을 안전하게 정리합니다. 현재 B/L 데이터에는 수금일·부분수금액이
+            # 별도 저장되지 않으므로, 미수 여부는 현재 수금상태를 기준으로 집계합니다.
+            df_bl["_선적일"] = pd.to_datetime(
+                df_bl.get("날짜", pd.Series(index=df_bl.index, dtype="object")).astype(str).str[:10],
+                errors="coerce"
+            )
+            df_bl["_현재미수액"] = df_bl["매출액(원)"].where(
+                df_bl["수금상태"].astype(str).str.strip() != "수금완료", 0
+            )
+            df_bl["_연월"] = df_bl["_선적일"].dt.strftime("%Y-%m")
+
+            # B/L별 수금 이력: 기존 수금완료 건은 과거 전액 수금으로 간주하고,
+            # 신규 이력이 있는 건은 이력 합계로 실제 잔액을 계산합니다.
+            payment_df = load_payment_history()
+            df_bl["_BL키"] = df_bl.get("B/L 번호", pd.Series(index=df_bl.index, dtype=str)).astype(str).str.strip()
+            if not payment_df.empty:
+                payment_df["B/L 번호"] = payment_df["B/L 번호"].astype(str).str.strip()
+                payment_df["수금액(원)"] = pd.to_numeric(payment_df["수금액(원)"], errors="coerce").fillna(0)
+                paid_by_bl = payment_df.groupby("B/L 번호")["수금액(원)"].sum().to_dict()
+            else:
+                paid_by_bl = {}
+            df_bl["_누적수금액"] = df_bl.apply(
+                lambda row: min(float(row["매출액(원)"]), float(paid_by_bl.get(row["_BL키"], row["매출액(원)"] if row["수금상태"] == "수금완료" else 0))),
+                axis=1
+            )
+            df_bl["_현재미수액"] = (df_bl["매출액(원)"] - df_bl["_누적수금액"]).clip(lower=0)
+            df_bl["수금완료액"] = df_bl["_누적수금액"]
+            df_bl["미수금잔액"] = df_bl["_현재미수액"]
+
+            # 신규 수금 등록: 부분 수금도 여러 차례 기록할 수 있습니다.
+            st.markdown("#### 💳 B/L별 수금 등록 (부분 수금 가능)")
+            bl_choices = df_bl[df_bl["_현재미수액"] > 0][["_BL키", "화주명(매출)", "매출액(원)", "_현재미수액"]].copy()
+            if not bl_choices.empty:
+                bl_choices["표시"] = bl_choices.apply(lambda r: f"{r['_BL키']} | {r['화주명(매출)']} | 잔액 {int(r['_현재미수액']):,}원", axis=1)
+                with st.form("register_payment_history_form", clear_on_submit=True):
+                    chosen_label = st.selectbox("수금할 B/L 선택", bl_choices["표시"].tolist())
+                    chosen_row = bl_choices[bl_choices["표시"] == chosen_label].iloc[0]
+                    pay_cols = st.columns(3)
+                    with pay_cols[0]: pay_date = st.date_input("수금일", value=date.today(), key="receipt_date_input")
+                    with pay_cols[1]: pay_amount = st.number_input("수금액(원)", min_value=1, max_value=max(1, int(chosen_row["_현재미수액"])), step=10000, key="receipt_amount_input")
+                    with pay_cols[2]: pay_method = st.selectbox("수금방법", ["통장입금", "현금", "기타"], key="receipt_method_input")
+                    submit_payment = st.form_submit_button("수금 내역 저장", type="primary", use_container_width=True)
+                    if submit_payment:
+                        if int(pay_amount) > int(chosen_row["_현재미수액"]):
+                            st.error("수금액이 현재 미수 잔액보다 큽니다.")
+                        else:
+                            new_payment = pd.DataFrame([{
+                                "B/L 번호": str(chosen_row["_BL키"]), "수금일": pay_date.strftime("%Y-%m-%d"),
+                                "수금액(원)": int(pay_amount), "수금방법": pay_method,
+                                "등록일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "등록자": str(current_user_name)
+                            }])
+                            payment_df = pd.concat([payment_df, new_payment], ignore_index=True)
+                            save_payment_history(payment_df)
+                            st.success("수금 이력이 저장되었습니다.")
+                            st.rerun()
+            else:
+                st.info("현재 수금할 미수 B/L이 없습니다.")
+
+            overall_unpaid = int(df_bl["_현재미수액"].sum())
+            overall_sales = int(df_bl["매출액(원)"].sum())
+            overall_collected = overall_sales - overall_unpaid
+            overdue_count = int((df_bl["_현재미수액"] > 0).sum())
+
+            u1, u2, u3, u4 = st.columns(4)
+            u1.metric("전체 누적 매출", f"{overall_sales:,}원")
+            u2.metric("전체 수금완료액", f"{overall_collected:,}원")
+            u3.metric("전체 현재 미수금", f"{overall_unpaid:,}원")
+            u4.metric("미수 B/L 건수", f"{overdue_count:,}건")
+
+            st.markdown("#### 📅 월별 미수금 조회")
+            valid_months = sorted(df_bl["_연월"].dropna().unique().tolist(), reverse=True)
+            default_month = date.today().strftime("%Y-%m")
+            month_options = valid_months if default_month in valid_months else ([default_month] + valid_months)
+            if not month_options:
+                month_options = [default_month]
+            selected_receivable_month = st.selectbox(
+                "조회할 선적 월", month_options, key="sales_receivable_month"
+            )
+            month_mask = df_bl["_연월"] == selected_receivable_month
+            month_sales_df = df_bl[month_mask].copy()
+            month_start_ts = pd.to_datetime(selected_receivable_month + "-01", errors="coerce")
+            month_end_ts = month_start_ts + pd.offsets.MonthEnd(0)
+            prior_sales_df = df_bl[df_bl["_선적일"] < month_start_ts].copy()
+            through_month_df = df_bl[df_bl["_선적일"] <= month_end_ts].copy()
+
+            payment_dates = pd.to_datetime(payment_df.get("수금일", pd.Series(dtype=str)), errors="coerce") if not payment_df.empty else pd.Series(dtype="datetime64[ns]")
+            if not payment_df.empty:
+                payment_df["_수금일시"] = payment_dates
+                month_receipts_df = payment_df[(payment_df["_수금일시"] >= month_start_ts) & (payment_df["_수금일시"] <= month_end_ts)]
+                prior_receipts_df = payment_df[payment_df["_수금일시"] < month_start_ts]
+                through_receipts_df = payment_df[payment_df["_수금일시"] <= month_end_ts]
+                month_receipts = int(month_receipts_df["수금액(원)"].sum())
+                prior_receipts = int(prior_receipts_df["수금액(원)"].sum())
+                through_receipts = int(through_receipts_df["수금액(원)"].sum())
+            else:
+                month_receipts = prior_receipts = through_receipts = 0
+                month_receipts_df = pd.DataFrame(columns=["B/L 번호", "수금액(원)"])
+
+            # 과거 수금완료로만 저장된 자료는 수금일을 알 수 없어 B/L 선적일에 전액 수금된 것으로 간주합니다.
+            legacy_paid = df_bl[(df_bl["수금상태"] == "수금완료") & (~df_bl["_BL키"].isin(paid_by_bl))].copy()
+            legacy_prior_paid = int(legacy_paid[legacy_paid["_선적일"] < month_start_ts]["매출액(원)"].sum())
+            legacy_month_paid = int(legacy_paid[legacy_paid["_선적일"].between(month_start_ts, month_end_ts)]["매출액(원)"].sum())
+            legacy_through_paid = int(legacy_paid[legacy_paid["_선적일"] <= month_end_ts]["매출액(원)"].sum())
+
+            month_total_sales = int(month_sales_df["매출액(원)"].sum())
+            prior_sales = int(prior_sales_df["매출액(원)"].sum())
+            through_sales = int(through_month_df["매출액(원)"].sum())
+            month_paid = month_receipts + legacy_month_paid
+            prior_unpaid = max(0, prior_sales - prior_receipts - legacy_prior_paid)
+            month_unpaid_change = month_total_sales - month_paid
+            cumulative_unpaid_to_month = max(0, through_sales - through_receipts - legacy_through_paid)
+
+            r1, r2, r3, r4 = st.columns(4)
+            r1.metric("당월 신규 매출", f"{month_total_sales:,}원")
+            r2.metric("당월 수금액", f"{month_paid:,}원")
+            r3.metric("전월 이월 미수금", f"{prior_unpaid:,}원")
+            r4.metric("당월 말 미수금", f"{cumulative_unpaid_to_month:,}원")
+
+            # 거래처별 월말 잔액도 선택 월 말까지의 매출·수금 이력을 기준으로 산출
+            client_names = sorted(set(through_month_df["화주명(매출)"].fillna("미지정").astype(str)))
+            monthly_rows = []
+            for cname in client_names:
+                c_all = through_month_df[through_month_df["화주명(매출)"].fillna("미지정").astype(str) == cname]
+                c_month = month_sales_df[month_sales_df["화주명(매출)"].fillna("미지정").astype(str) == cname]
+                c_prior = prior_sales_df[prior_sales_df["화주명(매출)"].fillna("미지정").astype(str) == cname]
+                c_keys = set(c_all["_BL키"].astype(str))
+                c_pay = payment_df[payment_df["B/L 번호"].astype(str).isin(c_keys)] if not payment_df.empty else pd.DataFrame()
+                c_month_pay = int(c_pay[(c_pay["_수금일시"] >= month_start_ts) & (c_pay["_수금일시"] <= month_end_ts)]["수금액(원)"].sum()) if not c_pay.empty else 0
+                c_prior_pay = int(c_pay[c_pay["_수금일시"] < month_start_ts]["수금액(원)"].sum()) if not c_pay.empty else 0
+                c_through_pay = int(c_pay[c_pay["_수금일시"] <= month_end_ts]["수금액(원)"].sum()) if not c_pay.empty else 0
+                c_legacy = legacy_paid[legacy_paid["화주명(매출)"].fillna("미지정").astype(str) == cname]
+                c_legacy_prior = int(c_legacy[c_legacy["_선적일"] < month_start_ts]["매출액(원)"].sum())
+                c_legacy_month = int(c_legacy[c_legacy["_선적일"].between(month_start_ts, month_end_ts)]["매출액(원)"].sum())
+                c_legacy_through = int(c_legacy[c_legacy["_선적일"] <= month_end_ts]["매출액(원)"].sum())
+                c_prior_balance = max(0, int(c_prior["매출액(원)"].sum()) - c_prior_pay - c_legacy_prior)
+                c_month_sales = int(c_month["매출액(원)"].sum())
+                c_month_paid = c_month_pay + c_legacy_month
+                c_closing = max(0, int(c_all["매출액(원)"].sum()) - c_through_pay - c_legacy_through)
+                monthly_rows.append({"화주명(매출)": cname, "전월이월미수": c_prior_balance, "당월매출": c_month_sales, "당월수금": c_month_paid, "월말미수금": c_closing, "당월B/L건수": len(c_month)})
+            monthly_client_rows = pd.DataFrame(monthly_rows).sort_values("월말미수금", ascending=False) if monthly_rows else pd.DataFrame()
+            st.markdown("##### 거래처별 월말 미수금 상세")
+            if not monthly_client_rows.empty:
+                st.dataframe(monthly_client_rows, use_container_width=True, hide_index=True, column_config={c: st.column_config.NumberColumn(format="%d 원") for c in ["전월이월미수", "당월매출", "당월수금", "월말미수금"]})
+            else:
+                st.info("선택한 월에 등록된 매출 B/L이 없습니다.")
+
+            st.caption(
+                "※ 신규 수금은 수금일·수금액별로 이력이 저장됩니다. 기존에 수금완료로 표시되어 있던 B/L은 기존 처리 기준을 존중해 전액 수금된 것으로 간주합니다. "
+                "따라서 기존 수금완료 건의 과거 실제 입금일은 복원되지 않습니다."
+            )
+
             st.markdown("---")
             
             # 2. 특정 화주 상세 매출 내역 및 수금 상태 관리
@@ -3844,7 +4018,7 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
             
             client_detail = df_bl[df_bl["화주명(매출)"] == sel_c].copy()
             if only_unpaid_c:
-                client_detail = client_detail[client_detail["수금상태"].astype(str).str.strip() != "수금완료"]
+                client_detail = client_detail[client_detail["_현재미수액"] > 0]
             
             if "선택" not in client_detail.columns:
                 client_detail.insert(0, "선택", False)
@@ -3858,12 +4032,35 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
             )
             
             selected_sales_rows = edited_sales_table[edited_sales_table["선택"] == True]
+
+            st.markdown("#### 🧾 수금 이력 조회")
+            if not payment_df.empty:
+                history_view = payment_df.copy()
+                history_view["수금액(원)"] = pd.to_numeric(history_view["수금액(원)"], errors="coerce").fillna(0)
+                history_view = history_view[history_view["B/L 번호"].astype(str).isin(client_detail["_BL키"].astype(str))]
+                st.dataframe(history_view.sort_values("수금일", ascending=False), use_container_width=True, hide_index=True)
+            else:
+                st.info("아직 신규 수금 이력이 없습니다. 기존 수금완료 건은 전액 수금된 것으로 처리됩니다.")
             
             if st.button("💰 선택한 매출 건 [수금완료] 일괄 처리", type="primary", use_container_width=True):
                 if len(selected_sales_rows) > 0:
                     for real_idx in selected_sales_rows.index.tolist():
-                        st.session_state.bl_data_list[real_idx]["수금상태"] = "수금완료"
-                        st.session_state.bl_data_list[real_idx]["최종수정자"] = current_user_name
+                        source_row = st.session_state.bl_data_list[real_idx]
+                        previous_status = str(source_row.get("수금상태", "미수"))
+                        bl_no = str(source_row.get("B/L 번호", "")).strip()
+                        already = float(paid_by_bl.get(bl_no, 0))
+                        sales_amt = float(pd.to_numeric(pd.Series([source_row.get("매출액(원)", 0)]), errors="coerce").fillna(0).iloc[0])
+                        remaining = max(0, sales_amt - (already if bl_no in paid_by_bl else (sales_amt if previous_status == "수금완료" else 0)))
+                        source_row["수금상태"] = "수금완료"
+                        source_row["최종수정자"] = current_user_name
+                        if remaining > 0 and bl_no:
+                            payment_df = pd.concat([payment_df, pd.DataFrame([{
+                                "B/L 번호": bl_no, "수금일": date.today().strftime("%Y-%m-%d"),
+                                "수금액(원)": remaining, "수금방법": "일괄 수금완료 처리",
+                                "등록일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "등록자": str(current_user_name)
+                            }])], ignore_index=True)
+                            paid_by_bl[bl_no] = already + remaining
+                    save_payment_history(payment_df)
                     save_bl_data(st.session_state.bl_data_list)
                     st.success("선택하신 매출 건들이 '수금완료' 처리되었습니다!")
                     st.rerun()
