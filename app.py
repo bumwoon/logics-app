@@ -110,26 +110,172 @@ if "user_role" not in st.session_state:
 
 
 def login_screen():
-  """로그인 화면 출력 함수"""
-  st.markdown("<br><br>", unsafe_allow_html=True)
-  col1, col2, col3 = st.columns([1, 1.2, 1])
+  """범운해운항공 실제 로고를 사용하는 사내 관리자 로그인 화면.
+  기존 계정 확인, 로그인 세션 처리, 고객 추적 홈 이동 동작은 유지합니다.
+  """
+  st.markdown("""
+  <style>
+    .stApp {
+      background:
+        radial-gradient(circle at 12% 18%, rgba(75,174,255,.30), transparent 28%),
+        radial-gradient(circle at 88% 78%, rgba(14,116,190,.30), transparent 30%),
+        linear-gradient(135deg, #eaf6ff 0%, #d8edff 42%, #f8fbff 100%);
+    }
+    [data-testid="stHeader"] { background: transparent; }
+    [data-testid="stMainBlockContainer"] {
+      max-width: 980px;
+      padding-top: 2.2rem;
+      padding-bottom: 2rem;
+    }
+    .bw-login-shell {
+      max-width: 590px;
+      margin: 0 auto 12px auto;
+      padding: 28px 34px 24px 34px;
+      border: 1px solid rgba(255,255,255,.95);
+      border-radius: 28px;
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 18px 55px rgba(13,57,105,.18);
+      text-align: center;
+      backdrop-filter: blur(12px);
+    }
+    .bw-login-logo {
+      display: block;
+      width: 176px;
+      max-width: 55%;
+      height: 142px;
+      object-fit: contain;
+      margin: 0 auto 8px auto;
+    }
+    .bw-login-company {
+      color: #102f59;
+      font-size: clamp(24px, 4vw, 34px);
+      line-height: 1.25;
+      font-weight: 900;
+      letter-spacing: -1.2px;
+      margin: 3px 0 2px 0;
+    }
+    .bw-login-en {
+      color: #345778;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1.1px;
+      margin-bottom: 17px;
+    }
+    .bw-login-ribbon {
+      display: inline-block;
+      padding: 10px 25px;
+      border-radius: 999px;
+      color: #fff;
+      background: linear-gradient(100deg, #06366e, #0879c9);
+      box-shadow: 0 7px 18px rgba(0,91,164,.20);
+      font-size: 19px;
+      font-weight: 850;
+      margin: 2px 0 14px 0;
+    }
+    .bw-login-security {
+      color: #365574;
+      font-size: 13px;
+      font-weight: 700;
+      margin: 3px 0 12px 0;
+    }
+    div[data-testid="stForm"] {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 18px 20px 14px 20px;
+      border: 1px solid #d6e6f6;
+      border-radius: 18px;
+      background: rgba(255,255,255,.70);
+    }
+    div[data-testid="stTextInput"] label {
+      color: #183d68 !important;
+      font-weight: 750 !important;
+    }
+    div[data-testid="stTextInput"] input {
+      min-height: 48px;
+      border: 1px solid #b8cce2;
+      border-radius: 12px;
+      background: #fff;
+    }
+    div[data-testid="stFormSubmitButton"] button {
+      min-height: 50px;
+      border: 0;
+      border-radius: 12px;
+      color: #fff;
+      background: linear-gradient(100deg, #05a8dc, #0752c8);
+      font-size: 17px;
+      font-weight: 850;
+      box-shadow: 0 7px 16px rgba(0,91,164,.20);
+    }
+    div[data-testid="stFormSubmitButton"] button:hover {
+      border: 0;
+      color: #fff;
+      filter: brightness(1.06);
+    }
+    .bw-login-services {
+      max-width: 740px;
+      margin: 22px auto 0 auto;
+      padding: 14px 8px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: #174b7b;
+      font-size: 12px;
+      font-weight: 750;
+      text-align: center;
+    }
+    .bw-login-service {
+      min-width: 105px;
+      padding: 9px 12px;
+      border-right: 1px solid rgba(35,93,145,.22);
+    }
+    .bw-login-service:last-child { border-right: 0; }
+    .bw-login-service span { display:block; font-size:23px; margin-bottom:3px; }
+    .bw-login-footer {
+      color: #477095;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 3px;
+      font-weight: 750;
+      margin-top: 5px;
+    }
+    @media (max-width: 640px) {
+      [data-testid="stMainBlockContainer"] { padding: 1rem .6rem 1.5rem .6rem; }
+      .bw-login-shell { padding: 20px 14px 18px 14px; border-radius: 20px; }
+      .bw-login-logo { width: 145px; height: 118px; }
+      .bw-login-ribbon { font-size: 15px; padding: 9px 16px; }
+      div[data-testid="stForm"] { padding: 14px 10px 10px 10px; }
+      .bw-login-service { min-width: 82px; padding: 7px 5px; font-size: 10px; }
+    }
+  </style>
+  """, unsafe_allow_html=True)
 
+  logo_html = ""
+  if encoded_sidebar_logo:
+    logo_html = (
+      f'<img class="bw-login-logo" src="data:image/png;base64,{encoded_sidebar_logo}" '
+      'alt="BUMWOON OCEAN & AIR company logo">'
+    )
+  else:
+    logo_html = '<div class="bw-login-logo" style="height:auto;font-size:58px">🚢✈️</div>'
+
+  st.markdown(
+    f"""<div class="bw-login-shell">
+      {logo_html}
+      <div class="bw-login-company">(주)범운해운항공</div>
+      <div class="bw-login-en">BUMWOON OCEAN &amp; AIR CO., LTD.</div>
+      <div class="bw-login-ribbon">물류 관리 시스템&nbsp; <span style="color:#ffdc83">(사내 관리자)</span></div>
+      <div class="bw-login-security">🛡️ 관계자 외 접속이 제한된 보안 구역입니다.</div>
+    </div>""",
+    unsafe_allow_html=True,
+  )
+
+  col1, col2, col3 = st.columns([1, 2, 1])
   with col2:
-    st.markdown(
-        "<h2 style='text-align: center; color: #1e3a8a;'>🚢 범운해운항공 물류"
-        " 시스템 (사내 관리자)</h2>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<p style='text-align: center; color: #64748b; font-size:"
-        " 9.5pt;'>관계자 외 접속이 제한된 보안 구역입니다.</p><br>",
-        unsafe_allow_html=True,
-    )
-
     with st.form("login_form"):
-      input_id = st.text_input("아이디 (ID)")
-      input_pw = st.text_input("비밀번호 (Password)", type="password")
-      submit_login = st.form_submit_button("로그인", use_container_width=True)
+      input_id = st.text_input("아이디 (ID)", placeholder="관리자 아이디를 입력하세요")
+      input_pw = st.text_input("비밀번호 (Password)", type="password", placeholder="비밀번호를 입력하세요")
+      submit_login = st.form_submit_button("➜  로그인", use_container_width=True)
 
       if submit_login:
         if (
@@ -137,19 +283,28 @@ def login_screen():
             and st.session_state.user_db[input_id]["pw"] == input_pw
         ):
           st.session_state.logged_in_user = input_id
-          st.session_state.user_role = st.session_state.user_db[input_id][
-              "role"
-          ]
+          st.session_state.user_role = st.session_state.user_db[input_id]["role"]
           st.success(
-              f"환영합니다, {st.session_state.user_db[input_id]['name']}님!"
+            f"환영합니다, {st.session_state.user_db[input_id]['name']}님!"
           )
           st.rerun()
         else:
           st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
-    if st.button("⬅ 고객 화물 추적 홈으로 돌아가기", use_container_width=True):
+    if st.button("⌂  고객 화물 추적 홈으로 돌아가기", use_container_width=True):
       st.query_params.clear()
       st.rerun()
+
+  st.markdown("""
+    <div class="bw-login-services">
+      <div class="bw-login-service"><span>🚢</span>해상운송<br>(OCEAN)</div>
+      <div class="bw-login-service"><span>✈️</span>항공운송<br>(AIR)</div>
+      <div class="bw-login-service"><span>🚚</span>내륙운송<br>(TRUCK)</div>
+      <div class="bw-login-service"><span>📦</span>창고·보관<br>(WAREHOUSE)</div>
+      <div class="bw-login-service"><span>📑</span>통관대행<br>(CUSTOMS)</div>
+    </div>
+    <div class="bw-login-footer">BUMWOON OCEAN &amp; AIR CO., LTD.</div>
+  """, unsafe_allow_html=True)
 
 
 # ==========================================
@@ -4619,7 +4774,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
                 st.download_button(
                     "📥 거래처별 기간 정산 엑셀 다운로드 (.xlsx)",
                     data=period_buffer.getvalue(),
-                    file_name=f"거래처별기간정산_{'매출' if report_kind == '매출 거래처(화주)' else '매입'}{period_start}{period_end}.xlsx",
+                    file_name=f"거래처별기간정산_{'매출' if report_kind == '매출 거래처(화주)' else '매입'}_{period_start}_{period_end}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
                     key="download_manifest_period_report"
