@@ -785,7 +785,13 @@ def generate_barcode_html(text):
 # ==========================================
 def _find_latest_integrated_backup():
   """프로젝트 폴더(하위 backup 폴더 포함)에서 통합 백업 파일만 찾습니다."""
-  base_dir = os.path.dirname(os.path.abspath(file))
+  # Streamlit Cloud 실행 환경에서는 file 제공 여부에 의존하지 않고
+  # 현재 프로젝트 작업 폴더를 기준으로 백업 파일을 탐색합니다.
+  script_path = globals().get("file")
+  if script_path:
+    base_dir = os.path.dirname(os.path.abspath(script_path))
+  else:
+    base_dir = os.path.abspath(os.getcwd())
   backup_prefix = "범운해운항공_전체데이터_통합백업"
   found = []
   excluded_dirs = {".git", ".venv", "venv", "pycache", "node_modules"}
