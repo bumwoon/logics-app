@@ -3783,17 +3783,55 @@ elif selected_menu == "💰 매출 관리 (화주별 독립 트랙)":
             if "수금상태" not in df_bl.columns:
                 df_bl["수금상태"] = "미수"
             
-            # 1. 화주별 매출 및 미수 요약
+            # 매출/매입 금액을 숫자로 정리하고 B/L별 실제 Profit을 계산합니다.
+            if "매입액(원)" not in df_bl.columns:
+                df_bl["매입액(원)"] = 0
+            df_bl["매입액(원)"] = pd.to_numeric(
+                df_bl["매입액(원)"].astype(str).str.replace(",", "", regex=False),
+                errors="coerce"
+            ).fillna(0)
+            df_bl["수금상태"] = df_bl["수금상태"].fillna("미수").astype(str).str.strip()
+            df_bl["Profit(원)"] = df_bl["매출액(원)"] - df_bl["매입액(원)"]
+            df_bl["Profit률(%)"] = df_bl.apply(
+                lambda row: round(row["Profit(원)"] / row["매출액(원)"] * 100, 2)
+                if row["매출액(원)"] > 0 else 0.0,
+                axis=1
+            )
+
+            # 1. 화주별 매출, 매입, Profit 및 미수 요약
             sales_group = df_bl.groupby("화주명(매출)").agg(
                 총매출액=("매출액(원)", "sum"),
+                총매입액=("매입액(원)", "sum"),
+                총Profit=("Profit(원)", "sum"),
                 수금완료액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] == "수금완료"].sum()),
                 미수금잔액=("매출액(원)", lambda x: x[df_bl.loc[x.index, "수금상태"] != "수금완료"].sum()),
                 건수=("B/L 번호", "count")
-            ).reset_index().sort_values("미수금잔액", ascending=False)
-            
-            st.subheader("📋 화주별 매출 및 미수금 현황 요약")
-            st.dataframe(sales_group, use_container_width=True)
-            
+            ).reset_index()
+            sales_group["Profit률(%)"] = sales_group.apply(
+                lambda row: round(row["총Profit"] / row["총매출액"] * 100, 2)
+                if row["총매출액"] > 0 else 0.0,
+                axis=1
+            )
+            sales_group = sales_group[
+                ["화주명(매출)", "총매출액", "총매입액", "총Profit",
+                 "Profit률(%)", "수금완료액", "미수금잔액", "건수"]
+            ].sort_values("미수금잔액", ascending=False)
+
+            st.subheader("📋 화주별 매출 · 매입 · Profit 및 미수금 현황")
+            st.dataframe(
+                sales_group,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "총매출액": st.column_config.NumberColumn(format="%d 원"),
+                    "총매입액": st.column_config.NumberColumn(format="%d 원"),
+                    "총Profit": st.column_config.NumberColumn("Profit(원)", format="%d 원"),
+                    "Profit률(%)": st.column_config.NumberColumn(format="%.2f%%"),
+                    "수금완료액": st.column_config.NumberColumn(format="%d 원"),
+                    "미수금잔액": st.column_config.NumberColumn(format="%d 원"),
+                }
+            )
+
             st.markdown("---")
             
             # 2. 특정 화주 상세 매출 내역 및 수금 상태 관리
@@ -4625,160 +4663,7 @@ elif selected_menu == "📋 금일발송 매니페스트":
         unsafe_allow_html=True,
     )
 
-    tab_internal, tab_external, tab_period = st.tabs(["🔒 사내 정산용 (매출/매입/Profit 포함)", "📤 거래처 공유용 입고 LIST (금액 제외)", "📅 거래처별 기간 정산 출력"])
-
-    # -------------------------------------------------------------
-    # 3️⃣ [탭 3] 거래처별 기간 정산 출력 (매출 화주 / 매입처)
-    # -------------------------------------------------------------
-    with tab_period:
-        st.markdown("##### 📅 거래처별 기간 정산 및 금액 대조")
-        st.caption("시작일과 종료일을 달력에서 지정하면 해당 기간의 B/L 내역과 금액 합계를 확인하고 엑셀로 출력합니다.")
-
-        period_col1, period_col2 = st.columns(2)
-        with period_col1:
-            period_start = st.date_input(
-                "시작 날짜", value=date.today().replace(day=1),
-                key="manifest_period_start"
-            )
-        with period_col2:
-            period_end = st.date_input(
-                "종료 날짜", value=date.today(),
-                key="manifest_period_end"
-            )
-
-        report_kind = st.radio(
-            "조회 구분",
-            ["매출 거래처(화주)", "매입처(선사/협력사)"],
-            horizontal=True,
-            key="manifest_period_kind"
-        )
-
-        if period_start > period_end:
-            st.error("시작 날짜가 종료 날짜보다 늦습니다. 날짜를 다시 선택해 주세요.")
-        else:
-            period_records = []
-            for source_row in st.session_state.get("bl_data_list", []):
-                raw_date = str(source_row.get("날짜", "")).strip()[:10]
-                try:
-                    row_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
-                except (TypeError, ValueError):
-                    continue
-                if period_start <= row_date <= period_end:
-                    period_records.append(source_row)
-
-            def _manifest_amount(value):
-                try:
-                    if value is None or pd.isna(value):
-                        return 0
-                    return int(float(str(value).replace(",", "").replace("원", "").strip() or 0))
-                except (TypeError, ValueError, OverflowError):
-                    return 0
-
-            if report_kind == "매출 거래처(화주)":
-                party_field = "화주명(매출)"
-                amount_field = "매출액(원)"
-                party_label = "매출 거래처(화주)"
-            else:
-                party_field = "매입처"
-                amount_field = "매입액(원)"
-                party_label = "매입처(선사/협력사)"
-
-            period_parties = sorted({
-                str(row.get(party_field, "")).strip()
-                for row in period_records
-                if str(row.get(party_field, "")).strip()
-                and str(row.get(party_field, "")).strip().lower() not in ("-", "nan", "none")
-            })
-
-            if not period_records:
-                st.info("선택한 기간에 등록된 B/L 내역이 없습니다.")
-            elif not period_parties:
-                st.warning(f"선택한 기간에 {party_label}로 등록된 거래처가 없습니다.")
-            else:
-                selected_period_party = st.selectbox(
-                    f"{party_label} 선택",
-                    options=period_parties,
-                    key="manifest_period_party"
-                )
-
-                selected_period_rows = [
-                    row for row in period_records
-                    if str(row.get(party_field, "")).strip() == selected_period_party
-                ]
-
-                period_report_rows = []
-                for row in selected_period_rows:
-                    sales = _manifest_amount(row.get("매출액(원)", 0))
-                    purchase = _manifest_amount(row.get("매입액(원)", 0))
-                    period_report_rows.append({
-                        "날짜": str(row.get("날짜", ""))[:10],
-                        "B/L 번호": str(row.get("B/L 번호", "")),
-                        "매출 거래처(화주)": str(row.get("화주명(매출)", "")),
-                        "매입처": str(row.get("매입처", "")),
-                        "해외수하인": str(row.get("해외수하인", "")),
-                        "박스수": str(row.get("박스수", "")),
-                        "매출액(원)": sales,
-                        "매입액(원)": purchase,
-                        "Profit(원)": sales - purchase,
-                    })
-
-                period_df = pd.DataFrame(period_report_rows)
-                total_sales = int(period_df["매출액(원)"].sum())
-                total_purchase = int(period_df["매입액(원)"].sum())
-                total_profit = int(period_df["Profit(원)"].sum())
-
-                st.markdown(f"#### {selected_period_party} · {period_start:%Y-%m-%d} ~ {period_end:%Y-%m-%d}")
-                metric_cols = st.columns(4)
-                metric_cols[0].metric("B/L 건수", f"{len(period_df):,}건")
-                metric_cols[1].metric("총 매출", f"{total_sales:,}원")
-                metric_cols[2].metric("총 매입", f"{total_purchase:,}원")
-                metric_cols[3].metric("총 Profit", f"{total_profit:,}원")
-
-                st.dataframe(period_df, use_container_width=True, hide_index=True)
-
-                export_df = pd.concat([
-                    period_df,
-                    pd.DataFrame([{
-                        "날짜": "합계",
-                        "B/L 번호": f"총 {len(period_df)}건",
-                        "매출 거래처(화주)": selected_period_party if report_kind == "매출 거래처(화주)" else "",
-                        "매입처": selected_period_party if report_kind == "매입처(선사/협력사)" else "",
-                        "해외수하인": "",
-                        "박스수": "",
-                        "매출액(원)": total_sales,
-                        "매입액(원)": total_purchase,
-                        "Profit(원)": total_profit,
-                    }])
-                ], ignore_index=True)
-
-                period_buffer = io.BytesIO()
-                with pd.ExcelWriter(period_buffer, engine="openpyxl") as writer:
-                    export_df.to_excel(writer, index=False, sheet_name="거래처별기간정산")
-                    ws_period = writer.sheets["거래처별기간정산"]
-                    ws_period.freeze_panes = "A2"
-                    ws_period.auto_filter.ref = ws_period.dimensions
-                    for cell in ws_period[1]:
-                        cell.font = openpyxl.styles.Font(name="맑은 고딕", bold=True, color="FFFFFF")
-                        cell.fill = openpyxl.styles.PatternFill(
-                            start_color="1E3A8A", end_color="1E3A8A", fill_type="solid"
-                        )
-                        cell.alignment = openpyxl.styles.Alignment(horizontal="center")
-                    for col_cells in ws_period.columns:
-                        col_letter = col_cells[0].column_letter
-                        max_len = max((len(str(c.value or "")) for c in col_cells), default=10)
-                        ws_period.column_dimensions[col_letter].width = min(max(max_len + 2, 12), 28)
-                    for row_idx in range(2, ws_period.max_row + 1):
-                        for col_idx in (7, 8, 9):
-                            ws_period.cell(row_idx, col_idx).number_format = '#,##0" 원"'
-
-                st.download_button(
-                    "📥 거래처별 기간 정산 엑셀 다운로드 (.xlsx)",
-                    data=period_buffer.getvalue(),
-                    file_name=f"거래처별기간정산_{'매출' if report_kind == '매출 거래처(화주)' else '매입'}_{period_start}_{period_end}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    key="download_manifest_period_report"
-                )
+    tab_internal, tab_external = st.tabs(["🔒 사내 정산용 (매출/매입/Profit 포함)", "📤 거래처 공유용 입고 LIST (금액 제외)"])
 
     # -------------------------------------------------------------
     # 1️⃣ [탭 1] 사내 정산용 (매출, 매입, Profit + 맨 아래 합계 행 포함 + A4 가로 맞춤 엑셀)
