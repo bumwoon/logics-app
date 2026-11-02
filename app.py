@@ -810,50 +810,41 @@ def save_supplier_data(supplier_list, supplier_rates, supplier_infos):
 
 
 def _select_rate(rates_by_country, country, transport_mode, item_name):
-  """Select only an exact country/transport/item rate, or an unambiguous sole option."""
+  """국가·운송형태·품목이 모두 정확히 일치하는 요율만 선택합니다."""
   if not isinstance(rates_by_country, dict) or not rates_by_country:
     return None
 
   country_key = str(country or "").strip()
-  if country_key in rates_by_country:
-    country_rates = rates_by_country[country_key]
-  elif len(rates_by_country) == 1:
-    country_rates = next(iter(rates_by_country.values()))
-  else:
-    return None
-
-  if not isinstance(country_rates, dict) or not country_rates:
-    return None
-  if transport_mode in country_rates:
-    transport_rates = country_rates[transport_mode]
-  elif len(country_rates) == 1:
-    transport_rates = next(iter(country_rates.values()))
-  else:
-    return None
-
-  if not isinstance(transport_rates, dict) or not transport_rates:
-    return None
+  transport_key = str(transport_mode or "").strip()
   item_key = str(item_name or "").strip()
-  if item_key in transport_rates:
-    rate = transport_rates[item_key]
-  elif len(transport_rates) == 1:
-    rate = next(iter(transport_rates.values()))
-  else:
+  if not country_key or not transport_key or not item_key:
     return None
+
+  country_rates = rates_by_country.get(country_key)
+  if not isinstance(country_rates, dict):
+    return None
+  transport_rates = country_rates.get(transport_key)
+  if not isinstance(transport_rates, dict):
+    return None
+  rate = transport_rates.get(item_key)
   return rate if isinstance(rate, dict) else None
 
 
-def _calculate_weight_rate(rate, cw, default_base, default_add):
-  try:
-    chargeable_weight = max(0.0, float(cw))
-    base_weight = max(0.0, float(rate.get("기본중량", 1.0)))
-    base_price = max(0, int(float(rate.get("기본요금", default_base))))
-    add_price = max(0, int(float(rate.get("추가단가", default_add))))
-  except (TypeError, ValueError, OverflowError):
+def _calculate_weight_rate(rate, cw, default_base=None, default_add=None):
+  """요율표의 입력값만 사용합니다. 누락/잘못된 값은 임의 기본요금으로 대체하지 않습니다."""
+  if not isinstance(rate, dict):
     return None
-  if chargeable_weight <= base_weight:
-    return base_price
-  return int(base_price + math.ceil(chargeable_weight - base_weight) * add_price)
+  try:
+    chargeable_weight = float(cw)
+    base_weight = float(rate["기본중량"])
+    base_price = int(float(rate["기본요금"]))
+    add_price = int(float(rate["추가단가"]))
+    if chargeable_weight < 0 or base_weight < 0 or base_price < 0 or add_price < 0:
+      return None
+  except (KeyError, TypeError, ValueError, OverflowError):
+    return None
+  extra_units = max(0, math.ceil(chargeable_weight - base_weight))
+  return base_price + extra_units * add_price
 
 
 def calculate_auto_price(
@@ -861,10 +852,9 @@ def calculate_auto_price(
 ):
   rates_dict = st.session_state.get("client_rates", {}).get(client_name, {})
   rate = _select_rate(rates_dict, country, transport_mode, item_name)
-  price = _calculate_weight_rate(rate, cw, 38000, 25000) if rate else None
-  if price is not None:
-    return price
-  return int(38000 + math.ceil(max(0.0, float(cw) - 1.0)) * 25000)
+  if rate is None:
+    return None
+  return _calculate_weight_rate(rate, cw)
 
 
 def calculate_purchase_auto_price(
@@ -3327,7 +3317,7 @@ if selected_menu == "📊 수출입 B/L 등록":
         with col1:
             dest_country = st.selectbox("도착 국가", COUNTRY_LIST)
             item_desc = st.selectbox(
-                "품목", options=["보톡스", "필러", "화장품", "특가품목", "기타"]
+                "품목", options=["보톡스", "필러", "보톡스 필러", "화장품", "특가품목", "의약품", "일반화물", "기타"]
             )
             consignee_name = st.text_input("해외 수하인")
             consignee_addr = st.text_input("해외 수하인 주소", placeholder="예: 123 Main St, New York, NY 10001")
@@ -3390,12 +3380,15 @@ if selected_menu == "📊 수출입 B/L 등록":
             auto_sales_price = calculate_auto_price(
                 shipper_name, sales_chargeable_weight, transport_type, item_desc, dest_country
             )
+            if auto_sales_price is None:
+                st.error(f"매출 요율을 찾을 수 없습니다. 거래처({shipper_name}) / 국가({dest_country}) / 운송({transport_type}) / 품목({item_desc}) 요율표를 정확히 등록해 주세요. 임의 기본요금은 적용하지 않습니다.")
             total_sales = st.number_input(
                 "총 매출액 (원) [자동 계산 및 수정 가능]",
-                value=int(auto_sales_price),
+                value=int(auto_sales_price or 0),
                 min_value=0,
                 step=1000,
                 format="%d",
+                key=f"total_sales_{shipper_name}_{dest_country}_{transport_type}_{item_desc}_{sales_chargeable_weight}",
             )
 
         with col4:
@@ -3432,7 +3425,7 @@ if selected_menu == "📊 수출입 B/L 등록":
 
         remarks = st.text_area("비고")
 
-        if st.button("💾 B/L 등록 저장", type="primary", use_container_width=True):
+        if st.button("💾 B/L 등록 저장", type="primary", use_container_width=True, disabled=(auto_sales_price is None)):
             if job_no.strip() and shipper_name.strip():
                 preview_profit = int(total_sales) - int(total_purchase)
                 st.session_state.bl_data_list.append({
